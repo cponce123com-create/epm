@@ -26,26 +26,44 @@ app.use(
 );
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Acepta peticiones desde cualquier origen. El rewrite de Render estático
-// llega como petición cross-origin desde el CDN, por eso Authorization
-// debe estar explícitamente permitido para que los tokens JWT funcionen.
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-    ],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    maxAge: 86400,
-  }),
-);
+// origin: true refleja el Origin de cada petición entrante.
+// Authorization debe estar explícitamente permitido para que los JWT funcionen
+// cuando el frontend (CDN de Render) llama al backend como origen distinto.
+const corsOptions: cors.CorsOptions = {
+  origin: true,
+  credentials: true,
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  maxAge: 86400,
+};
 
-// Preflight OPTIONS explícito (fallback de seguridad)
-app.options("*", cors());
+app.use(cors(corsOptions));
+
+// Preflight OPTIONS — Express 5 requiere nombre de parámetro en wildcards,
+// por eso usamos el middleware global en vez de app.options("*", ...)
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Accept",
+    );
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    );
+    res.setHeader("Access-Control-Max-Age", "86400");
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 
 // ── Body parsers ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "50mb" }));
