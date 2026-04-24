@@ -15,6 +15,7 @@ import ArticleList from "@/pages/admin/ArticleList";
 import ArticleEditor from "@/pages/admin/ArticleEditor";
 import Comments from "@/pages/admin/Comments";
 import Settings from "@/pages/admin/Settings";
+import MediumImport from "@/pages/admin/MediumImport";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -58,6 +59,9 @@ function Router() {
       </Route>
       <Route path="/admin/settings">
         {() => <ProtectedRoute component={Settings} />}
+      </Route>
+      <Route path="/admin/import-medium">
+        {() => <ProtectedRoute component={MediumImport} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
