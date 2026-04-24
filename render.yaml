@@ -1,0 +1,61 @@
+databases:
+  - name: epm-db
+    databaseName: epm
+    user: epm
+    plan: free
+
+services:
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  - type: web
+    name: epm-api
+    runtime: node
+    plan: free
+    rootDir: artifacts/api-server
+    buildCommand: |
+      cd ../../ && npm install -g pnpm && pnpm install --frozen-lockfile && pnpm -r --filter @workspace/db push && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps ./dist/index.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: epm-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@elprincinemestizo.com   # cambia esto
+      - key: ADMIN_PASSWORD
+        value: CHANGE_ME_BEFORE_DEPLOY       # cambia esto
+      # Cloudinary (opcional — si no se configura, las imágenes usan placeholder)
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ""
+      - key: CLOUDINARY_API_KEY
+        value: ""
+      - key: CLOUDINARY_API_SECRET
+        value: ""
+
+  # ── Frontend (Static Site) ───────────────────────────────────────────────────
+  - type: web
+    name: epm-frontend
+    runtime: static
+    plan: free
+    rootDir: artifacts/el-principe-mestizo
+    buildCommand: |
+      cd ../../ && npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/el-principe-mestizo... run build
+    staticPublishPath: dist/public
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: BASE_PATH
+        value: /
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://epm-api.onrender.com/api/*   # ← actualiza con tu URL real del API
+      - type: rewrite
+        source: /*
+        destination: /index.html
