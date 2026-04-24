@@ -5,169 +5,195 @@ import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import ArticleCardFeatured from "@/components/ArticleCardFeatured";
 import Sidebar from "@/components/Sidebar";
-import { useGetFeaturedArticles, useGetArticles } from "@workspace/api-client-react";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
-
-function SkeletonCard() {
-  return (
-    <div className="bg-card rounded-xl overflow-hidden border border-card-border">
-      <div className="aspect-[16/9] skeleton-shimmer" />
-      <div className="p-5 space-y-3">
-        <div className="h-3 skeleton-shimmer rounded w-20" />
-        <div className="h-4 skeleton-shimmer rounded w-full" />
-        <div className="h-4 skeleton-shimmer rounded w-4/5" />
-        <div className="h-3 skeleton-shimmer rounded w-3/4 mt-2" />
-        <div className="h-3 skeleton-shimmer rounded w-1/2 mt-1" />
-        <div className="h-3 skeleton-shimmer rounded w-28 mt-4" />
-      </div>
-    </div>
-  );
-}
+import { useGetFeaturedArticles, useGetArticles, useGetCategories } from "@workspace/api-client-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function SkeletonHero() {
+  return <div className="w-full skeleton-shimmer" style={{ aspectRatio: "16/8", minHeight: 260 }} />;
+}
+function SkeletonCard() {
   return (
-    <div className="aspect-[21/9] skeleton-shimmer rounded-xl mb-8 min-h-[220px]" />
+    <div className="news-card">
+      <div className="skeleton-shimmer w-full mb-2" style={{ aspectRatio: "16/9" }} />
+      <div className="h-3 skeleton-shimmer rounded w-20 mb-2" />
+      <div className="h-4 skeleton-shimmer rounded w-full mb-1" />
+      <div className="h-4 skeleton-shimmer rounded w-3/4 mb-2" />
+      <div className="h-3 skeleton-shimmer rounded w-28" />
+    </div>
   );
 }
 
 export default function Home() {
   const [page, setPage] = useState(1);
-  const { data: featured, isLoading: loadingFeatured } = useGetFeaturedArticles();
-  const { data: articlesPage, isLoading: loadingArticles } = useGetArticles({ page, limit: 9 });
+  const { data: featured,     isLoading: loadingFeatured }  = useGetFeaturedArticles();
+  const { data: articlesPage, isLoading: loadingArticles }  = useGetArticles({ page, limit: 12 });
+  const { data: categories }                                = useGetCategories();
 
-  const hero = featured?.[0];
-  const secondaryFeatured = featured?.slice(1);
+  const hero      = featured?.[0];
+  const secondary = featured?.slice(1, 3);   // dos secundarios
+  const tertiary  = featured?.slice(3, 7);   // hasta 4 terciarios
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 py-8 md:py-10">
+      {/* ── Publicidad leaderboard ── */}
+      <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="ad-slot ad-slot--leaderboard" />
+      </div>
 
-        {/* Hero — artículo destacado principal */}
+      <main className="max-w-7xl mx-auto px-4 pb-12">
+
+        {/* ════════════════════════════════════════
+            BLOQUE HERO
+        ════════════════════════════════════════ */}
         {loadingFeatured ? (
-          <SkeletonHero />
-        ) : hero ? (
-          <div className="mb-8">
-            <ArticleCardFeatured article={hero} large />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="lg:col-span-2"><SkeletonHero /></div>
+            <div className="space-y-4">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
           </div>
-        ) : null}
+        ) : hero && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 mb-0">
+            {/* Hero principal — 2/3 del ancho */}
+            <div className="lg:col-span-2 col-divider pr-0 lg:pr-4">
+              <ArticleCardFeatured article={hero} large />
+            </div>
 
-        {/* Destacados secundarios */}
-        {secondaryFeatured && secondaryFeatured.length > 0 && (
-          <div
-            className={`grid gap-5 mb-12 ${
-              secondaryFeatured.length === 1
-                ? "grid-cols-1 max-w-2xl"
-                : "grid-cols-1 md:grid-cols-2"
-            }`}
-          >
-            {secondaryFeatured.map(article => (
-              <ArticleCardFeatured key={article.id} article={article} />
-            ))}
+            {/* Secundarios — 1/3 del ancho */}
+            <div className="pl-0 lg:pl-4 pt-4 lg:pt-0 space-y-0">
+              {secondary?.map((art, i) => (
+                <div key={art.id} className={i < (secondary.length - 1) ? "border-b border-border pb-4 mb-4" : ""}>
+                  <ArticleCard article={art} size="md" showSummary={i === 0} index={i} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Separador de sección */}
-        <div className="flex items-center gap-4 mb-8 md:mb-10">
-          <div className="h-px bg-border flex-1" />
-          <div className="flex items-center gap-2 px-3">
-            <Flame size={14} className="text-primary" />
-            <h2 className="font-sans-ui text-xs uppercase tracking-widest font-semibold text-muted-foreground">
-              Últimas entregas
-            </h2>
-          </div>
-          <div className="h-px bg-border flex-1" />
+        {/* ════════════════════════════════════════
+            PUBLICIDAD HORIZONTAL
+        ════════════════════════════════════════ */}
+        <div className="my-5">
+          <div className="ad-slot ad-slot--leaderboard" />
         </div>
 
-        {/* Layout principal: artículos + sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10 xl:gap-14">
+        {/* ════════════════════════════════════════
+            GRID PRINCIPAL: artículos + sidebar
+        ════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+
+          {/* ── Columna izquierda ── */}
           <div>
-            {loadingArticles ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
-              </div>
-            ) : articlesPage?.articles.length === 0 ? (
-              <div className="text-center py-16 animate-fade-in">
-                <div className="text-4xl mb-4">✍️</div>
-                <p className="font-display text-lg text-foreground mb-2">Aún no hay artículos publicados</p>
-                <p className="text-muted-foreground font-sans-ui text-sm">
-                  Importa tus artículos desde{" "}
-                  <Link href="/admin/import-medium" className="text-primary underline">
-                    Medium
-                  </Link>{" "}
-                  o crea uno nuevo desde el panel de administración.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 md:gap-6 mb-10">
-                  {articlesPage?.articles.map((article, i) => (
-                    <ArticleCard key={article.id} article={article} index={i} />
+            {/* Terciarios destacados */}
+            {tertiary && tertiary.length > 0 && (
+              <div className="mb-6">
+                <div className="section-heading section-heading--colored">Destacados</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {tertiary.map((art, i) => (
+                    <ArticleCard key={art.id} article={art} size="sm" index={i} />
                   ))}
                 </div>
-
-                {/* Paginación */}
-                {articlesPage && articlesPage.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                      disabled={page === 1}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:-translate-x-0.5"
-                    >
-                      <ChevronLeft size={16} />
-                      Anterior
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: articlesPage.totalPages }, (_, i) => i + 1)
-                        .filter(p => p === 1 || p === articlesPage.totalPages || Math.abs(p - page) <= 1)
-                        .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                          if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
-                          acc.push(p);
-                          return acc;
-                        }, [])
-                        .map((p, i) =>
-                          p === "..." ? (
-                            <span key={`dots-${i}`} className="px-2 text-muted-foreground font-sans-ui text-sm">…</span>
-                          ) : (
-                            <button
-                              key={p}
-                              onClick={() => { setPage(p as number); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                              className={`w-9 h-9 rounded-lg text-sm font-sans-ui font-medium transition-all ${
-                                page === p
-                                  ? "bg-primary text-primary-foreground shadow-sm"
-                                  : "border border-border hover:bg-muted text-foreground"
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          )
-                        )
-                      }
-                    </div>
-
-                    <button
-                      onClick={() => { setPage(p => Math.min(articlesPage.totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                      disabled={page >= articlesPage.totalPages}
-                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:translate-x-0.5"
-                    >
-                      Siguiente
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                )}
-              </>
+              </div>
             )}
+
+            {/* Categorías en secciones */}
+            {categories?.filter(c => c.articleCount > 0).map(cat => (
+              <CategorySection key={cat.id} catSlug={cat.slug} catName={cat.name} catColor={cat.color} />
+            ))}
+
+            {/* ── Todos los artículos paginados ── */}
+            <div className="mt-8">
+              <div className="section-heading">Últimas entregas</div>
+
+              {loadingArticles ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
+                  {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+                </div>
+              ) : articlesPage?.articles.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="font-display text-lg text-gray-500 mb-2">No hay artículos publicados aún</p>
+                  <p className="text-sm font-sans-ui text-gray-400">
+                    Importa tus artículos desde el{" "}
+                    <Link href="/admin/import-medium" className="text-red-700 underline">panel de administración</Link>
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
+                    {articlesPage?.articles.map((article, i) => (
+                      <ArticleCard key={article.id} article={article} index={i} />
+                    ))}
+                  </div>
+
+                  {/* Paginación */}
+                  {articlesPage && articlesPage.totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 mt-8 pt-6 border-t border-border">
+                      <button
+                        onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        disabled={page === 1}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft size={15} /> Anterior
+                      </button>
+
+                      <span className="text-sm font-sans-ui text-gray-500 px-3">
+                        {page} / {articlesPage.totalPages}
+                      </span>
+
+                      <button
+                        onClick={() => { setPage(p => Math.min(articlesPage.totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        disabled={page >= articlesPage.totalPages}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Siguiente <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
+          {/* ── Sidebar ── */}
           <Sidebar />
         </div>
       </main>
 
       <Footer />
+    </div>
+  );
+}
+
+/* ── Mini sección por categoría ── */
+function CategorySection({ catSlug, catName, catColor }: { catSlug: string; catName: string; catColor: string }) {
+  const { data } = useGetArticles({ page: 1, limit: 4, category: catSlug });
+  const articles = data?.articles ?? [];
+  if (articles.length === 0) return null;
+
+  const [main, ...rest] = articles;
+
+  return (
+    <div className="mb-8">
+      <div className="section-heading section-heading--colored" style={{ borderTopColor: catColor, color: catColor }}>
+        <Link href={`/categoria/${catSlug}`} className="hover:underline">{catName}</Link>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-5">
+        {/* Principal de la sección */}
+        <div className="col-divider pr-0 md:pr-5">
+          <ArticleCard article={main} size="lg" showSummary />
+        </div>
+
+        {/* Secundarios de la sección */}
+        <div>
+          {rest.map((art, i) => (
+            <ArticleCard key={art.id} article={art} size="sm" horizontal index={i} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

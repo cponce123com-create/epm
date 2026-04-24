@@ -17,78 +17,82 @@ export default function Category() {
   );
 
   const category = categories?.find(c => c.slug === slug);
-  const categoryNames: Record<string, string> = {
-    denuncia: "Denuncia",
-    opinion: "Opinión",
-    investigacion: "Investigación",
-    ciudad: "Ciudad",
-    politica: "Política",
-  };
-  const displayName = category?.name ?? categoryNames[slug ?? ""] ?? slug ?? "";
+  const catColor = category?.color ?? "#C0392B";
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Category banner */}
-      <div
-        className="py-12 px-4"
-        style={{ backgroundColor: category?.color ? `${category.color}18` : "hsl(var(--muted))", borderBottom: `3px solid ${category?.color ?? "hsl(var(--primary))"}` }}
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: category?.color ?? "hsl(var(--primary))" }}
-            />
-            <span className="font-sans-ui text-xs uppercase tracking-widest text-muted-foreground">Sección</span>
+      {/* Banda de categoría */}
+      <div className="border-b-4" style={{ borderColor: catColor }}>
+        <div className="max-w-7xl mx-auto px-4 py-5">
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: catColor }} />
+            <h1 className="font-display text-2xl md:text-3xl font-bold text-gray-900">
+              {category?.name ?? slug}
+            </h1>
+            {category?.articleCount != null && (
+              <span className="text-xs font-sans-ui text-gray-400 ml-2">
+                {category.articleCount} artículos
+              </span>
+            )}
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">{displayName}</h1>
           {category?.description && (
-            <p className="font-serif text-base text-muted-foreground max-w-2xl">{category.description}</p>
+            <p className="font-serif-body text-sm text-gray-500 mt-1 max-w-2xl">{category.description}</p>
           )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
           <div>
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-80 bg-muted rounded-lg animate-pulse" />
+                  <div key={i} className="news-card">
+                    <div className="skeleton-shimmer w-full mb-2" style={{ aspectRatio: "16/9" }} />
+                    <div className="h-3 skeleton-shimmer rounded w-20 mb-2" />
+                    <div className="h-4 skeleton-shimmer rounded w-full mb-1" />
+                    <div className="h-4 skeleton-shimmer rounded w-3/4" />
+                  </div>
                 ))}
               </div>
             ) : articlesPage?.articles.length === 0 ? (
-              <p className="text-muted-foreground font-sans-ui text-sm">No hay artículos en esta categoría aún.</p>
+              <p className="text-gray-400 font-sans-ui text-sm py-12 text-center">
+                No hay artículos en esta categoría aún.
+              </p>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-                  {articlesPage?.articles.map(article => (
-                    <ArticleCard key={article.id} article={article} />
+                {/* Primer artículo grande */}
+                {articlesPage?.articles[0] && (
+                  <div className="mb-6 pb-6 border-b border-border">
+                    <ArticleCard article={articlesPage.articles[0]} size="lg" showSummary />
+                  </div>
+                )}
+
+                {/* Resto en grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
+                  {articlesPage?.articles.slice(1).map((article, i) => (
+                    <ArticleCard key={article.id} article={article} index={i} />
                   ))}
                 </div>
 
                 {articlesPage && articlesPage.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-3 mt-8 pt-6 border-t border-border">
                     <button
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page === 1}
-                      className="flex items-center gap-1 px-3 py-2 text-sm font-sans-ui border border-border rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <ChevronLeft size={16} />
-                      Anterior
+                      <ChevronLeft size={15} /> Anterior
                     </button>
-                    <span className="font-sans-ui text-sm text-muted-foreground px-3">
-                      Página {page} de {articlesPage.totalPages}
-                    </span>
+                    <span className="text-sm font-sans-ui text-gray-400">{page} / {articlesPage.totalPages}</span>
                     <button
                       onClick={() => setPage(p => Math.min(articlesPage.totalPages, p + 1))}
                       disabled={page >= articlesPage.totalPages}
-                      className="flex items-center gap-1 px-3 py-2 text-sm font-sans-ui border border-border rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      Siguiente
-                      <ChevronRight size={16} />
+                      Siguiente <ChevronRight size={15} />
                     </button>
                   </div>
                 )}
