@@ -55,7 +55,7 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://epm-api.onrender.com/api/*   # ← actualiza con tu URL real del API
+        destination: https://epm-7gaq.onrender.com*   # ← actualiza con tu URL real del API
       - type: rewrite
         source: /*
         destination: /index.html
