@@ -1,86 +1,127 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, User } from "lucide-react";
 import type { Article } from "@workspace/api-client-react";
 
 interface Props {
   article: Article;
-  /** Índice de la tarjeta para animar en cascada (0-5) */
+  /** Variante de tamaño */
+  size?: "sm" | "md" | "lg";
+  /** Layout horizontal (thumbnail a la derecha) */
+  horizontal?: boolean;
+  /** Índice para animación en cascada */
   index?: number;
+  /** Mostrar resumen */
+  showSummary?: boolean;
 }
 
-export default function ArticleCard({ article, index = 0 }: Props) {
+export default function ArticleCard({
+  article,
+  size = "md",
+  horizontal = false,
+  index = 0,
+  showSummary = false,
+}: Props) {
   const date = article.publishedAt
     ? new Date(article.publishedAt)
     : new Date(article.createdAt);
 
-  const staggerClass = `stagger-${Math.min(index + 1, 6)}`;
+  const stagger = `stagger-${Math.min(index + 1, 6)}`;
+  const catColor = article.category?.color ?? "#C0392B";
+
+  /* ── Horizontal (thumbnail a la derecha) ── */
+  if (horizontal) {
+    return (
+      <div className={`news-card animate-fade-in-up ${stagger} flex gap-3 items-start`}>
+        <div className="flex-1 min-w-0">
+          <div className="news-card__section" style={{ color: catColor }}>
+            {article.category?.name}
+          </div>
+          <Link href={`/articulo/${article.slug}`}>
+            <h3 className={`news-card__title ${size === "sm" ? "text-[0.88rem]" : ""} hover:text-red-700`}>
+              {article.title}
+            </h3>
+          </Link>
+          <div className="news-card__meta">
+            {article.authorName && (
+              <span className="news-card__author">{article.authorName}</span>
+            )}
+            <span>{format(date, "d MMM yyyy", { locale: es })}</span>
+          </div>
+        </div>
+        {article.coverImageUrl && (
+          <Link href={`/articulo/${article.slug}`} className="shrink-0">
+            <div className="overflow-hidden" style={{ width: 96, height: 72 }}>
+              <img
+                src={article.coverImageUrl}
+                alt={article.coverImageAlt ?? article.title}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+            </div>
+          </Link>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Vertical (imagen arriba) ── */
+  const titleClass =
+    size === "lg"
+      ? "news-card__title news-card__title--lg"
+      : size === "sm"
+      ? "news-card__title text-[0.88rem]"
+      : "news-card__title";
 
   return (
-    <article
-      className={`article-card animate-fade-in-up ${staggerClass} bg-card rounded-xl overflow-hidden border border-card-border group flex flex-col`}
-    >
-      {/* Imagen de portada */}
-      <Link href={`/articulo/${article.slug}`} className="block overflow-hidden">
-        <div className="aspect-[16/9] overflow-hidden bg-muted">
-          {article.coverImageUrl ? (
-            <img
-              src={article.coverImageUrl}
-              alt={article.coverImageAlt ?? article.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[hsl(210_15%_18%)] to-[hsl(355_60%_28%)] flex items-center justify-center">
-              <span className="font-display text-4xl text-white/20 font-bold select-none">
-                EPM
-              </span>
-            </div>
-          )}
-        </div>
+    <div className={`news-card animate-fade-in-up ${stagger}`}>
+      {/* Imagen */}
+      {article.coverImageUrl ? (
+        <Link href={`/articulo/${article.slug}`} className="news-card__img">
+          <img
+            src={article.coverImageUrl}
+            alt={article.coverImageAlt ?? article.title}
+            loading="lazy"
+            className="w-full object-cover hover:scale-105 transition-transform duration-300"
+            style={{ aspectRatio: "16/9" }}
+          />
+        </Link>
+      ) : (
+        <Link href={`/articulo/${article.slug}`} className="news-card__img">
+          <div
+            className="w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center"
+            style={{ aspectRatio: "16/9" }}
+          >
+            <span className="font-display text-3xl text-gray-400 font-bold select-none opacity-40">EPM</span>
+          </div>
+        </Link>
+      )}
+
+      {/* Categoría */}
+      <div className="news-card__section" style={{ color: catColor }}>
+        <Link href={`/categoria/${article.category?.slug ?? ""}`} className="hover:underline">
+          {article.category?.name}
+        </Link>
+      </div>
+
+      {/* Título */}
+      <Link href={`/articulo/${article.slug}`}>
+        <h3 className={`${titleClass} hover:text-red-700`}>{article.title}</h3>
       </Link>
 
-      <div className="p-5 flex flex-col flex-1">
-        {/* Categoría */}
-        <div className="mb-3">
-          <Link href={`/categoria/${article.category?.slug ?? ""}`}>
-            <span
-              className="inline-block text-[11px] font-sans-ui font-semibold px-2.5 py-0.5 rounded text-white uppercase tracking-wider hover:opacity-85 transition-opacity"
-              style={{ backgroundColor: article.category?.color ?? "#C0392B" }}
-            >
-              {article.category?.name}
-            </span>
-          </Link>
-        </div>
+      {/* Resumen opcional */}
+      {showSummary && article.summary && (
+        <p className="news-card__summary line-clamp-2">{article.summary}</p>
+      )}
 
-        {/* Título */}
-        <Link href={`/articulo/${article.slug}`} className="flex-1">
-          <h2 className="font-display text-[1.05rem] font-semibold leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-3">
-            {article.title}
-          </h2>
-        </Link>
-
-        {/* Resumen */}
-        <p className="text-sm text-muted-foreground font-serif leading-relaxed line-clamp-2 mb-4">
-          {article.summary}
-        </p>
-
-        {/* Meta */}
-        <div className="flex items-center gap-3 text-[11px] font-sans-ui text-muted-foreground mt-auto pt-3 border-t border-border">
-          <span className="flex items-center gap-1">
-            <User size={11} />
-            {article.authorName}
-          </span>
-          <span className="text-border">·</span>
-          <span>{format(date, "d MMM yyyy", { locale: es })}</span>
-          <span className="text-border">·</span>
-          <span className="flex items-center gap-1 ml-auto">
-            <Clock size={11} />
-            {article.readingTime} min
-          </span>
-        </div>
+      {/* Meta */}
+      <div className="news-card__meta">
+        {article.authorName && (
+          <span className="news-card__author">{article.authorName}</span>
+        )}
+        <span>{format(date, "d MMM yyyy", { locale: es })}</span>
+        <span>{article.readingTime} min</span>
       </div>
-    </article>
+    </div>
   );
 }

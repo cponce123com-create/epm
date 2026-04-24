@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, ArrowRight, User } from "lucide-react";
 import type { Article } from "@workspace/api-client-react";
 
 interface Props {
@@ -14,35 +13,33 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
     ? new Date(article.publishedAt)
     : new Date(article.createdAt);
 
-  /* ── Hero grande ── */
+  const catColor = article.category?.color ?? "#C0392B";
+
+  /* ── Hero principal (ocupa todo el ancho) ── */
   if (large) {
     return (
-      <article className="relative overflow-hidden rounded-xl group animate-fade-in shadow-lg">
-        {/* Imagen */}
-        <div className="aspect-[21/9] md:aspect-[21/8] relative min-h-[260px]">
-          {article.coverImageUrl ? (
-            <img
-              src={article.coverImageUrl}
-              alt={article.coverImageAlt ?? article.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[hsl(210_18%_10%)] via-[hsl(355_60%_20%)] to-[hsl(210_15%_8%)]" />
-          )}
-          {/* Gradiente de lectura */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" />
-
-          {/* Línea carmesí decorativa */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-[hsl(355_72%_38%)]" />
-        </div>
-
-        {/* Contenido superpuesto */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 md:p-10">
+      <div className="hero-card animate-fade-in">
+        {article.coverImageUrl ? (
+          <img
+            src={article.coverImageUrl}
+            alt={article.coverImageAlt ?? article.title}
+            className="hero-card__img"
+          />
+        ) : (
+          <div
+            className="hero-card__img bg-gradient-to-br from-gray-800 to-red-900"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <span className="font-display text-white/20 text-6xl font-bold">EPM</span>
+          </div>
+        )}
+        <div className="hero-card__overlay" />
+        <div className="hero-card__body">
           {/* Categoría */}
           <Link href={`/categoria/${article.category?.slug ?? ""}`}>
             <span
-              className="inline-block text-xs font-sans-ui font-semibold px-3 py-1 rounded text-white uppercase tracking-widest mb-4 hover:opacity-85 transition-opacity"
-              style={{ backgroundColor: article.category?.color ?? "#C0392B" }}
+              className="inline-block text-[11px] font-sans-ui font-700 uppercase tracking-widest text-white px-2.5 py-0.5 mb-3"
+              style={{ backgroundColor: catColor }}
             >
               {article.category?.name}
             </span>
@@ -50,91 +47,64 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
 
           {/* Título */}
           <Link href={`/articulo/${article.slug}`}>
-            <h1 className="font-display text-2xl md:text-4xl font-bold text-white leading-tight mb-3 hover:text-[hsl(355_72%_78%)] transition-colors">
+            <h1 className="font-display text-white font-bold leading-tight mb-3 hover:text-red-200 transition-colors"
+              style={{ fontSize: "clamp(1.5rem, 3vw + 0.5rem, 2.6rem)", lineHeight: 1.15 }}>
               {article.title}
             </h1>
           </Link>
 
           {/* Resumen */}
-          <p className="text-[hsl(35_20%_82%)] font-serif text-base md:text-lg leading-relaxed mb-5 max-w-3xl line-clamp-2 hidden sm:block">
+          <p className="text-gray-300 font-serif-body text-base leading-relaxed mb-4 max-w-3xl line-clamp-2 hidden sm:block">
             {article.summary}
           </p>
 
-          {/* Meta + CTA */}
-          <div className="flex flex-wrap items-center gap-3 md:gap-5">
-            <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm font-sans-ui text-[hsl(35_15%_62%)]">
-              <span className="flex items-center gap-1.5">
-                <User size={12} />
-                {article.authorName}
-              </span>
-              <span className="hidden sm:inline">·</span>
-              <span className="hidden sm:inline">
-                {format(date, "d 'de' MMMM 'de' yyyy", { locale: es })}
-              </span>
-              <span className="sm:hidden">
-                {format(date, "d MMM yyyy", { locale: es })}
-              </span>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Clock size={12} />
-                {article.readingTime} min
-              </span>
-            </div>
-
-            <Link
-              href={`/articulo/${article.slug}`}
-              className="ml-auto flex items-center gap-2 font-sans-ui text-sm font-semibold text-white bg-[hsl(355_72%_38%)] hover:bg-[hsl(355_72%_46%)] px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-            >
-              Leer más <ArrowRight size={14} />
-            </Link>
+          {/* Meta */}
+          <div className="flex flex-wrap items-center gap-3 text-[12px] font-sans-ui text-gray-300">
+            {article.authorName && (
+              <span className="font-semibold text-white">{article.authorName}</span>
+            )}
+            <span>·</span>
+            <span>{format(date, "d 'de' MMMM 'de' yyyy", { locale: es })}</span>
+            <span>·</span>
+            <span>{article.readingTime} min de lectura</span>
           </div>
         </div>
-      </article>
+      </div>
     );
   }
 
-  /* ── Tarjeta destacada secundaria ── */
+  /* ── Card destacada secundaria ── */
   return (
-    <article className="relative overflow-hidden rounded-xl group article-card animate-fade-in-up shadow-md">
-      <div className="aspect-[4/3] relative">
-        {article.coverImageUrl ? (
-          <img
-            src={article.coverImageUrl}
-            alt={article.coverImageAlt ?? article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[hsl(210_15%_15%)] to-[hsl(355_72%_30%)]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/30 to-transparent" />
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 p-5">
+    <div className="hero-card animate-fade-in-up stagger-2">
+      {article.coverImageUrl ? (
+        <img
+          src={article.coverImageUrl}
+          alt={article.coverImageAlt ?? article.title}
+          className="w-full object-cover block"
+          style={{ aspectRatio: "4/3" }}
+        />
+      ) : (
+        <div className="w-full bg-gradient-to-br from-gray-700 to-red-800" style={{ aspectRatio: "4/3" }} />
+      )}
+      <div className="hero-card__overlay" />
+      <div className="hero-card__body" style={{ padding: "14px 16px" }}>
         <Link href={`/categoria/${article.category?.slug ?? ""}`}>
           <span
-            className="inline-block text-[11px] font-sans-ui font-semibold px-2.5 py-0.5 rounded text-white uppercase tracking-widest mb-2 hover:opacity-85 transition-opacity"
-            style={{ backgroundColor: article.category?.color ?? "#C0392B" }}
+            className="inline-block text-[10px] font-sans-ui font-700 uppercase tracking-widest text-white px-2 py-0.5 mb-2"
+            style={{ backgroundColor: catColor }}
           >
             {article.category?.name}
           </span>
         </Link>
-
         <Link href={`/articulo/${article.slug}`}>
-          <h2 className="font-display text-lg font-bold text-white leading-snug hover:text-[hsl(355_72%_78%)] transition-colors mb-2 line-clamp-3">
+          <h2 className="font-display text-white font-bold leading-tight hover:text-red-200 transition-colors text-[1.05rem] md:text-[1.2rem]">
             {article.title}
           </h2>
         </Link>
-
-        <div className="flex items-center gap-3 text-xs font-sans-ui text-[hsl(35_15%_62%)]">
-          <span>{format(date, "d MMM yyyy", { locale: es })}</span>
-          <span>·</span>
-          <span className="flex items-center gap-1">
-            <Clock size={11} />
-            {article.readingTime} min
-          </span>
+        <div className="text-[11px] font-sans-ui text-gray-400 mt-1.5">
+          {format(date, "d MMM yyyy", { locale: es })} · {article.readingTime} min
         </div>
       </div>
-    </article>
+    </div>
   );
 }
