@@ -9,6 +9,7 @@ import {
   X,
   ChevronRight,
   ExternalLink,
+  Upload,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -17,6 +18,7 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
   { label: "Artículos", icon: FileText, href: "/admin/articles" },
   { label: "Comentarios", icon: MessageSquare, href: "/admin/comments" },
+  { label: "Importar Medium", icon: Upload, href: "/admin/import-medium" },
   { label: "Configuración", icon: Settings, href: "/admin/settings" },
 ];
 
