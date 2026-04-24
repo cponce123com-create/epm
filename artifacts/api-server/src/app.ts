@@ -19,19 +19,19 @@ app.use(
         };
       },
       res(res) {
-        return { statusCode: res.statusCode },
+        return { statusCode: res.statusCode };
       },
     },
   }),
 );
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Acepta peticiones desde cualquier origen (el rewrite de Render estático
-// llega como petición cross-origin desde el CDN de Render).
-// Authorization header está explícitamente permitido para que los tokens JWT funcionen.
+// Acepta peticiones desde cualquier origen. El rewrite de Render estático
+// llega como petición cross-origin desde el CDN, por eso Authorization
+// debe estar explícitamente permitido para que los tokens JWT funcionen.
 app.use(
   cors({
-    origin: true,                          // refleja el Origin de cada petición
+    origin: true,
     credentials: true,
     allowedHeaders: [
       "Content-Type",
@@ -40,24 +40,21 @@ app.use(
       "Accept",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    maxAge: 86400,                         // preflight se cachea 24 h
+    maxAge: 86400,
   }),
 );
 
-// Responde al preflight OPTIONS de forma explícita (fallback de seguridad)
+// Preflight OPTIONS explícito (fallback de seguridad)
 app.options("*", cors());
 
 // ── Body parsers ──────────────────────────────────────────────────────────────
-// Aumentamos el límite a 50 MB para que el JSON de artículos largos no falle.
-// El ZIP de Medium lo maneja multer (memoryStorage) en su propia ruta —
-// no pasa por estos parsers — así que no hay conflicto.
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 app.use("/api", router);
 
-// ── 404 genérico para rutas de API no encontradas ─────────────────────────────
+// ── 404 para rutas de API no encontradas ──────────────────────────────────────
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
