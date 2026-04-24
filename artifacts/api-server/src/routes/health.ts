@@ -1,11 +1,15 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
+// Render espera GET /api/health según render.yaml healthCheckPath
+router.get("/health", (_req, res) => {
+  res.json({ status: "ok", ts: new Date().toISOString() });
+});
+
+// También mantenemos /healthz por compatibilidad
 router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+  res.json({ status: "ok", ts: new Date().toISOString() });
 });
 
 export default router;
