@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, FileArchive, CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw, Info } from "lucide-react";
+import { Upload, FileArchive, CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw, Info, Wifi } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useGetCategories } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
@@ -18,26 +18,22 @@ interface ImportResponse {
   results: ImportResult[];
 }
 
-/** Reintenta una función async hasta `maxRetries` veces con pausa entre intentos */
-async function fetchWithRetry(
-  fn: () => Promise<Response>,
-  maxRetries = 3,
-  delayMs = 4000
-): Promise<Response> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+/** Espera que el servidor esté disponible haciendo ping al health endpoint */
+async function waitForServer(maxWaitMs = 60_000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
     try {
-      const res = await fn();
-      return res;
-    } catch (err) {
-      lastError = err;
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, delayMs));
-      }
+      const res = await fetch("/api/health", { method: "GET" });
+      if (res.ok) return true;
+    } catch {
+      // servidor dormido, seguir esperando
     }
+    await new Promise(r => setTimeout(r, 3000));
   }
-  throw lastError;
+  return false;
 }
+
+type Phase = "idle" | "waking" | "uploading" | "done";
 
 export default function MediumImport() {
   const { data: categories, isLoading: loadingCats } = useGetCategories();
@@ -48,10 +44,11 @@ export default function MediumImport() {
   const [file, setFile]                   = useState<File | null>(null);
   const [categoryId, setCategoryId]       = useState<string>("");
   const [defaultStatus, setDefaultStatus] = useState<"published" | "draft">("draft");
-  const [loading, setLoading]             = useState(false);
-  const [retryCount, setRetryCount]       = useState(0);
+  const [phase, setPhase]                 = useState<Phase>("idle");
   const [response, setResponse]           = useState<ImportResponse | null>(null);
   const [error, setError]                 = useState<string | null>(null);
+
+  const loading = phase === "waking" || phase === "uploading";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -72,7 +69,7 @@ export default function MediumImport() {
     }
   };
 
-  const handleSubmit = async () => {
+  const doImport = async () => {
     if (!file) {
       toast({ description: "Selecciona el archivo .zip de Medium.", variant: "destructive" });
       return;
@@ -82,32 +79,31 @@ export default function MediumImport() {
       return;
     }
 
-    setLoading(true);
     setError(null);
     setResponse(null);
-    setRetryCount(0);
 
+    // Paso 1: despertar el servidor
+    setPhase("waking");
+    const alive = await waitForServer(60_000);
+    if (!alive) {
+      setError("El servidor no respondió después de 60 segundos. Revisa que el servicio epm-api esté activo en Render y vuelve a intentarlo.");
+      setPhase("idle");
+      return;
+    }
+
+    // Paso 2: subir el archivo
+    setPhase("uploading");
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("categoryId", categoryId);
       formData.append("defaultStatus", defaultStatus);
 
-      let attempt = 0;
-
-      const res = await fetchWithRetry(
-        () => {
-          attempt++;
-          if (attempt > 1) setRetryCount(attempt - 1);
-          return fetch("/api/admin/import-medium", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-          });
-        },
-        3,    // hasta 3 intentos
-        5000  // 5 s entre intentos (espera que Render despierte)
-      );
+      const res = await fetch("/api/admin/import-medium", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
       const data = await res.json();
       if (!res.ok) {
@@ -116,15 +112,19 @@ export default function MediumImport() {
         setResponse(data as ImportResponse);
         toast({ description: `Importación completada: ${data.imported} artículos importados.` });
       }
-    } catch {
+    } catch (err) {
       setError(
-        "No se pudo conectar con el servidor después de varios intentos. " +
-        "El servidor puede estar iniciando — espera 30 segundos y vuelve a intentarlo."
+        "Error al subir el archivo. Verifica tu conexión e intenta de nuevo."
       );
     } finally {
-      setLoading(false);
-      setRetryCount(0);
+      setPhase("done");
     }
+  };
+
+  const phaseLabel = () => {
+    if (phase === "waking")   return "Despertando el servidor… (puede tardar hasta 60 s)";
+    if (phase === "uploading") return "Importando artículos…";
+    return "";
   };
 
   return (
@@ -153,14 +153,15 @@ export default function MediumImport() {
 
         {/* Aviso servidor dormido */}
         <div className="mb-6 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800 font-sans-ui flex gap-2">
-          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <Wifi size={14} className="shrink-0 mt-0.5" />
           <span>
-            <strong>Nota:</strong> Si el servidor lleva un rato inactivo (plan gratuito de Render), la primera importación
-            puede tardar hasta 60 segundos. El sistema reintentará automáticamente.
+            <strong>Nota:</strong> En el plan gratuito de Render, el servidor se duerme tras 15 min de inactividad.
+            Al importar, el sistema lo despertará automáticamente antes de subir el archivo.
           </span>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6 space-y-6">
+
           {/* Zona de subida */}
           <div>
             <label className="block text-sm font-medium text-foreground font-sans-ui mb-2">
@@ -169,8 +170,12 @@ export default function MediumImport() {
             <div
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary/60 hover:bg-muted/30 transition-colors"
+              onClick={() => !loading && fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                loading
+                  ? "opacity-50 cursor-not-allowed border-border"
+                  : "cursor-pointer hover:border-primary/60 hover:bg-muted/30 border-border"
+              }`}
             >
               <input
                 ref={fileInputRef}
@@ -178,6 +183,7 @@ export default function MediumImport() {
                 accept=".zip"
                 className="hidden"
                 onChange={handleFileChange}
+                disabled={loading}
               />
               {file ? (
                 <div className="flex items-center justify-center gap-3 text-foreground">
@@ -188,20 +194,28 @@ export default function MediumImport() {
                       {(file.size / 1024 / 1024).toFixed(1)} MB
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setFile(null); setError(null); setResponse(null); }}
-                    className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
-                    title="Quitar archivo"
-                  >
-                    <XCircle size={16} />
-                  </button>
+                  {!loading && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setFile(null);
+                        setError(null);
+                        setResponse(null);
+                        setPhase("idle");
+                      }}
+                      className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
+                      title="Quitar archivo"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="text-muted-foreground">
                   <Upload size={32} className="mx-auto mb-2 opacity-40" />
                   <p className="text-sm font-sans-ui">Arrastra tu archivo .zip aquí o haz clic para buscarlo</p>
-                  <p className="text-xs mt-1 opacity-60 font-sans-ui">Solo archivos .zip</p>
+                  <p className="text-xs mt-1 opacity-60 font-sans-ui">Solo archivos .zip exportados de Medium</p>
                 </div>
               )}
             </div>
@@ -220,7 +234,8 @@ export default function MediumImport() {
               <select
                 value={categoryId}
                 onChange={e => setCategoryId(e.target.value)}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans-ui bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={loading}
+                className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans-ui bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
               >
                 <option value="">Selecciona una categoría…</option>
                 {(categories ?? []).map(cat => (
@@ -237,7 +252,7 @@ export default function MediumImport() {
             <label className="block text-sm font-medium text-foreground font-sans-ui mb-2">
               Estado de los artículos importados
             </label>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               {[
                 { value: "draft",     label: "Borrador (recomendado — revisar antes de publicar)" },
                 { value: "published", label: "Publicado" },
@@ -249,6 +264,7 @@ export default function MediumImport() {
                     value={opt.value}
                     checked={defaultStatus === opt.value}
                     onChange={() => setDefaultStatus(opt.value as "published" | "draft")}
+                    disabled={loading}
                     className="accent-primary"
                   />
                   {opt.label}
@@ -257,14 +273,22 @@ export default function MediumImport() {
             </div>
           </div>
 
+          {/* Indicador de fase */}
+          {loading && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800 font-sans-ui">
+              <Loader2 size={16} className="animate-spin shrink-0" />
+              <span>{phaseLabel()}</span>
+            </div>
+          )}
+
           {/* Error */}
-          {error && (
+          {error && !loading && (
             <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-700 font-sans-ui">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <div className="flex-1">
                 {error}
                 <button
-                  onClick={handleSubmit}
+                  onClick={doImport}
                   className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-800 underline underline-offset-2"
                 >
                   <RefreshCw size={12} /> Reintentar
@@ -273,18 +297,16 @@ export default function MediumImport() {
             </div>
           )}
 
-          {/* Botón de importar */}
+          {/* Botón */}
           <button
-            onClick={handleSubmit}
+            onClick={doImport}
             disabled={loading || !file || !categoryId}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-md text-sm font-medium font-sans-ui hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium font-sans-ui hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                {retryCount > 0
-                  ? `Reintentando (intento ${retryCount + 1})…`
-                  : "Importando… puede tardar hasta 60 s"}
+                {phase === "waking" ? "Conectando con el servidor…" : "Importando artículos…"}
               </>
             ) : (
               <>
@@ -311,7 +333,7 @@ export default function MediumImport() {
               )}
             </div>
 
-            <div className="space-y-2 max-h-80 overflow-y-auto">
+            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
               {response.results.map((r, i) => (
                 <div
                   key={i}
@@ -321,11 +343,10 @@ export default function MediumImport() {
                       : "bg-yellow-50 text-yellow-800"
                   }`}
                 >
-                  {r.status === "imported" ? (
-                    <CheckCircle size={14} className="mt-0.5 shrink-0" />
-                  ) : (
-                    <XCircle size={14} className="mt-0.5 shrink-0" />
-                  )}
+                  {r.status === "imported"
+                    ? <CheckCircle size={14} className="mt-0.5 shrink-0" />
+                    : <XCircle    size={14} className="mt-0.5 shrink-0" />
+                  }
                   <div>
                     <p className="font-medium">{r.title}</p>
                     {r.reason && <p className="text-xs opacity-70 mt-0.5">{r.reason}</p>}
