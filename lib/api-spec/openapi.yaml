@@ -3,13 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: El Príncipe Mestizo - Citizen journalism platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: articles
+    description: Article operations
+  - name: categories
+    description: Category operations
+  - name: comments
+    description: Comment operations
+  - name: auth
+    description: Authentication
+  - name: admin
+    description: Admin operations
+  - name: upload
+    description: File upload
+  - name: settings
+    description: Site settings
 paths:
   /healthz:
     get:
@@ -24,6 +38,532 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /articles:
+    get:
+      operationId: getArticles
+      tags: [articles]
+      summary: List published articles (paginated)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated articles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticlesPage"
+
+  /articles/featured:
+    get:
+      operationId: getFeaturedArticles
+      tags: [articles]
+      summary: Get featured articles (max 3)
+      responses:
+        "200":
+          description: Featured articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+
+  /articles/{slug}:
+    get:
+      operationId: getArticleBySlug
+      tags: [articles]
+      summary: Get article by slug and increment views
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Article detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /articles/{slug}/related:
+    get:
+      operationId: getRelatedArticles
+      tags: [articles]
+      summary: Get 3 related articles from the same category
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Related articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+
+  /categories:
+    get:
+      operationId: getCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /comments/{articleId}:
+    get:
+      operationId: getApprovedComments
+      tags: [comments]
+      summary: Get approved comments for an article
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+
+  /comments:
+    post:
+      operationId: createComment
+      tags: [comments]
+      summary: Submit a comment (pending approval)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentBody"
+      responses:
+        "201":
+          description: Comment submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /settings/public:
+    get:
+      operationId: getPublicSettings
+      tags: [settings]
+      summary: Get public site settings
+      responses:
+        "200":
+          description: Public settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicSettings"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /admin/articles:
+    get:
+      operationId: adminGetArticles
+      tags: [admin]
+      summary: List all articles including drafts
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, published, draft]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: All articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: adminCreateArticle
+      tags: [admin]
+      summary: Create a new article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateArticleBody"
+      responses:
+        "201":
+          description: Created article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/articles/{id}:
+    put:
+      operationId: adminUpdateArticle
+      tags: [admin]
+      summary: Update an article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateArticleBody"
+      responses:
+        "200":
+          description: Updated article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: adminDeleteArticle
+      tags: [admin]
+      summary: Delete an article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/articles/{id}/publish:
+    patch:
+      operationId: adminPublishArticle
+      tags: [admin]
+      summary: Toggle publish status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/articles/{id}/feature:
+    patch:
+      operationId: adminFeatureArticle
+      tags: [admin]
+      summary: Toggle featured status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Article"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/comments:
+    get:
+      operationId: adminGetComments
+      tags: [admin]
+      summary: Get all comments with filter
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, approved, pending]
+      responses:
+        "200":
+          description: Comments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/comments/{id}/approve:
+    patch:
+      operationId: adminApproveComment
+      tags: [admin]
+      summary: Approve a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/comments/{id}:
+    delete:
+      operationId: adminDeleteComment
+      tags: [admin]
+      summary: Delete a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /upload/image:
+    post:
+      operationId: uploadImage
+      tags: [upload]
+      summary: Upload image to Cloudinary
+      responses:
+        "200":
+          description: Uploaded image URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/settings:
+    get:
+      operationId: adminGetSettings
+      tags: [admin]
+      summary: Get all site settings
+      responses:
+        "200":
+          description: All settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllSettings"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: adminUpdateSettings
+      tags: [admin]
+      summary: Update a setting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingBody"
+      responses:
+        "200":
+          description: Updated setting
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stats:
+    get:
+      operationId: adminGetStats
+      tags: [admin]
+      summary: Get dashboard stats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/most-read:
+    get:
+      operationId: getMostRead
+      tags: [admin]
+      summary: Top 5 most read articles
+      responses:
+        "200":
+          description: Most read articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Article"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +574,326 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        color:
+          type: string
+        description:
+          type: ["string", "null"]
+        articleCount:
+          type: integer
+      required:
+        - id
+        - name
+        - slug
+        - color
+        - articleCount
+
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        coverImageUrl:
+          type: ["string", "null"]
+        coverImageAlt:
+          type: ["string", "null"]
+        content:
+          type: string
+        categoryId:
+          type: integer
+        authorId:
+          type: integer
+        status:
+          type: string
+          enum: [draft, published]
+        featured:
+          type: boolean
+        views:
+          type: integer
+        readingTime:
+          type: integer
+        publishedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        category:
+          $ref: "#/components/schemas/Category"
+        authorName:
+          type: string
+      required:
+        - id
+        - title
+        - slug
+        - summary
+        - content
+        - categoryId
+        - authorId
+        - status
+        - featured
+        - views
+        - readingTime
+        - createdAt
+        - updatedAt
+        - category
+        - authorName
+
+    ArticlesPage:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - articles
+        - total
+        - page
+        - limit
+        - totalPages
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+        articleId:
+          type: integer
+        articleTitle:
+          type: ["string", "null"]
+        authorName:
+          type: string
+        authorEmail:
+          type: string
+        content:
+          type: string
+        approved:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - articleId
+        - authorName
+        - authorEmail
+        - content
+        - approved
+        - createdAt
+
+    CreateCommentBody:
+      type: object
+      properties:
+        articleId:
+          type: integer
+        authorName:
+          type: string
+        authorEmail:
+          type: string
+        content:
+          type: string
+      required:
+        - articleId
+        - authorName
+        - authorEmail
+        - content
+
+    PublicSettings:
+      type: object
+      properties:
+        aboutText:
+          type: string
+        siteDescription:
+          type: string
+        adsenseClient:
+          type: string
+        twitterUrl:
+          type: string
+        facebookUrl:
+          type: string
+      required:
+        - aboutText
+        - siteDescription
+        - adsenseClient
+        - twitterUrl
+        - facebookUrl
+
+    AllSettings:
+      type: object
+      properties:
+        aboutText:
+          type: string
+        siteDescription:
+          type: string
+        adsenseClient:
+          type: string
+        twitterUrl:
+          type: string
+        facebookUrl:
+          type: string
+      required:
+        - aboutText
+        - siteDescription
+        - adsenseClient
+        - twitterUrl
+        - facebookUrl
+
+    UpdateSettingBody:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+      required:
+        - key
+        - value
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - token
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        role:
+          type: string
+      required:
+        - id
+        - email
+        - displayName
+        - role
+
+    CreateArticleBody:
+      type: object
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        categoryId:
+          type: integer
+        coverImageUrl:
+          type: ["string", "null"]
+        coverImageAlt:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        status:
+          type: string
+          enum: [draft, published]
+      required:
+        - title
+        - summary
+        - content
+        - categoryId
+
+    UpdateArticleBody:
+      type: object
+      properties:
+        title:
+          type: string
+        summary:
+          type: string
+        content:
+          type: string
+        categoryId:
+          type: integer
+        coverImageUrl:
+          type: ["string", "null"]
+        coverImageAlt:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        status:
+          type: string
+          enum: [draft, published]
+
+    UploadResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    AdminStats:
+      type: object
+      properties:
+        totalArticles:
+          type: integer
+        totalViews:
+          type: integer
+        pendingComments:
+          type: integer
+        totalComments:
+          type: integer
+        publishedArticles:
+          type: integer
+        draftArticles:
+          type: integer
+      required:
+        - totalArticles
+        - totalViews
+        - pendingComments
+        - totalComments
+        - publishedArticles
+        - draftArticles
