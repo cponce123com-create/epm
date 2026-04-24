@@ -10,10 +10,9 @@ services:
     name: epm-api
     runtime: node
     plan: free
-    rootDir: artifacts/api-server
-    buildCommand: |
-      cd ../../ && npm install -g pnpm && pnpm install --frozen-lockfile && pnpm -r --filter @workspace/db push && pnpm --filter @workspace/api-server run build
-    startCommand: node --enable-source-maps ./dist/index.mjs
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
@@ -27,10 +26,9 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
-        value: admin@elprincinemestizo.com   # cambia esto
+        value: admin@elprincinemestizo.com
       - key: ADMIN_PASSWORD
-        value: CHANGE_ME_BEFORE_DEPLOY       # cambia esto
-      # Cloudinary (opcional — si no se configura, las imágenes usan placeholder)
+        value: CHANGE_ME_BEFORE_DEPLOY
       - key: CLOUDINARY_CLOUD_NAME
         value: ""
       - key: CLOUDINARY_API_KEY
@@ -43,19 +41,13 @@ services:
     name: epm-frontend
     runtime: static
     plan: free
-    rootDir: artifacts/el-principe-mestizo
-    buildCommand: |
-      cd ../../ && npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/el-principe-mestizo... run build
-    staticPublishPath: dist/public
-    envVars:
-      - key: PORT
-        value: "3000"
-      - key: BASE_PATH
-        value: /
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build
+    staticPublishPath: artifacts/el-principe-mestizo/dist/public
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://epm-7gaq.onrender.com*   # ← actualiza con tu URL real del API
+        destination: https://epm-api.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
