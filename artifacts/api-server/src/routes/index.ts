@@ -8,6 +8,7 @@ import adminCommentsRouter from "./adminComments";
 import adminStatsRouter from "./adminStats";
 import settingsRouter from "./settings";
 import uploadRouter from "./upload";
+import adminImportRouter from "./adminImport";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(adminCommentsRouter);
 router.use(adminStatsRouter);
 router.use(settingsRouter);
 router.use(uploadRouter);
+router.use(adminImportRouter);
 
 export default router;
