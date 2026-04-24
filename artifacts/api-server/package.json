@@ -22,7 +22,9 @@
     "multer": "^2.1.1",
     "pino": "^9",
     "pino-http": "^10",
-    "slugify": "^1.6.9"
+    "slugify": "^1.6.9",
+    "adm-zip": "^0.5.10",
+    "cheerio": "^1.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -35,6 +37,7 @@
     "esbuild": "^0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
     "pino-pretty": "^13",
-    "thread-stream": "3.1.0"
+    "thread-stream": "3.1.0",
+    "@types/adm-zip": "^0.5.5"
   }
 }
