@@ -80,7 +80,12 @@ function ImageUploadField({
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const token = localStorage.getItem("epm_token");
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const json = await res.json();
       if (json.url) {
         onChange(json.url);
