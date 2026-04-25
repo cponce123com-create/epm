@@ -18,7 +18,7 @@ export default function Header() {
   // Configuración del sitio (logo, nombre)
   const { data: siteSettings } = useGetPublicSettings();
   const rawLogoUrl = ((siteSettings as any)?.logoUrl ?? "").trim();
-  const siteName   = (siteSettings as any)?.siteName ?? "El Príncipe Mestizo";
+  const siteName   = ((siteSettings as any)?.siteName || "").trim() || "El Príncipe Mestizo";
 
   // Solo mostrar logo si es una URL válida de Cloudinary o https real
   // Ignorar URLs de picsum.photos (placeholders del backend sin Cloudinary)
