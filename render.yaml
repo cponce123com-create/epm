@@ -29,6 +29,10 @@ services:
         value: admin@elprincinemestizo.com
       - key: ADMIN_PASSWORD
         value: CHANGE_ME_BEFORE_DEPLOY
+      # URL pública del frontend — usada por el middleware SSR Open Graph
+      - key: FRONTEND_URL
+        value: "https://elprincipemestizo.eu.cc"
+      # Cloudinary — completar con tus credenciales reales en el dashboard de Render
       - key: CLOUDINARY_CLOUD_NAME
         value: ""
       - key: CLOUDINARY_API_KEY
@@ -45,9 +49,17 @@ services:
     buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build
     staticPublishPath: artifacts/el-principe-mestizo/dist/public
     routes:
+      # Las rutas /api/* van al backend
       - type: rewrite
         source: /api/*
         destination: https://epm-api.onrender.com/api/*
+      # Las rutas /articulo/* van al backend para que sirva los meta OG
+      # Los bots de Facebook/WhatsApp/Twitter obtendrán el HTML con og:tags
+      # Los navegadores normales recibirán el meta-refresh al frontend real
+      - type: rewrite
+        source: /articulo/*
+        destination: https://epm-api.onrender.com/articulo/*
+      # Todo lo demás carga la SPA
       - type: rewrite
         source: /*
         destination: /index.html
