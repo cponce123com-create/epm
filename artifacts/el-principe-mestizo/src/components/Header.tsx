@@ -17,7 +17,7 @@ export default function Header() {
 
   // Configuración del sitio (logo, nombre)
   const { data: siteSettings } = useGetPublicSettings();
-  const logoUrl  = (siteSettings as any)?.logoUrl  ?? "";
+  const logoUrl  = ((siteSettings as any)?.logoUrl ?? "").trim();
   const siteName = (siteSettings as any)?.siteName ?? "El Príncipe Mestizo";
 
   const navLinks = [
@@ -103,18 +103,27 @@ export default function Header() {
                   src={logoUrl}
                   alt={siteName}
                   className="h-10 md:h-12 lg:h-14 w-auto object-contain"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  onError={e => {
+                    // Si la imagen falla, ocultarla y mostrar el texto fallback
+                    const img = e.currentTarget as HTMLImageElement;
+                    img.style.display = "none";
+                    const fallback = img.nextElementSibling as HTMLElement | null;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
                 />
-              ) : (
-                <>
-                  <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
-                    {siteName}
-                  </span>
-                  <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
-                    Denuncia · Opinión · Ciudad
-                  </span>
-                </>
-              )}
+              ) : null}
+              {/* Fallback de texto — visible siempre si no hay logoUrl, o si la imagen falla */}
+              <span
+                className="flex-col items-center"
+                style={{ display: logoUrl ? "none" : "flex" }}
+              >
+                <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
+                  {siteName}
+                </span>
+                <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
+                  Denuncia · Opinión · Ciudad
+                </span>
+              </span>
             </Link>
 
             {/* Espacio derecho balanceado en desktop */}
