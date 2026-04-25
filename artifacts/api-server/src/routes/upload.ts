@@ -6,7 +6,7 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB (soporta videos)
 });
 
 async function doUpload(file: Express.Multer.File, res: any) {
@@ -24,19 +24,27 @@ async function doUpload(file: Express.Multer.File, res: any) {
     const { v2: cloudinary } = await import("cloudinary");
     cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
 
+    const isVideo = file.mimetype.startsWith("video/");
     const b64     = Buffer.from(file.buffer).toString("base64");
     const dataUri = `data:${file.mimetype};base64,${b64}`;
 
     const result = await cloudinary.uploader.upload(dataUri, {
       folder:        "el-principe-mestizo",
-      resource_type: "image",
-      // Transformación automática: optimizar calidad y formato
-      transformation: [
-        { quality: "auto:good", fetch_format: "auto" },
-      ],
+      resource_type: isVideo ? "video" : "image",
+      // Solo aplicar transformaciones a imágenes
+      ...(isVideo
+        ? {}
+        : {
+            transformation: [
+              { quality: "auto:good", fetch_format: "auto" },
+            ],
+          }),
     });
 
-    res.json({ url: result.secure_url });
+    res.json({
+      url: result.secure_url,
+      resourceType: isVideo ? "video" : "image",
+    });
   } catch (err) {
     logger.error({ err }, "Cloudinary upload failed");
     res.status(500).json({ error: "Upload failed" });
@@ -50,7 +58,7 @@ router.post(
   upload.single("image"),
   async (req, res): Promise<void> => {
     if (!req.file) {
-      res.status(400).json({ error: "No image provided" });
+      res.status(400).json({ error: "No file provided" });
       return;
     }
     await doUpload(req.file, res);
@@ -64,7 +72,7 @@ router.post(
   upload.single("image"),
   async (req, res): Promise<void> => {
     if (!req.file) {
-      res.status(400).json({ error: "No image provided" });
+      res.status(400).json({ error: "No file provided" });
       return;
     }
     await doUpload(req.file, res);
