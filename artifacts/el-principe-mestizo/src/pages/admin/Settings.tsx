@@ -42,6 +42,7 @@ export default function Settings() {
     if (settings) {
       setForm(f => ({
         ...f,
+        siteName: (settings as any).siteName ?? "",
         siteDescription: settings.siteDescription ?? "",
         aboutText: settings.aboutText ?? "",
         twitterUrl: settings.twitterUrl ?? "",
@@ -54,7 +55,6 @@ export default function Settings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Send one update per key-value pair sequentially
       for (const [formKey, apiKey] of Object.entries(KEY_MAP)) {
         const value = form[formKey as keyof FormState];
         if (value !== undefined) {
@@ -135,6 +135,7 @@ export default function Settings() {
               <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                 Información general
               </h2>
+              {textField("siteName", "Nombre del sitio", "El Príncipe Mestizo")}
               {textareaField("siteDescription", "Descripción del sitio", 3)}
             </div>
 
