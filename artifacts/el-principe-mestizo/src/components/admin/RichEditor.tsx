@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
+import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 
 interface Props {
   value: string;
@@ -53,16 +54,9 @@ export default function RichEditor({ value, onChange }: Props) {
   }, [value]);
 
   const uploadImage = async (file: File): Promise<string | null> => {
-    const formData = new FormData();
-    formData.append("image", file);
     try {
-      const res = await fetch("/api/upload/image", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      return data.url ?? null;
+      const result = await uploadToCloudinary(file);
+      return result.url;
     } catch {
       return null;
     }
