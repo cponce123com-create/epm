@@ -87,7 +87,7 @@ export default function ArticleEditor() {
     const formData = new FormData();
     formData.append("image", file);
     try {
-      const res = await fetch("/api/admin/upload", {
+      const res = await fetch("/api/upload/image", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
