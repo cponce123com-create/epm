@@ -15,8 +15,8 @@ async function doUpload(file: Express.Multer.File, res: any) {
   const apiSecret  = process.env.CLOUDINARY_API_SECRET;
 
   if (!cloudName || !apiKey || !apiSecret) {
-    logger.warn("Cloudinary not configured, returning placeholder URL");
-    res.json({ url: `https://picsum.photos/seed/${Date.now()}/1200/600` });
+    logger.warn("Cloudinary not configured");
+    res.status(503).json({ error: "El servidor no tiene Cloudinary configurado. Agrega CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en las variables de entorno de Render." });
     return;
   }
 
