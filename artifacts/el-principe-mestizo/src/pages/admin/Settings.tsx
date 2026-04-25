@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Save, Upload, Image as ImageIcon, Globe, Palette, FileText, Share2, Mail, Shield } from "lucide-react";
+import { Save, Upload, Image as ImageIcon, Globe, Palette, FileText, Share2, Mail, Shield, AlertCircle } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAdminGetSettings, useAdminUpdateSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 
 interface FormState {
   // General
@@ -71,32 +72,40 @@ function ImageUploadField({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
+
+  const cloudName    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME    ?? "";
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ?? "";
+  const missingEnv   = !cloudName || !uploadPreset;
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("image", file);
-      const token = localStorage.getItem("epm_token");
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+
+    if (missingEnv) {
+      toast({
+        description: "Faltan VITE_CLOUDINARY_CLOUD_NAME y VITE_CLOUDINARY_UPLOAD_PRESET en Render → epm-frontend → Environment.",
+        variant: "destructive",
       });
-      const json = await res.json();
-      if (json.url) {
-        onChange(json.url);
-        toast({ description: "Imagen subida correctamente." });
-      } else {
-        throw new Error("No URL returned");
-      }
-    } catch {
-      toast({ description: "Error al subir la imagen.", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    setProgress(0);
+    try {
+      const result = await uploadToCloudinary(file, (pct) => setProgress(pct));
+      onChange(result.url);
+      toast({ description: "Imagen subida correctamente." });
+    } catch (err: any) {
+      toast({
+        description: `Error al subir: ${err?.message ?? "Error desconocido"}`,
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
+      setProgress(0);
+      if (inputRef.current) inputRef.current.value = "";
     }
   };
 
@@ -105,6 +114,18 @@ function ImageUploadField({
       <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
         {label}
       </label>
+
+      {missingEnv && (
+        <div className="mb-2 flex items-start gap-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-300 dark:border-yellow-700 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-300">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          <span>
+            Configura <code className="font-mono font-semibold">VITE_CLOUDINARY_CLOUD_NAME</code> y{" "}
+            <code className="font-mono font-semibold">VITE_CLOUDINARY_UPLOAD_PRESET</code> en{" "}
+            <strong>Render → epm-frontend → Environment</strong>. O pega una URL directa abajo.
+          </span>
+        </div>
+      )}
+
       <div className="flex gap-2 items-start">
         <input
           type="url"
@@ -115,15 +136,25 @@ function ImageUploadField({
         />
         <button
           type="button"
-          disabled={uploading}
+          disabled={uploading || missingEnv}
           onClick={() => inputRef.current?.click()}
           className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-muted hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
         >
           <Upload size={14} />
-          {uploading ? "Subiendo..." : "Subir"}
+          {uploading ? `${progress}%` : "Subir"}
         </button>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
+
+      {uploading && (
+        <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
       {value && (
         <div className="mt-2 flex items-center gap-3">
           <img
