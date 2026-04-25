@@ -413,3 +413,62 @@
   border-right: 1px solid hsl(var(--border));
 }
 @media (max-width: 1023px) { .col-divider { border-right: none; } }
+
+/* ── Imágenes en artículo: 2 columnas ────────────────────── */
+.article-image-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 1.5rem 0;
+}
+.article-image-grid img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  margin: 0;
+  cursor: zoom-in;
+}
+@media (max-width: 480px) {
+  .article-image-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Figure con caption estilo Medium ────────────────────── */
+.article-body .article-figure,
+.article-body figure.article-figure {
+  margin: 1.8rem 0;
+  text-align: center;
+}
+.article-body .article-figure img {
+  width: 100%;
+  margin: 0 0 0.5rem 0;
+  cursor: zoom-in;
+}
+.article-body .article-figure figcaption,
+.article-body figcaption {
+  font-family: var(--app-font-sans);
+  font-size: 0.8rem;
+  color: hsl(0 0% 50%);
+  font-style: italic;
+  text-align: center;
+  line-height: 1.45;
+  padding: 0 1rem;
+}
+
+/* ── Imagen simple clicable (zoom-in cursor) ─────────────── */
+.article-body img {
+  cursor: zoom-in;
+  transition: opacity 0.15s ease;
+}
+.article-body img:hover {
+  opacity: 0.92;
+}
+
+/* ── Uptime Robot / rendimiento: fuentes con preload hint ─── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in {
+    animation: none !important;
+  }
+}
