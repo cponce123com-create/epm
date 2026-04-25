@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface FormState {
@@ -84,23 +85,15 @@ export default function ArticleEditor() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append("image", file);
     try {
-      const res = await fetch("/api/upload/image", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.url) {
-        setForm(f => ({ ...f, coverImageUrl: data.url }));
-        toast({ description: "Imagen de portada cargada." });
-      }
-    } catch {
-      toast({ description: "Error al cargar la imagen.", variant: "destructive" });
+      const result = await uploadToCloudinary(file);
+      setForm(f => ({ ...f, coverImageUrl: result.url }));
+      toast({ description: "Imagen de portada cargada correctamente." });
+    } catch (err: any) {
+      toast({ description: err.message ?? "Error al cargar la imagen.", variant: "destructive" });
     } finally {
       setUploading(false);
+      if (e.target) e.target.value = "";
     }
   };
 
