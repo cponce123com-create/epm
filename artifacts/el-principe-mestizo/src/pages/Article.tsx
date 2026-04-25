@@ -11,7 +11,82 @@ import ReadingProgress from "@/components/ReadingProgress";
 import ShareButtons from "@/components/ShareButtons";
 import CommentSection from "@/components/CommentSection";
 import ArticleCard from "@/components/ArticleCard";
-import { useGetArticleBySlug, useGetRelatedArticles } from "@workspace/api-client-react";
+import { useGetArticleBySlug, useGetRelatedArticles, useGetPublicSettings } from "@workspace/api-client-react";
+
+// ── Hook para inyectar Open Graph / meta tags dinámicos ───────────────────
+/**
+ * Actualiza los <meta> tags del <head> para que Facebook, WhatsApp,
+ * Twitter y Google muestren la imagen de portada del artículo al compartir.
+ *
+ * IMPORTANTE: Para que esto funcione correctamente en producción, el servidor
+ * (Render) debe devolver los meta tags en el HTML inicial (Server-Side Rendering
+ * o un middleware que lea el slug y rellene los tags).
+ * Esta versión "client-side" sirve para cuando los crawlers ejecutan JS,
+ * como el bot de Twitter/X y algunos verificadores.
+ */
+function useArticleMetaTags(article: {
+  title: string;
+  summary?: string | null;
+  coverImageUrl?: string | null;
+  slug: string;
+  authorName?: string | null;
+} | null, siteSettings: any) {
+  useEffect(() => {
+    if (!article) return;
+
+    const siteName = siteSettings?.siteName ?? "El Príncipe Mestizo";
+    const siteUrl  = siteSettings?.siteUrl  ?? window.location.origin;
+    const fallbackImg = siteSettings?.ogImage ?? "";
+
+    const title       = article.title;
+    const description = article.summary ?? "";
+    const image       = article.coverImageUrl || fallbackImg;
+    const url         = `${siteUrl}/articulo/${article.slug}`;
+
+    // Helpers
+    const setMeta = (selector: string, attr: string, content: string) => {
+      let el = document.querySelector<HTMLMetaElement>(selector);
+      if (!el) {
+        el = document.createElement("meta");
+        // Extraemos el atributo desde el selector, ej: [property="og:title"] → property
+        const match = selector.match(/\[(\w+)="([^"]+)"\]/);
+        if (match) el.setAttribute(match[1], match[2]);
+        document.head.appendChild(el);
+      }
+      el.setAttribute(attr, content);
+    };
+
+    // Título de la pestaña
+    document.title = `${title} — ${siteName}`;
+
+    // Meta description
+    setMeta('meta[name="description"]', "content", description);
+
+    // Open Graph
+    setMeta('meta[property="og:type"]',        "content", "article");
+    setMeta('meta[property="og:title"]',       "content", title);
+    setMeta('meta[property="og:description"]', "content", description);
+    setMeta('meta[property="og:url"]',         "content", url);
+    setMeta('meta[property="og:site_name"]',   "content", siteName);
+    if (image) {
+      setMeta('meta[property="og:image"]',       "content", image);
+      setMeta('meta[property="og:image:width"]', "content", "1200");
+      setMeta('meta[property="og:image:height"]',"content", "630");
+      setMeta('meta[property="og:image:alt"]',   "content", title);
+    }
+
+    // Twitter Card
+    setMeta('meta[name="twitter:card"]',        "content", image ? "summary_large_image" : "summary");
+    setMeta('meta[name="twitter:title"]',       "content", title);
+    setMeta('meta[name="twitter:description"]', "content", description);
+    if (image) setMeta('meta[name="twitter:image"]', "content", image);
+
+    // Restaurar al desmontar
+    return () => {
+      document.title = siteName;
+    };
+  }, [article, siteSettings]);
+}
 
 // ── Lightbox ──────────────────────────────────────────────────────────────
 function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
@@ -125,9 +200,13 @@ export default function Article() {
   const { data: related } = useGetRelatedArticles(slug!, {
     query: { enabled: !!slug },
   });
+  const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);
   const { lightbox, closeLightbox } = useArticleLightbox(contentRef);
+
+  // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──
+  useArticleMetaTags(article ?? null, siteSettings);
 
   if (isLoading) {
     return (
