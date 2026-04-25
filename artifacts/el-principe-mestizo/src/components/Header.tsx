@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Search, Zap } from "lucide-react";
-import { useGetArticles } from "@workspace/api-client-react";
+import { useGetArticles, useGetPublicSettings } from "@workspace/api-client-react";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -14,6 +14,11 @@ export default function Header() {
   // Último artículo para el breaking bar
   const { data: latest } = useGetArticles({ page: 1, limit: 1 });
   const latestArticle = latest?.articles?.[0];
+
+  // Configuración del sitio (logo, nombre)
+  const { data: siteSettings } = useGetPublicSettings();
+  const logoUrl  = (siteSettings as any)?.logoUrl  ?? "";
+  const siteName = (siteSettings as any)?.siteName ?? "El Príncipe Mestizo";
 
   const navLinks = [
     { label: "Inicio",        href: "/" },
@@ -91,14 +96,25 @@ export default function Header() {
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
 
-            {/* Logo */}
+            {/* Logo — muestra imagen si hay URL configurada, si no, texto */}
             <Link href="/" className="flex flex-col items-center mx-auto lg:mx-0">
-              <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
-                El Príncipe Mestizo
-              </span>
-              <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
-                Denuncia · Opinión · Ciudad
-              </span>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={siteName}
+                  className="h-10 md:h-12 lg:h-14 w-auto object-contain"
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <>
+                  <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
+                    {siteName}
+                  </span>
+                  <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
+                    Denuncia · Opinión · Ciudad
+                  </span>
+                </>
+              )}
             </Link>
 
             {/* Espacio derecho balanceado en desktop */}
