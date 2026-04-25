@@ -19,6 +19,11 @@ export default function Header() {
   const { data: siteSettings } = useGetPublicSettings();
   const logoUrl  = ((siteSettings as any)?.logoUrl ?? "").trim();
   const siteName = (siteSettings as any)?.siteName ?? "El Príncipe Mestizo";
+  // Estado para saber si el logo cargó correctamente
+  const [logoError, setLogoError] = useState(false);
+  // Resetear el error cuando cambia la URL
+  useEffect(() => { setLogoError(false); }, [logoUrl]);
+  const showLogo = !!logoUrl && !logoError;
 
   const navLinks = [
     { label: "Inicio",        href: "/" },
@@ -96,34 +101,25 @@ export default function Header() {
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
 
-            {/* Logo — muestra imagen si hay URL configurada, si no, texto */}
+            {/* Logo — imagen si carga bien, texto como fallback */}
             <Link href="/" className="flex flex-col items-center mx-auto lg:mx-0">
-              {logoUrl ? (
+              {showLogo ? (
                 <img
                   src={logoUrl}
                   alt={siteName}
                   className="h-10 md:h-12 lg:h-14 w-auto object-contain"
-                  onError={e => {
-                    // Si la imagen falla, ocultarla y mostrar el texto fallback
-                    const img = e.currentTarget as HTMLImageElement;
-                    img.style.display = "none";
-                    const fallback = img.nextElementSibling as HTMLElement | null;
-                    if (fallback) fallback.style.display = "flex";
-                  }}
+                  onError={() => setLogoError(true)}
                 />
-              ) : null}
-              {/* Fallback de texto — visible siempre si no hay logoUrl, o si la imagen falla */}
-              <span
-                className="flex-col items-center"
-                style={{ display: logoUrl ? "none" : "flex" }}
-              >
-                <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
-                  {siteName}
-                </span>
-                <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
-                  Denuncia · Opinión · Ciudad
-                </span>
-              </span>
+              ) : (
+                <>
+                  <span className="font-display text-white font-bold tracking-tight leading-none text-2xl md:text-3xl lg:text-4xl">
+                    {siteName}
+                  </span>
+                  <span className="text-[10px] font-sans-ui text-red-300 tracking-[0.22em] uppercase mt-0.5 hidden sm:block">
+                    Denuncia · Opinión · Ciudad
+                  </span>
+                </>
+              )}
             </Link>
 
             {/* Espacio derecho balanceado en desktop */}
