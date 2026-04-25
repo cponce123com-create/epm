@@ -3,14 +3,86 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+
+    <!-- Título y descripción base (se sobreescribe por artículo desde Article.tsx) -->
     <title>El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
+
+    <!-- Open Graph base (Facebook, WhatsApp, LinkedIn) -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:site_name"   content="El Príncipe Mestizo" />
+    <meta property="og:title"       content="El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo" />
+    <meta property="og:description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
+    <meta property="og:image"       content="/opengraph.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale"      content="es_PE" />
+
+    <!-- Twitter Card base -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo" />
+    <meta name="twitter:description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
+    <meta name="twitter:image"       content="/opengraph.jpg" />
+
+    <!-- Favicon (puede ser sobreescrito dinámicamente por el admin) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" id="favicon-link" />
+
+    <!-- Fuentes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <!-- Google AdSense verificación -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5319600372233386"
      crossorigin="anonymous"></script>
+
+    <!--
+      Script que actualiza favicon y meta tags base desde la API de configuración.
+      Se ejecuta lo antes posible para evitar el parpadeo del favicon por defecto.
+    -->
+    <script>
+      (function () {
+        fetch("/api/settings/public")
+          .then(function (r) { return r.json(); })
+          .then(function (s) {
+            // Favicon dinámico
+            if (s.faviconUrl) {
+              var link = document.getElementById("favicon-link");
+              if (link) {
+                link.setAttribute("href", s.faviconUrl);
+                link.setAttribute("type", "image/png");
+              }
+            }
+            // Título base
+            if (s.siteName) {
+              document.title = s.siteName + " — Periodismo ciudadano desde Chanchamayo";
+              var ogTitle = document.querySelector('meta[property="og:title"]');
+              if (ogTitle) ogTitle.setAttribute("content", s.siteName + " — Periodismo ciudadano desde Chanchamayo");
+              var twTitle = document.querySelector('meta[name="twitter:title"]');
+              if (twTitle) twTitle.setAttribute("content", s.siteName + " — Periodismo ciudadano desde Chanchamayo");
+              var ogSite = document.querySelector('meta[property="og:site_name"]');
+              if (ogSite) ogSite.setAttribute("content", s.siteName);
+            }
+            // Imagen OG base
+            if (s.ogImage) {
+              var ogImg = document.querySelector('meta[property="og:image"]');
+              if (ogImg) ogImg.setAttribute("content", s.ogImage);
+              var twImg = document.querySelector('meta[name="twitter:image"]');
+              if (twImg) twImg.setAttribute("content", s.ogImage);
+            }
+            // Descripción base
+            if (s.siteDescription) {
+              var desc = document.querySelector('meta[name="description"]');
+              if (desc) desc.setAttribute("content", s.siteDescription);
+              var ogDesc = document.querySelector('meta[property="og:description"]');
+              if (ogDesc) ogDesc.setAttribute("content", s.siteDescription);
+              var twDesc = document.querySelector('meta[name="twitter:description"]');
+              if (twDesc) twDesc.setAttribute("content", s.siteDescription);
+            }
+          })
+          .catch(function () { /* silencioso — usa valores por defecto */ });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
