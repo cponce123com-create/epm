@@ -14,6 +14,7 @@ import Dashboard from "@/pages/admin/Dashboard";
 import ArticleList from "@/pages/admin/ArticleList";
 import ArticleEditor from "@/pages/admin/ArticleEditor";
 import Comments from "@/pages/admin/Comments";
+import Categories from "@/pages/admin/Categories";
 import Settings from "@/pages/admin/Settings";
 import MediumImport from "@/pages/admin/MediumImport";
 import NotFound from "@/pages/not-found";
@@ -56,6 +57,9 @@ function Router() {
       </Route>
       <Route path="/admin/comments">
         {() => <ProtectedRoute component={Comments} />}
+      </Route>
+      <Route path="/admin/categories">
+        {() => <ProtectedRoute component={Categories} />}
       </Route>
       <Route path="/admin/settings">
         {() => <ProtectedRoute component={Settings} />}
