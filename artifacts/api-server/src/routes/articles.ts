@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, articlesTable, categoriesTable, usersTable } from "@workspace/db";
+import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
 import { eq, desc, ilike, and, ne, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
