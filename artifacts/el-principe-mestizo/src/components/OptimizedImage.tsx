@@ -18,8 +18,10 @@ export default function OptimizedImage({
   ...rest
 }: Props) {
   const [failed, setFailed] = useState(false);
+
   const finalSrc = useMemo(() => {
-    const base = failed\n      ? (fallbackSrc ?? (typeof src === "string" ? src : ""))\n      : (typeof src === "string" ? src : "");
+    const source = typeof src === "string" ? src : "";
+    const base = failed ? (fallbackSrc ?? source) : source;
     return toCloudinaryDeliveryUrl(base, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
 
@@ -36,4 +38,3 @@ export default function OptimizedImage({
     />
   );
 }
-
