@@ -6,6 +6,7 @@ import { makeSlug, calcReadingTime } from "../lib/slugify";
 import multer from "multer";
 import AdmZip from "adm-zip";
 import * as cheerio from "cheerio";
+import { v2 as cloudinary } from "cloudinary";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -16,6 +17,76 @@ interface ParsedPost {
   summary: string;
   publishedAt: Date | null;
   status: "published" | "draft";
+}
+
+type CategoryLite = { id: number; name: string; slug: string; description: string | null };
+const MEDIUM_HOST_RE = /(^|\.)medium\.com$|(^|\.)miro\.medium\.com$|(^|\.)cdn-images-\d+\.medium\.com$/i;
+
+function ensureCloudinaryConfigured(): boolean {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) return false;
+  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+  return true;
+}
+
+function isMediumUrl(url: string): boolean {
+  try {
+    return MEDIUM_HOST_RE.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function migrateMediumImagesToCloudinary(content: string): Promise<string> {
+  if (!ensureCloudinaryConfigured()) return content;
+  const $ = cheerio.load(content);
+  for (const el of $("img").toArray()) {
+    const node = $(el);
+    const src = node.attr("src");
+    if (!src || !isMediumUrl(src)) continue;
+    try {
+      const up = await cloudinary.uploader.upload(src, {
+        folder: "el-principe-mestizo/imported-medium",
+        resource_type: "image",
+        transformation: [{ fetch_format: "auto", quality: "auto:good" }],
+      });
+      node.attr("src", up.secure_url);
+    } catch {
+      // mantener url original
+    }
+  }
+  return $.html() ?? content;
+}
+
+function scoreCategory(text: string, category: CategoryLite): number {
+  const haystack = text.toLowerCase();
+  const tokens = new Set<string>([
+    ...category.name.toLowerCase().split(/\W+/).filter(Boolean),
+    ...category.slug.toLowerCase().split(/\W+/).filter(Boolean),
+    ...(category.description ?? "").toLowerCase().split(/\W+/).filter(Boolean),
+  ]);
+  let score = 0;
+  for (const token of tokens) {
+    if (token.length < 4) continue;
+    if (haystack.includes(token)) score += token.length;
+  }
+  return score;
+}
+
+function pickCategoryIdByHeuristic(
+  article: { title: string; summary: string; content: string },
+  categories: CategoryLite[],
+): number | null {
+  if (categories.length === 0) return null;
+  const text = `${article.title}\n${article.summary}\n${article.content}`.slice(0, 8000);
+  let best: { id: number; score: number } | null = null;
+  for (const cat of categories) {
+    const score = scoreCategory(text, cat);
+    if (!best || score > best.score) best = { id: cat.id, score };
+  }
+  return (best?.score ?? 0) > 0 ? best!.id : categories[0].id;
 }
 
 function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
@@ -100,19 +171,22 @@ router.post(
       return;
     }
 
-    const categoryId = parseInt((req.body.categoryId as string) ?? "0", 10);
-    if (!categoryId) {
-      res.status(400).json({ error: "Debes indicar un categoryId válido." });
-      return;
-    }
+    const autoCategorize = String(req.body.autoCategorize ?? "false") === "true";
+    if (!autoCategorize) {
+      const categoryId = parseInt((req.body.categoryId as string) ?? "0", 10);
+      if (!categoryId) {
+        res.status(400).json({ error: "Debes indicar una categoría o activar auto-categorización." });
+        return;
+      }
 
-    const [cat] = await db
-      .select({ id: categoriesTable.id })
-      .from(categoriesTable)
-      .where(eq(categoriesTable.id, categoryId));
-    if (!cat) {
-      res.status(400).json({ error: `No existe la categoría con id ${categoryId}.` });
-      return;
+      const [cat] = await db
+        .select({ id: categoriesTable.id })
+        .from(categoriesTable)
+        .where(eq(categoriesTable.id, categoryId));
+      if (!cat) {
+        res.status(400).json({ error: `No existe la categoría con id ${categoryId}.` });
+        return;
+      }
     }
 
     let zip: AdmZip;
@@ -164,7 +238,7 @@ router.post(
   requireAuth,
   async (req, res): Promise<void> => {
     const user = (req as typeof req & { user: { userId: number } }).user;
-    const { articles, categoryId, defaultStatus } = req.body as {
+    const { articles, categoryId, defaultStatus, migrateImages, autoCategorize } = req.body as {
       articles: Array<{
         title: string;
         slug: string;
@@ -176,14 +250,33 @@ router.post(
       }>;
       categoryId: number;
       defaultStatus: "published" | "draft";
+      migrateImages?: boolean;
+      autoCategorize?: boolean;
     };
 
     if (!articles || !Array.isArray(articles) || articles.length === 0) {
       res.status(400).json({ error: "No se recibieron artículos." });
       return;
     }
+    if (!autoCategorize && !categoryId) {
+      res.status(400).json({ error: "Debes indicar una categoría cuando no hay auto-categorización." });
+      return;
+    }
 
-    const results: { title: string; status: "imported" | "skipped"; reason?: string }[] = [];
+    const categories = await db
+      .select({
+        id: categoriesTable.id,
+        name: categoriesTable.name,
+        slug: categoriesTable.slug,
+        description: categoriesTable.description,
+      })
+      .from(categoriesTable) as CategoryLite[];
+    if (autoCategorize && categories.length === 0) {
+      res.status(400).json({ error: "No hay categorías configuradas para auto-clasificar." });
+      return;
+    }
+
+    const results: { title: string; status: "imported" | "skipped"; reason?: string; categoryId?: number }[] = [];
 
     for (const article of articles) {
       try {
@@ -191,6 +284,13 @@ router.post(
         const publishedAt = finalStatus === "published"
           ? (article.publishedAt ? new Date(article.publishedAt) : new Date())
           : undefined;
+
+        const processedContent = migrateImages
+          ? await migrateMediumImagesToCloudinary(article.content)
+          : article.content;
+        const categoryToUse = autoCategorize
+          ? (pickCategoryIdByHeuristic({ ...article, content: processedContent }, categories) ?? categoryId)
+          : categoryId;
 
         const [existing] = await db
           .select({ id: articlesTable.id })
@@ -206,8 +306,8 @@ router.post(
           title: article.title,
           slug: article.slug,
           summary: article.summary,
-          content: article.content,
-          categoryId,
+          content: processedContent,
+          categoryId: categoryToUse,
           authorId: user.userId,
           featured: false,
           status: finalStatus,
@@ -215,7 +315,7 @@ router.post(
           publishedAt,
         });
 
-        results.push({ title: article.title, status: "imported" });
+        results.push({ title: article.title, status: "imported", categoryId: categoryToUse });
       } catch (err) {
         results.push({
           title: article.title,
@@ -246,19 +346,32 @@ router.post(
     const user = (req as typeof req & { user: { userId: number } }).user;
     const categoryId = parseInt((req.body.categoryId as string) ?? "0", 10);
     const forceStatus = req.body.defaultStatus as "published" | "draft" | undefined;
+    const autoCategorize = String(req.body.autoCategorize ?? "false") === "true";
+    const migrateImages = String(req.body.migrateImages ?? "false") === "true";
 
-    if (!categoryId) {
-      res.status(400).json({ error: "Debes indicar un categoryId válido." });
-      return;
+    if (!autoCategorize) {
+      if (!categoryId) {
+        res.status(400).json({ error: "Debes indicar una categoría o activar auto-categorización." });
+        return;
+      }
+      const [cat] = await db
+        .select({ id: categoriesTable.id })
+        .from(categoriesTable)
+        .where(eq(categoriesTable.id, categoryId));
+      if (!cat) {
+        res.status(400).json({ error: `No existe la categoría con id ${categoryId}.` });
+        return;
+      }
     }
-    const [cat] = await db
-      .select({ id: categoriesTable.id })
-      .from(categoriesTable)
-      .where(eq(categoriesTable.id, categoryId));
-    if (!cat) {
-      res.status(400).json({ error: `No existe la categoría con id ${categoryId}.` });
-      return;
-    }
+
+    const categories = await db
+      .select({
+        id: categoriesTable.id,
+        name: categoriesTable.name,
+        slug: categoriesTable.slug,
+        description: categoriesTable.description,
+      })
+      .from(categoriesTable) as CategoryLite[];
 
     let zip: AdmZip;
     try {
@@ -285,11 +398,15 @@ router.post(
         const html = entry.getData().toString("utf8");
         const parsed = parseMediumHtml(html);
         const slug = makeSlug(parsed.title);
-        const readingTime = calcReadingTime(parsed.content);
+        const content = migrateImages ? await migrateMediumImagesToCloudinary(parsed.content) : parsed.content;
+        const readingTime = calcReadingTime(content);
         const finalStatus = forceStatus ?? parsed.status;
         const publishedAt = finalStatus === "published"
           ? (parsed.publishedAt ?? new Date())
           : undefined;
+        const categoryToUse = autoCategorize
+          ? (pickCategoryIdByHeuristic({ title: parsed.title, summary: parsed.summary, content }, categories) ?? categoryId)
+          : categoryId;
 
         const [existing] = await db
           .select({ id: articlesTable.id })
@@ -303,7 +420,7 @@ router.post(
 
         await db.insert(articlesTable).values({
           title: parsed.title, slug, summary: parsed.summary,
-          content: parsed.content, categoryId, authorId: user.userId,
+          content, categoryId: categoryToUse, authorId: user.userId,
           featured: false, status: finalStatus, readingTime, publishedAt,
         });
 
