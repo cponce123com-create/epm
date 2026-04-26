@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useState } from "react";
 import type { Article } from "@workspace/api-client-react";
 
 interface Props {
@@ -13,6 +14,25 @@ interface Props {
   index?: number;
   /** Mostrar resumen */
   showSummary?: boolean;
+}
+
+// Fallback reutilizable para imágenes rotas
+function ImgWithFallback({ src, alt, className, style, loading }: {
+  src: string; alt: string; className?: string; style?: React.CSSProperties; loading?: "lazy" | "eager";
+}) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return <div className={`bg-muted flex items-center justify-center ${className ?? ""}`} style={style} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading ?? "lazy"}
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+    />
+  );
 }
 
 export default function ArticleCard({
@@ -52,10 +72,11 @@ export default function ArticleCard({
         {article.coverImageUrl && (
           <Link href={`/articulo/${article.slug}`} className="shrink-0">
             <div className="overflow-hidden" style={{ width: 96, height: 72 }}>
-              <img
+              <ImgWithFallback
                 src={article.coverImageUrl}
                 alt={article.coverImageAlt ?? article.title}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                style={{ width: 96, height: 72 }}
                 loading="lazy"
               />
             </div>
@@ -78,7 +99,7 @@ export default function ArticleCard({
       {/* Imagen */}
       {article.coverImageUrl ? (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
-          <img
+          <ImgWithFallback
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
             loading="lazy"

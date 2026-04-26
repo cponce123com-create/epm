@@ -1,7 +1,26 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useState } from "react";
 import type { Article } from "@workspace/api-client-react";
+
+function ImgWithFallback({ src, alt, className, style, loading }: {
+  src: string; alt: string; className?: string; style?: React.CSSProperties; loading?: "lazy" | "eager";
+}) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return <div className={`bg-gray-800 ${className ?? ""}`} style={style} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading ?? "eager"}
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+    />
+  );
+}
 
 interface Props {
   article: Article;
@@ -20,10 +39,11 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
     return (
       <div className="hero-card animate-fade-in">
         {article.coverImageUrl ? (
-          <img
+          <ImgWithFallback
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
             className="hero-card__img"
+            loading="eager"
           />
         ) : (
           <div
@@ -77,7 +97,7 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
   return (
     <div className="hero-card animate-fade-in-up stagger-2">
       {article.coverImageUrl ? (
-        <img
+        <ImgWithFallback
           src={article.coverImageUrl}
           alt={article.coverImageAlt ?? article.title}
           className="w-full object-cover block"
