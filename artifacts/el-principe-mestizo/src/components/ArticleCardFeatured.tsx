@@ -82,9 +82,10 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
           alt={article.coverImageAlt ?? article.title}
           className="w-full object-cover block"
           style={{ aspectRatio: "4/3" }}
+          loading="lazy"
         />
       ) : (
-        <div className="w-full bg-gradient-to-br from-gray-700 to-red-800" style={{ aspectRatio: "4/3" }} />
+        <div className="w-full bg-gradient-to-br from-gray-700 to-red-900" style={{ aspectRatio: "4/3" }} />
       )}
       <div className="hero-card__overlay" />
       <div className="hero-card__body" style={{ padding: "14px 16px" }}>

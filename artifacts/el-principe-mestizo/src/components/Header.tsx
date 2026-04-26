@@ -150,7 +150,7 @@ export default function Header() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className={`block text-[13px] font-sans-ui font-500 px-3.5 py-2.5 whitespace-nowrap transition-colors border-b-2 ${
+                    className={`block text-[13px] font-sans-ui font-medium px-3.5 py-2.5 whitespace-nowrap transition-colors border-b-2 ${
                       isActive(link.href)
                         ? "text-white border-white"
                         : "text-red-200 border-transparent hover:text-white hover:border-red-300"

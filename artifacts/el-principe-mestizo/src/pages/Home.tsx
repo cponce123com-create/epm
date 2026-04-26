@@ -90,8 +90,10 @@ export default function Home() {
             {/* Terciarios destacados */}
             {tertiary && tertiary.length > 0 && (
               <div className="mb-6">
-                <div className="section-heading section-heading--colored">Destacados</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="section-heading section-heading--colored">
+                  <span>Destacados</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-0">
                   {tertiary.map((art, i) => (
                     <ArticleCard key={art.id} article={art} size="sm" index={i} />
                   ))}
@@ -122,7 +124,7 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-0">
                     {articlesPage?.articles.map((article, i) => (
                       <ArticleCard key={article.id} article={article} index={i} />
                     ))}
@@ -179,6 +181,9 @@ function CategorySection({ catSlug, catName, catColor }: { catSlug: string; catN
     <div className="mb-8">
       <div className="section-heading section-heading--colored" style={{ borderTopColor: catColor, color: catColor }}>
         <Link href={`/categoria/${catSlug}`} className="hover:underline">{catName}</Link>
+        <Link href={`/categoria/${catSlug}`} className="text-[0.64rem] font-sans-ui font-semibold tracking-normal normal-case text-gray-400 hover:text-red-700 transition-colors">
+          Ver todas →
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-5">

@@ -22,7 +22,7 @@ export default function Sidebar() {
   const { data: categories, isLoading: loadingCats } = useGetCategories();
 
   return (
-    <aside className="space-y-0">
+    <aside>
 
       {/* Publicidad rectangular */}
       <div className="mb-6">

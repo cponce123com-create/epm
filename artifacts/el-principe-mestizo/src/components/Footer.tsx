@@ -21,9 +21,9 @@ export default function Footer() {
   const hasSocial = twitterUrl || facebookUrl || youtubeUrl || instagramUrl;
 
   return (
-    <footer className="bg-gray-900 text-gray-400 mt-10">
+    <footer className="bg-gray-900 text-gray-400 mt-12">
       {/* Banda roja superior */}
-      <div className="h-1 bg-red-700" />
+      <div className="h-[3px] bg-red-700" />
 
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">

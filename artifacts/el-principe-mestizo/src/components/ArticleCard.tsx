@@ -125,3 +125,8 @@ export default function ArticleCard({
     </div>
   );
 }
+
+// Separador de metadatos reutilizable
+function MetaSep() {
+  return <span className="text-gray-300 select-none">·</span>;
+}
