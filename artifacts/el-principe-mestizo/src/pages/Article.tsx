@@ -440,17 +440,23 @@ export default function Article() {
   const contentReady = !!article && !isLoading;
 
   // Pre-procesar el HTML ANTES de inyectarlo en el DOM.
-  // Los <img> de Medium CDN necesitan referrerpolicy="no-referrer" desde el primer
-  // fetch — si lo añadimos con useEffect (post-paint) el browser ya lanzó las
-  // peticiones con Referer y el CDN las bloquea (403).
+  // Reescribe las URLs de Medium CDN al proxy local para evitar el bloqueo
+  // de hotlinks — debe hacerse en el string HTML antes de dangerouslySetInnerHTML
+  // porque los navegadores ya emiten las peticiones en el primer render.
   const processedContent = useMemo(() => {
     const raw = article?.content;
     if (!raw) return "";
+
+    const MEDIUM_SRC_RE = /(<img[^>]+src=")((https?:)?\/\/(?:miro\.medium\.com|cdn-images-\d+\.medium\.com)[^"]*?)"/gi;
+
     return raw
-      // Normaliza URLs protocol-relative (//miro.medium.com → https://miro.medium.com)
+      // Primero normaliza protocol-relative
       .replace(/(<img[^>]+src=")\/\/([^"]+)"/gi, '$1https://$2"')
-      // Inyecta referrerpolicy solo si aún no lo tiene
-      .replace(/<img\b(?![^>]*referrerpolicy)/gi, '<img referrerpolicy="no-referrer"');
+      // Reescribe URLs de Medium CDN al proxy local (datos ya normalizados)
+      .replace(MEDIUM_SRC_RE, (_, prefix, url) => {
+        const normalized = url.startsWith("//") ? `https:${url}` : url;
+        return `${prefix}/api/proxy-image?url=${encodeURIComponent(normalized)}"`;
+      });
   }, [article?.content]);
 
   // Orden importa: grid primero (reordena nodos), luego mejoras de img, luego lightbox

@@ -1,11 +1,15 @@
 import { useMemo, useState, type ImgHTMLAttributes } from "react";
-import { toCloudinaryDeliveryUrl } from "@/lib/image";
+import { isMediumImageUrl, toCloudinaryDeliveryUrl } from "@/lib/image";
 
 type Props = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc?: string;
   optimizeWidth?: number;
   priority?: boolean;
 };
+
+function toProxyUrl(url: string): string {
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
 
 export default function OptimizedImage({
   src,
@@ -22,7 +26,9 @@ export default function OptimizedImage({
   const finalSrc = useMemo(() => {
     const source = typeof src === "string" ? src : "";
     const base = failed ? (fallbackSrc ?? source) : source;
-    return toCloudinaryDeliveryUrl(base, { width: optimizeWidth });
+    // Route Medium CDN URLs through our proxy to bypass hotlink protection
+    const routed = isMediumImageUrl(base) ? toProxyUrl(base) : base;
+    return toCloudinaryDeliveryUrl(routed, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
 
   return (

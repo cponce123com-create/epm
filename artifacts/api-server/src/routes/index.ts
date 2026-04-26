@@ -10,6 +10,7 @@ import settingsRouter from "./settings";
 import uploadRouter from "./upload";
 import adminImportRouter from "./adminImport";
 import adminMigrateImagesRouter from "./adminMigrateImages";
+import proxyImageRouter from "./proxyImage";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(settingsRouter);
 router.use(uploadRouter);
 router.use(adminImportRouter);
 router.use(adminMigrateImagesRouter);
+router.use(proxyImageRouter);
 
 export default router;

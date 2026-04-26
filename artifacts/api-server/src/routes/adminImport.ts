@@ -90,6 +90,10 @@ function pickCategoryIdByHeuristic(
   return (best?.score ?? 0) > 0 ? best!.id : categories[0].id;
 }
 
+function toProxyUrl(mediumUrl: string): string {
+  return `/api/proxy-image?url=${encodeURIComponent(mediumUrl)}`;
+}
+
 function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
   // Remove noscript wrappers — Medium uses them for the lazy-load fallback;
   // since we resolve data-src→src here the noscript duplicate is redundant.
@@ -105,14 +109,18 @@ function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
     const candidate = src || dataSrc;
     if (!candidate) return;
 
+    // Normalize protocol-relative URLs first
     const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate.trim();
-    img.attr("src", normalized);
-    img.removeAttr("data-src");
-    img.removeAttr("srcset");         // Medium srcset URLs are also CDN-blocked
 
-    // These must be in stored HTML so the browser uses them on the FIRST request,
-    // before any JS (useEffect) can run.
-    img.attr("referrerpolicy", "no-referrer");
+    // Replace Medium CDN URLs with our proxy to avoid hotlink blocking entirely.
+    // The proxy fetches the image server-side (no Referer header) and returns it
+    // with immutable cache headers, so the browser only requests it once.
+    const finalSrc = isMediumUrl(normalized) ? toProxyUrl(normalized) : normalized;
+
+    img.attr("src", finalSrc);
+    img.removeAttr("data-src");
+    img.removeAttr("srcset");
+
     if (!img.attr("loading"))  img.attr("loading",  "lazy");
     if (!img.attr("decoding")) img.attr("decoding", "async");
   });
@@ -451,9 +459,9 @@ router.post(
 );
 
 // ── POST /api/admin/fix-article-images ───────────────────────────────────────
-// Recorre TODOS los artículos y añade referrerpolicy="no-referrer" a cada <img>
-// (necesario para los artículos importados antes de este fix).
-// También normaliza protocol-relative URLs y elimina srcset de Medium.
+// Recorre TODOS los artículos y reescribe las URLs de Medium CDN a través del
+// proxy local (/api/proxy-image?url=...) para evitar el bloqueo de hotlinks.
+// También extrae cover_image_url de artículos que no la tienen.
 router.post(
   "/admin/fix-article-images",
   requireAuth,
@@ -461,7 +469,12 @@ router.post(
     const dryRun = String(req.query["dryRun"] ?? req.body?.dryRun ?? "false") === "true";
 
     const articles = await db
-      .select({ id: articlesTable.id, title: articlesTable.title, content: articlesTable.content })
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        content: articlesTable.content,
+        coverImageUrl: articlesTable.coverImageUrl,
+      })
       .from(articlesTable);
 
     let fixed = 0;
@@ -485,25 +498,42 @@ router.post(
 
         if (candidate) {
           const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate;
-          img.attr("src", normalized);
+          // Rewrite Medium CDN URLs to our proxy (bypasses hotlink protection)
+          const finalSrc = isMediumUrl(normalized) ? toProxyUrl(normalized) : normalized;
+          img.attr("src", finalSrc);
           img.removeAttr("data-src");
           img.removeAttr("srcset");
         }
 
-        img.attr("referrerpolicy", "no-referrer");
         if (!img.attr("loading"))  img.attr("loading",  "lazy");
         if (!img.attr("decoding")) img.attr("decoding", "async");
       });
 
-      const updated = $("body").html() ?? original;
-      const changed = updated !== original;
+      const updatedContent = $("body").html() ?? original;
+
+      // Extract cover image from content if missing
+      let updatedCover = article.coverImageUrl;
+      if (!updatedCover) {
+        const firstImgSrc = $("img").first().attr("src");
+        if (firstImgSrc) updatedCover = firstImgSrc;
+      } else if (isMediumUrl(updatedCover)) {
+        // Also rewrite existing Medium CDN cover URL through proxy
+        updatedCover = toProxyUrl(updatedCover);
+      }
+
+      const contentChanged = updatedContent !== original;
+      const coverChanged   = updatedCover !== (article.coverImageUrl ?? null);
+      const changed        = contentChanged || coverChanged;
 
       details.push({ id: article.id, title: article.title, changed });
 
       if (changed && !dryRun) {
         await db
           .update(articlesTable)
-          .set({ content: updated })
+          .set({
+            content: updatedContent,
+            ...(coverChanged ? { coverImageUrl: updatedCover ?? undefined } : {}),
+          })
           .where(eq(articlesTable.id, article.id));
         fixed++;
       } else if (!changed) {
