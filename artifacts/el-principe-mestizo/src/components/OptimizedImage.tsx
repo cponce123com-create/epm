@@ -1,5 +1,5 @@
 import { useMemo, useState, type ImgHTMLAttributes } from "react";
-import { toCloudinaryDeliveryUrl } from "@/lib/image";
+import { isMediumImageUrl, toCloudinaryDeliveryUrl } from "@/lib/image";
 
 type Props = ImgHTMLAttributes<HTMLImageElement> & {
   fallbackSrc?: string;
@@ -14,6 +14,7 @@ export default function OptimizedImage({
   priority = false,
   loading,
   decoding,
+  referrerPolicy,
   onError,
   ...rest
 }: Props) {
@@ -25,12 +26,15 @@ export default function OptimizedImage({
     return toCloudinaryDeliveryUrl(base, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
 
+  const resolvedReferrerPolicy = referrerPolicy ?? (isMediumImageUrl(finalSrc) ? "no-referrer" : undefined);
+
   return (
     <img
       {...rest}
       src={finalSrc}
       loading={priority ? "eager" : (loading ?? "lazy")}
       decoding={decoding ?? "async"}
+      referrerPolicy={resolvedReferrerPolicy}
       onError={(e) => {
         if (!failed && fallbackSrc) setFailed(true);
         onError?.(e);
