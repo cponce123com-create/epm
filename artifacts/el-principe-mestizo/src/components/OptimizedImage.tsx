@@ -7,6 +7,10 @@ type Props = ImgHTMLAttributes<HTMLImageElement> & {
   priority?: boolean;
 };
 
+function toProxyUrl(url: string): string {
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 export default function OptimizedImage({
   src,
   fallbackSrc,
@@ -14,7 +18,6 @@ export default function OptimizedImage({
   priority = false,
   loading,
   decoding,
-  referrerPolicy,
   onError,
   ...rest
 }: Props) {
@@ -23,10 +26,10 @@ export default function OptimizedImage({
   const finalSrc = useMemo(() => {
     const source = typeof src === "string" ? src : "";
     const base = failed ? (fallbackSrc ?? source) : source;
-    return toCloudinaryDeliveryUrl(base, { width: optimizeWidth });
+    // Route Medium CDN URLs through our proxy to bypass hotlink protection
+    const routed = isMediumImageUrl(base) ? toProxyUrl(base) : base;
+    return toCloudinaryDeliveryUrl(routed, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
-
-  const resolvedReferrerPolicy = referrerPolicy ?? (isMediumImageUrl(finalSrc) ? "no-referrer" : undefined);
 
   return (
     <img
@@ -34,7 +37,6 @@ export default function OptimizedImage({
       src={finalSrc}
       loading={priority ? "eager" : (loading ?? "lazy")}
       decoding={decoding ?? "async"}
-      referrerPolicy={resolvedReferrerPolicy}
       onError={(e) => {
         if (!failed && fallbackSrc) setFailed(true);
         onError?.(e);
