@@ -39,11 +39,9 @@ function cloudinaryPublicIdFor(sourceUrl: string): string {
 }
 
 function cloudinaryDeliveryUrl(publicId: string): string {
-  return cloudinary.url(publicId, {
-    secure: true,
-    resource_type: "image",
-    transformation: [{ fetch_format: "auto", quality: "auto:good" }],
-  });
+  const cloudName = mustEnv("CLOUDINARY_CLOUD_NAME");
+  const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
+  return `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto:good,dpr_auto/${encodedPublicId}`;
 }
 
 const migratedCache = new Map<string, string>();
@@ -71,7 +69,10 @@ async function migrateOneImage(sourceUrl: string, dryRun: boolean): Promise<stri
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     // Si ya existía, seguimos y reutilizamos.
-    if (!msg.toLowerCase().includes("already exists")) throw err;
+    if (!msg.toLowerCase().includes("already exists")) {
+      console.warn(`[warn] no se pudo migrar imagen: ${normalized} (${msg})`);
+      return normalized;
+    }
   }
 
   migratedCache.set(normalized, deliveryUrl);
@@ -142,17 +143,24 @@ async function main() {
   const candidates = onlySlug ? rows.filter((r) => r.slug === onlySlug) : rows;
   let changedArticles = 0;
   let migratedImages = 0;
+  let failedArticles = 0;
 
   for (const article of candidates) {
-    const result = await migrateArticleImages(article, dryRun);
-    if (result.changed) {
-      changedArticles += 1;
-      migratedImages += result.migratedCount;
-      console.log(`[updated] ${article.slug} · ${result.migratedCount} imágenes`);
+    try {
+      const result = await migrateArticleImages(article, dryRun);
+      if (result.changed) {
+        changedArticles += 1;
+        migratedImages += result.migratedCount;
+        console.log(`[updated] ${article.slug} · ${result.migratedCount} imágenes`);
+      }
+    } catch (err) {
+      failedArticles += 1;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[warn] artículo omitido: ${article.slug} (${msg})`);
     }
   }
 
-  console.log(`Done. changedArticles=${changedArticles} migratedImages=${migratedImages} dryRun=${dryRun}`);
+  console.log(`Done. changedArticles=${changedArticles} migratedImages=${migratedImages} failedArticles=${failedArticles} dryRun=${dryRun}`);
 }
 
 main().catch((err) => {

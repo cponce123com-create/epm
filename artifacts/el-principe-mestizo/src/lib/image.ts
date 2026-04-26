@@ -30,9 +30,18 @@ export function toCloudinaryDeliveryUrl(
     const transforms = [`f_auto`, `q_${quality}`, "dpr_auto"];
     if (options?.width) transforms.push(`c_limit,w_${options.width}`);
 
-    return normalized.replace("/upload/", `/upload/${transforms.join(",")}/`);
+    const uploadMarker = "/upload/";
+    const markerIndex = normalized.indexOf(uploadMarker);
+    if (markerIndex < 0) return normalized;
+
+    const before = normalized.slice(0, markerIndex + uploadMarker.length);
+    const after = normalized.slice(markerIndex + uploadMarker.length);
+    const firstPathSegment = after.split("/")[0] ?? "";
+    const looksLikeTransformSegment = firstPathSegment.includes(",") && /[a-z]+_[^,]+/.test(firstPathSegment);
+
+    if (looksLikeTransformSegment) return normalized;
+    return `${before}${transforms.join(",")}/${after}`;
   } catch {
     return normalized;
   }
 }
-
