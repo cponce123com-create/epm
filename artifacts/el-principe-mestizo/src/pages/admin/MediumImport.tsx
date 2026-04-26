@@ -72,7 +72,7 @@ export default function MediumImport() {
   const [file, setFile]                   = useState<File | null>(null);
   const [categoryId, setCategoryId]       = useState<string>("");
   const [defaultStatus, setDefaultStatus] = useState<"published" | "draft">("draft");
-  const [migrateImages, setMigrateImages] = useState(true);
+  const [migrateImages, setMigrateImages] = useState(false);
   const [autoCategorize, setAutoCategorize] = useState(true);
   const [phase, setPhase]                 = useState<Phase>("idle");
   const [progress, setProgress]           = useState({ current: 0, total: 0 });
@@ -351,7 +351,7 @@ export default function MediumImport() {
                 disabled={loading}
                 className="accent-primary"
               />
-              Subir imágenes de Medium a Cloudinary durante la importación
+              Migrar imágenes a Cloudinary (opcional, desactivado por defecto)
             </label>
           </div>
 

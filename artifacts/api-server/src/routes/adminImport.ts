@@ -10,6 +10,7 @@ import { v2 as cloudinary } from "cloudinary";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+const ENABLE_CLOUDINARY_IMPORT = process.env.MEDIUM_IMPORT_MIGRATE_IMAGES === "true";
 
 interface ParsedPost {
   title: string;
@@ -285,7 +286,7 @@ router.post(
           ? (article.publishedAt ? new Date(article.publishedAt) : new Date())
           : undefined;
 
-        const processedContent = migrateImages
+        const processedContent = (ENABLE_CLOUDINARY_IMPORT && migrateImages)
           ? await migrateMediumImagesToCloudinary(article.content)
           : article.content;
         const categoryToUse = autoCategorize
@@ -398,7 +399,9 @@ router.post(
         const html = entry.getData().toString("utf8");
         const parsed = parseMediumHtml(html);
         const slug = makeSlug(parsed.title);
-        const content = migrateImages ? await migrateMediumImagesToCloudinary(parsed.content) : parsed.content;
+        const content = (ENABLE_CLOUDINARY_IMPORT && migrateImages)
+          ? await migrateMediumImagesToCloudinary(parsed.content)
+          : parsed.content;
         const readingTime = calcReadingTime(content);
         const finalStatus = forceStatus ?? parsed.status;
         const publishedAt = finalStatus === "published"

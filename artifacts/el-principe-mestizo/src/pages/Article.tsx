@@ -306,7 +306,6 @@ function useArticleImageLoading(contentRef: React.RefObject<HTMLDivElement | nul
 
       img.loading = "lazy";
       img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
       img.onerror = () => {
         if (img.dataset.fallbackApplied === "1") return;
         img.dataset.fallbackApplied = "1";
