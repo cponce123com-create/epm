@@ -2,7 +2,8 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- viewport-fit=cover: soporte para notch de iPhone (safe-area-inset) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- Título y descripción base (se sobreescribe por artículo desde Article.tsx) -->
     <title>El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo</title>
@@ -23,6 +24,41 @@
     <meta name="twitter:title"       content="El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo" />
     <meta name="twitter:description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
     <meta name="twitter:image"       content="/opengraph.jpg" />
+
+    <!-- ═══════════════════════════════════════════════════════════
+         PWA — Progressive Web App
+         Instalable en Android (Chrome) e iPhone (Safari)
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Manifest (Android, Chrome, Edge) -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Tema del navegador (barra de estado) -->
+    <meta name="theme-color" content="#B91C1C" />
+
+    <!-- iOS / iPadOS (Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="El Príncipe" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+
+    <!-- Pantallas splash para iOS (evita fondo blanco al abrir la app) -->
+    <!-- iPhone SE / 5 -->
+    <link rel="apple-touch-startup-image"
+          media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
+          href="/icons/splash-640x1136.svg" />
+    <!-- iPhone 8 / SE 2nd gen -->
+    <link rel="apple-touch-startup-image"
+          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+          href="/icons/splash-750x1334.svg" />
+    <!-- iPhone 14 Pro / 15 -->
+    <link rel="apple-touch-startup-image"
+          media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+          href="/icons/splash-1179x2556.svg" />
+
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#B91C1C" />
+    <meta name="msapplication-TileImage" content="/icons/icon-192.svg" />
 
     <!-- Favicon (puede ser sobreescrito dinámicamente por el admin) -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" id="favicon-link" />
@@ -81,6 +117,17 @@
             }
           })
           .catch(function () { /* silencioso — usa valores por defecto */ });
+
+        // ── Registro del Service Worker ──
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker
+              .register("/sw.js", { scope: "/" })
+              .catch(function (err) {
+                console.warn("[SW] Registro fallido:", err);
+              });
+          });
+        }
       })();
     </script>
   </head>

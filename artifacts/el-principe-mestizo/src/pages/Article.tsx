@@ -1,9 +1,9 @@
 import { useParams } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, Calendar, User, ArrowLeft, X, ZoomIn } from "lucide-react";
+import { Clock, Calendar, User, ArrowLeft, X, ZoomIn, ZoomOut, RotateCcw, Maximize2 } from "lucide-react";
 import { Link } from "wouter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Sidebar from "@/components/Sidebar";
@@ -88,39 +88,148 @@ function useArticleMetaTags(article: {
   }, [article, siteSettings]);
 }
 
-// ── Lightbox ──────────────────────────────────────────────────────────────
+// ── Lightbox con zoom, drag y pinch ──────────────────────────────────────
 function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [pos, setPos]     = useState({ x: 0, y: 0 });
+  const isDragging        = useRef(false);
+  const dragOrigin        = useRef({ x: 0, y: 0 });
+  const posAtDragStart    = useRef({ x: 0, y: 0 });
+  const lastPinchDist     = useRef<number | null>(null);
+  const imgRef            = useRef<HTMLImageElement>(null);
+
+  // Keyboard shortcuts
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape")                      onClose();
+      if (e.key === "+" || e.key === "=")          zoom(0.4);
+      if (e.key === "-")                           zoom(-0.4);
+      if (e.key === "0" || e.key === "r")          reset();
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [onClose]);
+  }, [onClose]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const zoom = useCallback((delta: number) => {
+    setScale(s => {
+      const next = Math.min(5, Math.max(1, s + delta));
+      if (next === 1) setPos({ x: 0, y: 0 });
+      return next;
+    });
+  }, []);
+
+  const reset = useCallback(() => { setScale(1); setPos({ x: 0, y: 0 }); }, []);
+
+  // ── Wheel zoom (desktop) ──────────────────────────────────────────────
+  const onWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    zoom(e.deltaY < 0 ? 0.35 : -0.35);
+  };
+
+  // ── Mouse drag (desktop) ─────────────────────────────────────────────
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    isDragging.current = true;
+    dragOrigin.current = { x: e.clientX, y: e.clientY };
+    posAtDragStart.current = { ...pos };
+    e.preventDefault();
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    setPos({
+      x: posAtDragStart.current.x + (e.clientX - dragOrigin.current.x),
+      y: posAtDragStart.current.y + (e.clientY - dragOrigin.current.y),
+    });
+  };
+  const onMouseUp = () => { isDragging.current = false; };
+
+  // ── Pinch-to-zoom (mobile) ────────────────────────────────────────────
+  const getPinchDist = (touches: React.TouchList) => {
+    const dx = touches[1].clientX - touches[0].clientX;
+    const dy = touches[1].clientY - touches[0].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 2) return;
+    e.preventDefault();
+    const dist = getPinchDist(e.touches);
+    if (lastPinchDist.current !== null) {
+      const delta = (dist - lastPinchDist.current) * 0.015;
+      setScale(s => Math.min(5, Math.max(1, s + delta)));
+    }
+    lastPinchDist.current = dist;
+  };
+  const onTouchEnd = () => { lastPinchDist.current = null; };
+
+  const ctrlBtn = "flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors backdrop-blur-sm";
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black/92 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center select-none"
       onClick={onClose}
     >
-      <button
-        className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full bg-black/40 hover:bg-black/70 transition-colors"
-        onClick={onClose}
-        aria-label="Cerrar"
-      >
-        <X size={24} />
-      </button>
-      <img
-        src={src}
-        alt={alt}
-        className="max-w-full max-h-[90vh] object-contain rounded shadow-2xl"
+      {/* ── Control bar ── */}
+      <div
+        className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm"
         onClick={e => e.stopPropagation()}
-      />
+      >
+        <button className={ctrlBtn} onClick={() => zoom(-0.4)} aria-label="Alejar"><ZoomOut size={15} /></button>
+        <span className="text-white/60 text-[11px] font-mono w-10 text-center tabular-nums">
+          {Math.round(scale * 100)}%
+        </span>
+        <button className={ctrlBtn} onClick={() => zoom(0.4)} aria-label="Acercar"><ZoomIn size={15} /></button>
+        {scale > 1 && (
+          <button className={ctrlBtn} onClick={reset} aria-label="Restablecer"><RotateCcw size={14} /></button>
+        )}
+        <div className="w-px h-4 bg-white/20 mx-1" />
+        <button className={ctrlBtn} onClick={onClose} aria-label="Cerrar"><X size={15} /></button>
+      </div>
+
+      {/* ── Hint de uso ── */}
+      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 text-[10px] text-white/30 font-sans-ui hidden md:block pointer-events-none">
+        Rueda para zoom · Arrastrar para mover · Esc para cerrar
+      </div>
+
+      {/* ── Imagen ── */}
+      <div
+        className="overflow-hidden"
+        style={{ cursor: scale > 1 ? (isDragging.current ? "grabbing" : "grab") : "zoom-out" }}
+        onWheel={onWheel}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={e => { if (scale === 1) onClose(); else e.stopPropagation(); }}
+      >
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          draggable={false}
+          style={{
+            maxWidth: "92vw",
+            maxHeight: "88vh",
+            objectFit: "contain",
+            transform: `scale(${scale}) translate(${pos.x / scale}px, ${pos.y / scale}px)`,
+            transition: isDragging.current ? "none" : "transform 0.2s cubic-bezier(0.25,0.46,0.45,0.94)",
+            transformOrigin: "center center",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            willChange: "transform",
+          }}
+        />
+      </div>
+
+      {/* ── Caption ── */}
       {alt && (
-        <div className="absolute bottom-4 left-0 right-0 text-center">
-          <span className="inline-block bg-black/60 text-white/80 text-xs font-sans-ui px-4 py-1.5 rounded-full max-w-lg">
+        <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
+          <span className="inline-block bg-black/60 text-white/70 text-[11px] font-sans-ui px-4 py-1.5 rounded-full max-w-md">
             {alt}
           </span>
         </div>
@@ -178,6 +287,60 @@ function useArticleLightbox(contentRef: React.RefObject<HTMLDivElement | null>) 
   };
 }
 
+// ── Hook: agrupa imágenes consecutivas en filas de 2 ─────────────────────
+function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>, ready: boolean) {
+  useEffect(() => {
+    if (!ready) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    // Buscamos <p> que contengan únicamente una <img> (sin texto)
+    const allP = Array.from(container.querySelectorAll<HTMLParagraphElement>("p"));
+    const imgOnlyP = allP.filter(p => {
+      const real = Array.from(p.childNodes).filter(
+        n => !(n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim() === ""),
+      );
+      return real.length === 1 && (real[0] as Element).tagName === "IMG";
+    });
+
+    if (imgOnlyP.length < 2) return;
+
+    // Agrupamos elementos <p> consecutivos en el DOM
+    const groups: HTMLParagraphElement[][] = [];
+    let run: HTMLParagraphElement[] = [];
+
+    for (let i = 0; i < imgOnlyP.length; i++) {
+      const p = imgOnlyP[i];
+      if (run.length === 0) {
+        run.push(p);
+      } else {
+        let sib: Element | null = run[run.length - 1].nextElementSibling;
+        if (sib === p) {
+          run.push(p);
+        } else {
+          if (run.length >= 2) groups.push(run);
+          run = [p];
+        }
+      }
+    }
+    if (run.length >= 2) groups.push(run);
+
+    // Envolvemos cada grupo en un div grid
+    for (const group of groups) {
+      const grid = document.createElement("div");
+      grid.className = "article-image-grid";
+      group[0].parentNode?.insertBefore(grid, group[0]);
+      for (const p of group) {
+        const img = p.querySelector("img");
+        if (img) {
+          grid.appendChild(img.cloneNode(true));
+        }
+        p.remove();
+      }
+    }
+  }, [contentRef, ready]);
+}
+
 // ── Skeleton ──────────────────────────────────────────────────────────────
 function SkeletonArticle() {
   return (
@@ -207,7 +370,10 @@ export default function Article() {
   const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const contentReady = !!article && !isLoading;
+
   const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
+  useArticleImageGrid(contentRef, contentReady);
 
   // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──
   useArticleMetaTags(article ?? null, siteSettings);

@@ -132,7 +132,15 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
 
     const title       = escHtml(article.title ?? settings.siteName);
     const description = escHtml(article.summary ?? settings.siteDescription);
-    const image       = escHtml(article.coverImageUrl ?? settings.ogImage ?? "");
+    // Garantizar URL absoluta para og:image — requerido por WhatsApp/Facebook
+    const rawImage    = article.coverImageUrl ?? settings.ogImage ?? "";
+    const image       = escHtml(
+      rawImage.startsWith("http")
+        ? rawImage
+        : rawImage
+          ? `${frontendUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
+          : `${frontendUrl}/opengraph.jpg`
+    );
     const siteName    = escHtml(settings.siteName);
 
     const imageMetaTags = image

@@ -659,3 +659,144 @@
   opacity: 0.38;
   cursor: not-allowed;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Touch targets: mínimo 44px (WCAG 2.5.8) ──────────────── */
+@media (max-width: 768px) {
+  a, button, [role="button"] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Excepciones: inline text links no necesitan 44px de bloque */
+  p a, li a, .article-body a, .news-card__title a, .sidebar-item__title {
+    min-height: unset;
+    display: inline;
+  }
+  .news-card__section a {
+    min-height: unset;
+    display: inline;
+  }
+}
+
+/* ── Header más compacto en móvil ───────────────────────────── */
+@media (max-width: 640px) {
+  .site-header-brand { padding: 8px 0 6px; }
+  .site-header-top   { padding: 4px 0; }
+  .breaking-bar      { font-size: 0.75rem; }
+}
+
+/* ── Artículo: tipografía fluida para lectura móvil ─────────── */
+@media (max-width: 640px) {
+  .article-body {
+    font-size: 1.01rem;
+    line-height: 1.82;
+  }
+  .article-body h2 {
+    font-size: 1.25rem;
+    margin-top: 2rem;
+  }
+  .article-body h3 {
+    font-size: 1.08rem;
+    margin-top: 1.6rem;
+  }
+  .article-body blockquote {
+    padding: 0.65rem 1rem;
+    font-size: 1.02em;
+    margin: 1.6rem 0;
+  }
+}
+
+/* ── Sidebar: se mueve debajo en móvil ──────────────────────── */
+@media (max-width: 1023px) {
+  .sidebar-block {
+    margin-bottom: 20px;
+  }
+  .sidebar-block__title {
+    font-size: 0.66rem;
+  }
+}
+
+/* ── Hero card: relación de aspecto más alta en móvil ────────── */
+@media (max-width: 640px) {
+  .hero-card__img {
+    aspect-ratio: 4/3;
+  }
+  .hero-card__body {
+    padding: 14px 16px;
+  }
+  .hero-card__body h1 {
+    font-size: clamp(1.2rem, 5vw, 1.6rem) !important;
+  }
+}
+
+/* ── Grid de tarjetas: gap vertical explícito ───────────────── */
+.articles-grid {
+  display: grid;
+  gap: 0;
+}
+
+/* ── Menú móvil: grid de 2 columnas más legible ─────────────── */
+@media (max-width: 1023px) {
+  .mobile-nav-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .mobile-nav-grid a {
+    font-size: 0.9rem;
+    padding: 12px;
+  }
+}
+
+/* ── Imagen en cuadrícula de 2 columnas (artículo) ───────────── */
+.article-image-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 1.6rem 0;
+}
+.article-image-grid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  margin: 0 !important;
+  cursor: zoom-in;
+  border-radius: 2px;
+}
+@media (max-width: 480px) {
+  .article-image-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Lightbox: controles accesibles en móvil ─────────────────── */
+@media (max-width: 640px) {
+  /* El hint de teclado se oculta en móvil (ya en JSX con hidden md:block) */
+}
+
+/* ── Paginación: botones más grandes en móvil ────────────────── */
+@media (max-width: 640px) {
+  .pagination-btn {
+    padding: 10px 14px;
+    font-size: 0.84rem;
+  }
+}
+
+/* ── Section heading: sin overflow en móvil ─────────────────── */
+@media (max-width: 480px) {
+  .section-heading {
+    font-size: 0.65rem;
+  }
+}
+
+/* ── safe-area-inset para iPhones con notch ──────────────────── */
+.site-header {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
