@@ -3,6 +3,7 @@ import { db, articlesTable, categoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
+import { logger } from "../lib/logger";
 import multer from "multer";
 import AdmZip from "adm-zip";
 import * as cheerio from "cheerio";
@@ -159,8 +160,8 @@ function parseMediumHtml(html: string): ParsedPost {
 }
 
 // ── POST /api/admin/import-medium/prepare ────────────────────────────────────
-// Recibe el ZIP y devuelve la lista de títulos/índices a importar (sin tocar la BD).
-// El frontend luego llama a /import-medium/batch en lotes de 10.
+// Recibe el ZIP, parsea los artículos y los devuelve al frontend.
+// El frontend los envía de vuelta en lotes pequeños vía /batch.
 router.post(
   "/admin/import-medium/prepare",
   requireAuth,
@@ -207,19 +208,17 @@ router.post(
       return;
     }
 
-    // Parsear todos los artículos en memoria y devolverlos al frontend
-    // para que los envíe de vuelta en lotes pequeños
     const articles = entries.map(entry => {
       try {
         const html = entry.getData().toString("utf8");
         const parsed = parseMediumHtml(html);
         return {
-          title: parsed.title,
-          slug: makeSlug(parsed.title),
-          summary: parsed.summary,
-          content: parsed.content,
+          title:       parsed.title,
+          slug:        makeSlug(parsed.title),
+          summary:     parsed.summary,
+          content:     parsed.content,
           publishedAt: parsed.publishedAt?.toISOString() ?? null,
-          status: parsed.status,
+          status:      parsed.status,
           readingTime: calcReadingTime(parsed.content),
         };
       } catch {
@@ -232,7 +231,7 @@ router.post(
 );
 
 // ── POST /api/admin/import-medium/batch ──────────────────────────────────────
-// Recibe un lote de hasta 10 artículos ya parseados e insertarlos en la BD.
+// Recibe un lote de hasta N artículos ya parseados e los inserta en la BD.
 router.post(
   "/admin/import-medium/batch",
   requireAuth,
@@ -240,12 +239,12 @@ router.post(
     const user = (req as typeof req & { user: { userId: number } }).user;
     const { articles, categoryId, defaultStatus, migrateImages, autoCategorize } = req.body as {
       articles: Array<{
-        title: string;
-        slug: string;
-        summary: string;
-        content: string;
+        title:       string;
+        slug:        string;
+        summary:     string;
+        content:     string;
         publishedAt: string | null;
-        status: "published" | "draft";
+        status:      "published" | "draft";
         readingTime: number;
       }>;
       categoryId: number;
@@ -318,7 +317,7 @@ router.post(
         results.push({ title: article.title, status: "imported", categoryId: categoryToUse });
       } catch (err) {
         results.push({
-          title: article.title,
+          title:  article.title,
           status: "skipped",
           reason: `Error: ${err instanceof Error ? err.message : String(err)}`,
         });
@@ -427,7 +426,7 @@ router.post(
         results.push({ title: parsed.title, status: "imported" });
       } catch (err) {
         results.push({
-          title: entry.entryName,
+          title:  entry.entryName,
           status: "skipped",
           reason: `Error interno: ${err instanceof Error ? err.message : String(err)}`,
         });

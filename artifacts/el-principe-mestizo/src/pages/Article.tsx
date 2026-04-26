@@ -317,6 +317,8 @@ function useArticleImageLoading(contentRef: React.RefObject<HTMLDivElement | nul
 }
 
 // ── Hook: agrupa imágenes consecutivas en filas de 2 ─────────────────────
+// IMPORTANTE: debe ejecutarse ANTES de useArticleLightbox para que los nodos
+// finales sean los que reciben los click-handlers del lightbox.
 function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>, ready: boolean) {
   useEffect(() => {
     if (!ready) return;
@@ -343,7 +345,7 @@ function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>,
       if (run.length === 0) {
         run.push(p);
       } else {
-        let sib: Element | null = run[run.length - 1].nextElementSibling;
+        const sib: Element | null = run[run.length - 1].nextElementSibling;
         if (sib === p) {
           run.push(p);
         } else {
@@ -355,6 +357,7 @@ function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>,
     if (run.length >= 2) groups.push(run);
 
     // Envolvemos cada grupo en un div grid
+    // MOVEMOS el nodo img (no clone) para preservar atributos y futuros handlers
     for (const group of groups) {
       const grid = document.createElement("div");
       grid.className = "article-image-grid";
@@ -362,11 +365,46 @@ function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>,
       for (const p of group) {
         const img = p.querySelector("img");
         if (img) {
-          grid.appendChild(img.cloneNode(true));
+          grid.appendChild(img);   // ← MOVER, no clonar
         }
         p.remove();
       }
     }
+  }, [contentRef, ready]);  // ready como dep, no solo contentRef
+}
+
+// ── Hook: mejora imágenes del cuerpo (referrer, lazy, onerror) ────────────
+function useArticleBodyImages(contentRef: React.RefObject<HTMLDivElement | null>, ready: boolean) {
+  useEffect(() => {
+    if (!ready) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const imgs = container.querySelectorAll<HTMLImageElement>("img");
+    imgs.forEach((img, i) => {
+      // Evitar bloqueo por Referer en CDNs externos (Medium, etc.)
+      img.setAttribute("referrerpolicy", "no-referrer");
+      // Lazy loading excepto la primera imagen (above the fold)
+      if (i > 0) img.setAttribute("loading", "lazy");
+      // Fallback si la imagen falla
+      if (!img.dataset.fallbackSet) {
+        img.dataset.fallbackSet = "1";
+        img.addEventListener("error", function onErr() {
+          img.removeEventListener("error", onErr);
+          img.style.display = "none";
+          const parent = img.parentElement;
+          if (parent && !parent.querySelector(".img-broken")) {
+            const ph = document.createElement("div");
+            ph.className = "img-broken";
+            ph.style.cssText =
+              "width:100%;background:hsl(0 0% 94%);display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;border-radius:4px;";
+            ph.innerHTML =
+              `<span style="font-family:var(--app-font-sans);font-size:0.75rem;color:hsl(0 0% 55%)">Imagen no disponible</span>`;
+            parent.insertBefore(ph, img);
+          }
+        });
+      }
+    });
   }, [contentRef, ready]);
 }
 
@@ -401,9 +439,10 @@ export default function Article() {
   const contentRef = useRef<HTMLDivElement>(null);
   const contentReady = !!article && !isLoading;
 
-  const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
+  // Orden importa: grid primero (reordena nodos), luego mejoras de img, luego lightbox
   useArticleImageGrid(contentRef, contentReady);
   useArticleImageLoading(contentRef, contentReady);
+  const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
 
   // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──
   useArticleMetaTags(article ?? null, siteSettings);

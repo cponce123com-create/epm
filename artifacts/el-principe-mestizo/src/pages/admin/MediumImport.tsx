@@ -1,30 +1,34 @@
 import { useState, useRef } from "react";
 import {
   Upload, FileArchive, CheckCircle, XCircle,
-  AlertCircle, Loader2, RefreshCw, Info, Wifi
+  AlertCircle, Loader2, RefreshCw, Info, Wifi, Sparkles, Image
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useGetCategories } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
+// En producción apunta al backend directamente para evitar limitaciones del proxy CDN.
+// En desarrollo (sin VITE_API_URL) usa rutas relativas que el proxy de Vite maneja.
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
 interface ArticleParsed {
-  title: string;
-  slug: string;
-  summary: string;
-  content: string;
+  title:       string;
+  slug:        string;
+  summary:     string;
+  content:     string;
   publishedAt: string | null;
-  status: "published" | "draft";
+  status:      "published" | "draft";
   readingTime: number;
 }
 
 interface BatchResult {
-  title: string;
-  status: "imported" | "skipped";
+  title:   string;
+  status:  "imported" | "skipped";
   reason?: string;
 }
 
-const BATCH_SIZE = 8; // artículos por petición — seguro bajo timeout de Cloudflare
+const BATCH_SIZE = 5;
 
 type Phase = "idle" | "waking" | "preparing" | "importing" | "done";
 
@@ -34,15 +38,15 @@ export default function MediumImport() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [file, setFile]                   = useState<File | null>(null);
-  const [categoryId, setCategoryId]       = useState<string>("");
-  const [defaultStatus, setDefaultStatus] = useState<"published" | "draft">("draft");
-  const [migrateImages, setMigrateImages] = useState(true);
+  const [file, setFile]                     = useState<File | null>(null);
+  const [categoryId, setCategoryId]         = useState<string>("");
+  const [defaultStatus, setDefaultStatus]   = useState<"published" | "draft">("draft");
   const [autoCategorize, setAutoCategorize] = useState(true);
-  const [phase, setPhase]                 = useState<Phase>("idle");
-  const [progress, setProgress]           = useState({ current: 0, total: 0 });
-  const [allResults, setAllResults]       = useState<BatchResult[]>([]);
-  const [error, setError]                 = useState<string | null>(null);
+  const [migrateImages, setMigrateImages]   = useState(false);
+  const [phase, setPhase]                   = useState<Phase>("idle");
+  const [progress, setProgress]             = useState({ current: 0, total: 0 });
+  const [allResults, setAllResults]         = useState<BatchResult[]>([]);
+  const [error, setError]                   = useState<string | null>(null);
 
   const loading = phase === "waking" || phase === "preparing" || phase === "importing";
   const done    = phase === "done";
@@ -74,14 +78,16 @@ export default function MediumImport() {
     setPhase("idle");
   };
 
+  const canImport = !!file && (autoCategorize || !!categoryId);
+
   const doImport = async () => {
-    if (!file || (!categoryId && !autoCategorize)) return;
+    if (!canImport) return;
 
     resetState();
 
     // ── Paso 1: despertar servidor ──────────────────────────────────────────
     setPhase("waking");
-    const alive = await waitForServer();
+    const alive = await waitForServer(API_BASE);
     if (!alive) {
       setError("El servidor no respondió tras 60 s. Verifica que epm-api esté activo en Render.");
       setPhase("idle");
@@ -93,25 +99,25 @@ export default function MediumImport() {
     let articles: ArticleParsed[];
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", file!);
       formData.append("categoryId", categoryId);
       formData.append("autoCategorize", String(autoCategorize));
 
-      const res = await fetch("/api/admin/import-medium/prepare", {
-        method: "POST",
+      const res = await fetch(`${API_BASE}/api/admin/import-medium/prepare`, {
+        method:  "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        body:    formData,
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? `Error al preparar el ZIP (${res.status}).`);
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setError(data.error ?? `Error al preparar el ZIP (HTTP ${res.status}).`);
         setPhase("idle");
         return;
       }
 
-      const data = await res.json();
-      articles = data.articles as ArticleParsed[];
+      const data = await res.json() as { articles: ArticleParsed[] };
+      articles = data.articles;
 
       if (!articles || articles.length === 0) {
         setError("No se encontraron artículos en el ZIP.");
@@ -120,8 +126,11 @@ export default function MediumImport() {
       }
 
       setProgress({ current: 0, total: articles.length });
-    } catch {
-      setError("Error al enviar el archivo. Verifica tu conexión.");
+    } catch (err) {
+      const msg = err instanceof TypeError
+        ? "Error de red al enviar el archivo. Verifica tu conexión y que el servidor esté activo."
+        : `Error inesperado: ${String(err)}`;
+      setError(msg);
       setPhase("idle");
       return;
     }
@@ -134,36 +143,35 @@ export default function MediumImport() {
       const batch = articles.slice(i, i + BATCH_SIZE);
 
       try {
-        const res = await fetch("/api/admin/import-medium/batch", {
-          method: "POST",
+        const res = await fetch(`${API_BASE}/api/admin/import-medium/batch`, {
+          method:  "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization:  `Bearer ${token}`,
           },
           body: JSON.stringify({
-            articles: batch,
-            categoryId: parseInt(categoryId, 10),
+            articles:      batch,
+            categoryId:    parseInt(categoryId, 10) || 0,
             defaultStatus,
-            migrateImages,
             autoCategorize,
+            migrateImages,
           }),
         });
 
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          // Marcar todo el lote como fallido pero continuar con el siguiente
+          const data = await res.json().catch(() => ({})) as { error?: string };
           batch.forEach(a => accumulated.push({
-            title: a.title,
+            title:  a.title,
             status: "skipped",
             reason: data.error ?? `Error HTTP ${res.status}`,
           }));
         } else {
-          const data = await res.json();
-          accumulated.push(...(data.results as BatchResult[]));
+          const data = await res.json() as { results: BatchResult[] };
+          accumulated.push(...data.results);
         }
       } catch {
         batch.forEach(a => accumulated.push({
-          title: a.title,
+          title:  a.title,
           status: "skipped",
           reason: "Error de red al enviar el lote.",
         }));
@@ -244,21 +252,34 @@ export default function MediumImport() {
               onDragOver={e => e.preventDefault()}
               onClick={() => !loading && fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                loading ? "opacity-50 cursor-not-allowed border-border"
-                        : "cursor-pointer hover:border-primary/60 hover:bg-muted/30 border-border"
+                loading
+                  ? "opacity-50 cursor-not-allowed border-border"
+                  : "cursor-pointer hover:border-primary/60 hover:bg-muted/30 border-border"
               }`}
             >
-              <input ref={fileInputRef} type="file" accept=".zip" className="hidden" onChange={handleFileChange} disabled={loading} />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={loading}
+              />
               {file ? (
                 <div className="flex items-center justify-center gap-3 text-foreground">
                   <FileArchive size={24} className="text-primary" />
                   <div className="text-left">
                     <p className="font-medium font-sans-ui text-sm">{file.name}</p>
-                    <p className="text-xs text-muted-foreground font-sans-ui">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                    <p className="text-xs text-muted-foreground font-sans-ui">
+                      {(file.size / 1024 / 1024).toFixed(1)} MB
+                    </p>
                   </div>
                   {!loading && (
-                    <button type="button" onClick={e => { e.stopPropagation(); setFile(null); resetState(); }}
-                      className="ml-auto text-muted-foreground hover:text-destructive transition-colors">
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setFile(null); resetState(); }}
+                      className="ml-auto text-muted-foreground hover:text-destructive transition-colors"
+                    >
                       <XCircle size={16} />
                     </button>
                   )}
@@ -280,13 +301,24 @@ export default function MediumImport() {
                 <Loader2 size={14} className="animate-spin" /> Cargando…
               </div>
             ) : (
-              <select value={categoryId} onChange={e => setCategoryId(e.target.value)} disabled={loading || autoCategorize}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans-ui bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50">
-                <option value="">Selecciona una categoría…</option>
-                {(categories ?? []).map(cat => (
-                  <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
+                  disabled={loading || autoCategorize}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans-ui bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                >
+                  <option value="">Selecciona una categoría…</option>
+                  {(categories ?? []).map(cat => (
+                    <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
+                  ))}
+                </select>
+                {autoCategorize && (
+                  <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
+                    Auto-categorización activada: este campo se ignora.
+                  </p>
+                )}
+              </>
             )}
             <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
               {autoCategorize
@@ -319,19 +351,68 @@ export default function MediumImport() {
             </label>
           </div>
 
-          {/* Estado */}
+          {/* Opciones */}
+          <div className="space-y-3">
+            <label className="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={autoCategorize}
+                onChange={e => setAutoCategorize(e.target.checked)}
+                disabled={loading}
+                className="mt-0.5 accent-primary"
+              />
+              <div>
+                <span className="flex items-center gap-1.5 text-sm font-sans-ui font-medium text-foreground group-hover:text-primary transition-colors">
+                  <Sparkles size={13} className="text-primary" />
+                  Clasificar categorías automáticamente (IA heurística por texto)
+                </span>
+                <p className="text-xs text-muted-foreground font-sans-ui mt-0.5">
+                  Asigna la categoría más apropiada según el contenido de cada artículo.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={migrateImages}
+                onChange={e => setMigrateImages(e.target.checked)}
+                disabled={loading}
+                className="mt-0.5 accent-primary"
+              />
+              <div>
+                <span className="flex items-center gap-1.5 text-sm font-sans-ui font-medium text-foreground group-hover:text-primary transition-colors">
+                  <Image size={13} className="text-primary" />
+                  Subir imágenes de Medium a Cloudinary durante la importación
+                </span>
+                <p className="text-xs text-muted-foreground font-sans-ui mt-0.5">
+                  Más lento pero garantiza que las portadas se muestren correctamente.
+                  Requiere Cloudinary configurado en el servidor.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {/* Estado publicación */}
           <div>
-            <label className="block text-sm font-medium text-foreground font-sans-ui mb-2">Estado de los artículos importados</label>
+            <label className="block text-sm font-medium text-foreground font-sans-ui mb-2">
+              Estado de los artículos importados
+            </label>
             <div className="flex flex-col sm:flex-row gap-3">
               {[
                 { value: "draft",     label: "Borrador (recomendado — revisar antes de publicar)" },
                 { value: "published", label: "Publicado" },
               ].map(opt => (
                 <label key={opt.value} className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
-                  <input type="radio" name="status" value={opt.value}
+                  <input
+                    type="radio"
+                    name="status"
+                    value={opt.value}
                     checked={defaultStatus === opt.value}
                     onChange={() => setDefaultStatus(opt.value as "published" | "draft")}
-                    disabled={loading} className="accent-primary" />
+                    disabled={loading}
+                    className="accent-primary"
+                  />
                   {opt.label}
                 </label>
               ))}
@@ -362,8 +443,11 @@ export default function MediumImport() {
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <div className="flex-1">
                 {error}
-                <button onClick={doImport}
-                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-800 underline underline-offset-2">
+                <button
+                  onClick={doImport}
+                  disabled={!canImport}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-800 underline underline-offset-2 disabled:opacity-40"
+                >
                   <RefreshCw size={12} /> Reintentar
                 </button>
               </div>
@@ -371,10 +455,20 @@ export default function MediumImport() {
           )}
 
           {/* Botón */}
-          <button onClick={doImport} disabled={loading || !file || (!categoryId && !autoCategorize)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium font-sans-ui hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
+          <button
+            onClick={doImport}
+            disabled={loading || !canImport}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium font-sans-ui hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
             {loading ? (
-              <><Loader2 size={16} className="animate-spin" />{phase === "waking" ? "Conectando…" : phase === "preparing" ? "Procesando ZIP…" : `Importando lote ${Math.ceil(progress.current / BATCH_SIZE)} / ${Math.ceil(progress.total / BATCH_SIZE)}…`}</>
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {phase === "waking"
+                  ? "Conectando…"
+                  : phase === "preparing"
+                  ? "Procesando ZIP…"
+                  : `Importando lote ${Math.ceil(progress.current / BATCH_SIZE)} / ${Math.ceil(progress.total / BATCH_SIZE)}…`}
+              </>
             ) : (
               <><Upload size={16} />Importar artículos</>
             )}
@@ -411,9 +505,12 @@ export default function MediumImport() {
 
             <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
               {allResults.map((r, i) => (
-                <div key={i} className={`flex items-start gap-2 px-3 py-2 rounded-md text-sm font-sans-ui ${
-                  r.status === "imported" ? "bg-green-50 text-green-800" : "bg-yellow-50 text-yellow-800"
-                }`}>
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 px-3 py-2 rounded-md text-sm font-sans-ui ${
+                    r.status === "imported" ? "bg-green-50 text-green-800" : "bg-yellow-50 text-yellow-800"
+                  }`}
+                >
                   {r.status === "imported"
                     ? <CheckCircle size={13} className="mt-0.5 shrink-0" />
                     : <XCircle    size={13} className="mt-0.5 shrink-0" />}
@@ -439,14 +536,14 @@ export default function MediumImport() {
   );
 }
 
-/** Espera que /api/health responda OK, máximo 60 s */
-async function waitForServer(maxWaitMs = 60_000): Promise<boolean> {
+/** Espera que el backend responda OK, máximo 60 s */
+async function waitForServer(apiBase: string, maxWaitMs = 60_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     try {
-      const res = await fetch("/api/health", { method: "GET" });
+      const res = await fetch(`${apiBase}/api/health`);
       if (res.ok) return true;
-    } catch { /* dormido */ }
+    } catch { /* servidor dormido */ }
     await new Promise(r => setTimeout(r, 3000));
   }
   return false;

@@ -1,8 +1,27 @@
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useState } from "react";
 import type { Article } from "@workspace/api-client-react";
 import OptimizedImage from "@/components/OptimizedImage";
+
+function ImgWithFallback({ src, alt, className, style, loading }: {
+  src: string; alt: string; className?: string; style?: React.CSSProperties; loading?: "lazy" | "eager";
+}) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return <div className={`bg-gray-800 ${className ?? ""}`} style={style} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading ?? "eager"}
+      referrerPolicy="no-referrer"
+      onError={() => setBroken(true)}
+    />
+  );
+}
 
 interface Props {
   article: Article;

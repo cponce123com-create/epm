@@ -48,6 +48,11 @@ services:
     rootDir: .
     buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build
     staticPublishPath: artifacts/el-principe-mestizo/dist/public
+    envVars:
+      # URL directa al backend — el frontend la usa para uploads grandes (FormData)
+      # para evitar limitaciones del proxy CDN de Render en sitios estáticos.
+      - key: VITE_API_URL
+        value: "https://epm-api.onrender.com"
     routes:
       # Las rutas /api/* van al backend
       - type: rewrite
