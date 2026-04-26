@@ -2,6 +2,7 @@ import { Twitter, Facebook, MapPin, Pen, Eye, Shield, Quote } from "lucide-react
 import { Link } from "wouter";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import OptimizedImage from "@/components/OptimizedImage";
 import { useGetPublicSettings, useGetArticles } from "@workspace/api-client-react";
 
 export default function About() {
@@ -168,8 +169,12 @@ export default function About() {
                   </div>
                   {article.coverImageUrl && (
                     <Link href={`/articulo/${article.slug}`} className="shrink-0">
-                      <img src={article.coverImageUrl} alt={article.title}
-                        className="w-20 h-16 object-cover" loading="lazy" />
+                      <OptimizedImage
+                        src={article.coverImageUrl}
+                        alt={article.title}
+                        className="w-20 h-16 object-cover"
+                        optimizeWidth={240}
+                      />
                     </Link>
                   )}
                 </div>

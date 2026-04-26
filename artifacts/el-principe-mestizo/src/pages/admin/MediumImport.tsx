@@ -25,6 +25,41 @@ interface BatchResult {
 }
 
 const BATCH_SIZE = 8; // artículos por petición — seguro bajo timeout de Cloudflare
+const DEFAULT_API_BASE = "https://epm-7gaq.onrender.com";
+const CONFIGURED_API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || "";
+const API_BASES = Array.from(new Set([CONFIGURED_API_BASE, DEFAULT_API_BASE].filter(Boolean)));
+const api = (path: string, base: string) => `${base}${path}`;
+
+type FetchJsonResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+async function fetchJsonWithFallback<T>(path: string, init: RequestInit): Promise<FetchJsonResult<T>> {
+  let lastError = "No se pudo conectar al API.";
+
+  for (const base of API_BASES) {
+    try {
+      const res = await fetch(api(path, base), init);
+      const raw = await res.text();
+      const data = raw ? JSON.parse(raw) : {};
+
+      if (!res.ok) {
+        const apiError = typeof data?.error === "string" ? data.error : `Error HTTP ${res.status}.`;
+        return { ok: false, error: apiError };
+      }
+
+      // Si el servidor responde 200 pero sin JSON (ej. HTML/rewrite), intentamos el siguiente base.
+      if (!raw || typeof data !== "object" || data === null) {
+        lastError = `Respuesta no válida desde ${base}. Verifica VITE_API_BASE_URL.`;
+        continue;
+      }
+
+      return { ok: true, data: data as T };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : "Error de red al llamar al API.";
+    }
+  }
+
+  return { ok: false, error: lastError };
+}
 
 type Phase = "idle" | "waking" | "preparing" | "importing" | "done";
 
@@ -37,6 +72,8 @@ export default function MediumImport() {
   const [file, setFile]                   = useState<File | null>(null);
   const [categoryId, setCategoryId]       = useState<string>("");
   const [defaultStatus, setDefaultStatus] = useState<"published" | "draft">("draft");
+  const [migrateImages, setMigrateImages] = useState(true);
+  const [autoCategorize, setAutoCategorize] = useState(true);
   const [phase, setPhase]                 = useState<Phase>("idle");
   const [progress, setProgress]           = useState({ current: 0, total: 0 });
   const [allResults, setAllResults]       = useState<BatchResult[]>([]);
@@ -73,7 +110,7 @@ export default function MediumImport() {
   };
 
   const doImport = async () => {
-    if (!file || !categoryId) return;
+    if (!file || (!categoryId && !autoCategorize)) return;
 
     resetState();
 
@@ -93,22 +130,24 @@ export default function MediumImport() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("categoryId", categoryId);
+      formData.append("autoCategorize", String(autoCategorize));
 
-      const res = await fetch("/api/admin/import-medium/prepare", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const prepare = await fetchJsonWithFallback<{ articles: ArticleParsed[] }>(
+        "/api/admin/import-medium/prepare",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? `Error al preparar el ZIP (${res.status}).`);
+      if (!prepare.ok) {
+        setError(prepare.error);
         setPhase("idle");
         return;
       }
 
-      const data = await res.json();
-      articles = data.articles as ArticleParsed[];
+      articles = prepare.data.articles;
 
       if (!articles || articles.length === 0) {
         setError("No se encontraron artículos en el ZIP.");
@@ -131,30 +170,33 @@ export default function MediumImport() {
       const batch = articles.slice(i, i + BATCH_SIZE);
 
       try {
-        const res = await fetch("/api/admin/import-medium/batch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            articles: batch,
-            categoryId: parseInt(categoryId, 10),
-            defaultStatus,
-          }),
-        });
+        const batchRes = await fetchJsonWithFallback<{ results: BatchResult[] }>(
+          "/api/admin/import-medium/batch",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              articles: batch,
+              categoryId: parseInt(categoryId, 10),
+              defaultStatus,
+              migrateImages,
+              autoCategorize,
+            }),
+          }
+        );
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
+        if (!batchRes.ok) {
           // Marcar todo el lote como fallido pero continuar con el siguiente
           batch.forEach(a => accumulated.push({
             title: a.title,
             status: "skipped",
-            reason: data.error ?? `Error HTTP ${res.status}`,
+            reason: batchRes.error,
           }));
         } else {
-          const data = await res.json();
-          accumulated.push(...(data.results as BatchResult[]));
+          accumulated.push(...batchRes.data.results);
         }
       } catch {
         batch.forEach(a => accumulated.push({
@@ -171,6 +213,21 @@ export default function MediumImport() {
     setPhase("done");
     const imp = accumulated.filter(r => r.status === "imported").length;
     toast({ description: `Importación completada: ${imp} artículos importados.` });
+  };
+
+  const purgeAllArticles = async () => {
+    if (!confirm("¿Eliminar TODOS los artículos? Esta acción no se puede deshacer.")) return;
+    try {
+      const purge = await fetchJsonWithFallback<{ deleted?: number }>("/api/admin/articles/purge", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!purge.ok) throw new Error(purge.error);
+      toast({ description: `Se eliminaron ${purge.data.deleted ?? 0} artículos.` });
+      resetState();
+    } catch (err) {
+      toast({ description: err instanceof Error ? err.message : "Error eliminando artículos.", variant: "destructive" });
+    }
   };
 
   const phaseLabel = () => {
@@ -259,7 +316,7 @@ export default function MediumImport() {
                 <Loader2 size={14} className="animate-spin" /> Cargando…
               </div>
             ) : (
-              <select value={categoryId} onChange={e => setCategoryId(e.target.value)} disabled={loading}
+              <select value={categoryId} onChange={e => setCategoryId(e.target.value)} disabled={loading || autoCategorize}
                 className="w-full border border-border rounded-md px-3 py-2 text-sm font-sans-ui bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50">
                 <option value="">Selecciona una categoría…</option>
                 {(categories ?? []).map(cat => (
@@ -267,6 +324,35 @@ export default function MediumImport() {
                 ))}
               </select>
             )}
+            <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
+              {autoCategorize
+                ? "Auto-categorización activada: este campo se ignora."
+                : "Categoría por defecto para todos los artículos."}
+            </p>
+          </div>
+
+          {/* Opciones avanzadas */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoCategorize}
+                onChange={(e) => setAutoCategorize(e.target.checked)}
+                disabled={loading}
+                className="accent-primary"
+              />
+              Clasificar categorías automáticamente (IA heurística por texto)
+            </label>
+            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
+              <input
+                type="checkbox"
+                checked={migrateImages}
+                onChange={(e) => setMigrateImages(e.target.checked)}
+                disabled={loading}
+                className="accent-primary"
+              />
+              Subir imágenes de Medium a Cloudinary durante la importación
+            </label>
           </div>
 
           {/* Estado */}
@@ -321,13 +407,22 @@ export default function MediumImport() {
           )}
 
           {/* Botón */}
-          <button onClick={doImport} disabled={loading || !file || !categoryId}
+          <button onClick={doImport} disabled={loading || !file || (!categoryId && !autoCategorize)}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium font-sans-ui hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
             {loading ? (
               <><Loader2 size={16} className="animate-spin" />{phase === "waking" ? "Conectando…" : phase === "preparing" ? "Procesando ZIP…" : `Importando lote ${Math.ceil(progress.current / BATCH_SIZE)} / ${Math.ceil(progress.total / BATCH_SIZE)}…`}</>
             ) : (
               <><Upload size={16} />Importar artículos</>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={purgeAllArticles}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-700 rounded-lg text-sm font-medium font-sans-ui hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <XCircle size={16} /> Borrar TODOS los artículos
           </button>
         </div>
 
@@ -385,8 +480,8 @@ async function waitForServer(maxWaitMs = 60_000): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
     try {
-      const res = await fetch("/api/health", { method: "GET" });
-      if (res.ok) return true;
+      const health = await fetchJsonWithFallback<{ ok?: boolean }>("/api/health", { method: "GET" });
+      if (health.ok) return true;
     } catch { /* dormido */ }
     await new Promise(r => setTimeout(r, 3000));
   }

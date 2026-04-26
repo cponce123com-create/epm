@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, articlesTable, categoriesTable, usersTable } from "@workspace/db";
+import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
 import { eq, desc, ilike, and, ne, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
@@ -324,6 +324,22 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     .where(eq(articlesTable.id, id));
 
   res.json(formatArticle(full as ArticleRow));
+});
+
+// Admin: delete article
+router.delete("/admin/articles/purge", requireAuth, async (_req, res): Promise<void> => {
+  const [articleCount, commentCount] = await Promise.all([
+    db.select({ total: count(articlesTable.id) }).from(articlesTable),
+    db.select({ total: count(commentsTable.id) }).from(commentsTable),
+  ]);
+
+  await db.execute(sql`TRUNCATE TABLE comments, articles RESTART IDENTITY CASCADE`);
+
+  res.json({
+    ok: true,
+    deleted: Number(articleCount?.[0]?.total ?? 0),
+    commentsDeleted: Number(commentCount?.[0]?.total ?? 0),
+  });
 });
 
 // Admin: delete article
