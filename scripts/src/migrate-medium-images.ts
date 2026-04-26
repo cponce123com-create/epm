@@ -46,6 +46,24 @@ function cloudinaryDeliveryUrl(publicId: string): string {
   });
 }
 
+// Descarga la imagen como buffer para evitar el bloqueo 403 de Medium
+async function fetchImageAsBuffer(url: string): Promise<Buffer> {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://medium.com/",
+      "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} al descargar: ${url}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 const migratedCache = new Map<string, string>();
 
 async function migrateOneImage(sourceUrl: string, dryRun: boolean): Promise<string> {
@@ -56,22 +74,49 @@ async function migrateOneImage(sourceUrl: string, dryRun: boolean): Promise<stri
 
   const publicId = cloudinaryPublicIdFor(normalized);
   const deliveryUrl = cloudinaryDeliveryUrl(publicId);
+
   if (dryRun) {
     migratedCache.set(normalized, deliveryUrl);
     return deliveryUrl;
   }
 
   try {
-    await cloudinary.uploader.upload(normalized, {
-      public_id: publicId,
-      unique_filename: false,
-      overwrite: false,
-      resource_type: "image",
+    // Descargamos primero como buffer y subimos a Cloudinary
+    const buffer = await fetchImageAsBuffer(normalized);
+
+    await new Promise<void>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          public_id: publicId,
+          unique_filename: false,
+          overwrite: false,
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) {
+            const msg = error.message ?? "";
+            // Si ya existía, lo reutilizamos sin error
+            if (msg.toLowerCase().includes("already exists")) {
+              resolve();
+            } else {
+              reject(error);
+            }
+          } else {
+            resolve();
+          }
+        }
+      );
+      uploadStream.end(buffer);
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    // Si ya existía, seguimos y reutilizamos.
-    if (!msg.toLowerCase().includes("already exists")) throw err;
+    if (msg.toLowerCase().includes("already exists")) {
+      // OK, reutilizamos
+    } else {
+      console.warn(`  [skip] No se pudo migrar ${normalized}: ${msg}`);
+      // Devolvemos la URL original para no romper el artículo
+      return normalized;
+    }
   }
 
   migratedCache.set(normalized, deliveryUrl);
@@ -81,6 +126,7 @@ async function migrateOneImage(sourceUrl: string, dryRun: boolean): Promise<stri
 async function migrateArticleImages(article: ArticleRow, dryRun: boolean) {
   let changed = false;
   let migratedCount = 0;
+  let skippedCount = 0;
 
   let nextCover = article.coverImageUrl;
   if (article.coverImageUrl && isMediumImageUrl(article.coverImageUrl)) {
@@ -88,6 +134,8 @@ async function migrateArticleImages(article: ArticleRow, dryRun: boolean) {
     if (nextCover !== article.coverImageUrl) {
       changed = true;
       migratedCount += 1;
+    } else {
+      skippedCount += 1;
     }
   }
 
@@ -101,8 +149,12 @@ async function migrateArticleImages(article: ArticleRow, dryRun: boolean) {
     const cloudinaryUrl = await migrateOneImage(raw, dryRun);
     node.attr("src", cloudinaryUrl);
     node.removeAttr("data-src");
-    migratedCount += 1;
-    changed = true;
+    if (cloudinaryUrl !== normalizeUrl(raw)) {
+      migratedCount += 1;
+      changed = true;
+    } else {
+      skippedCount += 1;
+    }
   }
   const nextContent = $.html() ?? article.content;
 
@@ -116,7 +168,7 @@ async function migrateArticleImages(article: ArticleRow, dryRun: boolean) {
       .where(eq(articlesTable.id, article.id));
   }
 
-  return { changed, migratedCount };
+  return { changed, migratedCount, skippedCount };
 }
 
 async function main() {
@@ -130,6 +182,8 @@ async function main() {
   const onlySlugArg = process.argv.find((arg) => arg.startsWith("--slug="));
   const onlySlug = onlySlugArg ? onlySlugArg.replace("--slug=", "") : null;
 
+  console.log(`Modo: ${dryRun ? "DRY-RUN (sin cambios)" : "REAL (escribiendo en BD y Cloudinary)"}`);
+
   const rows = (await db
     .select({
       id: articlesTable.id,
@@ -142,21 +196,22 @@ async function main() {
   const candidates = onlySlug ? rows.filter((r) => r.slug === onlySlug) : rows;
   let changedArticles = 0;
   let migratedImages = 0;
+  let skippedImages = 0;
 
   for (const article of candidates) {
     const result = await migrateArticleImages(article, dryRun);
     if (result.changed) {
       changedArticles += 1;
       migratedImages += result.migratedCount;
-      console.log(`[updated] ${article.slug} · ${result.migratedCount} imágenes`);
+      skippedImages += result.skippedCount;
+      console.log(`[updated] ${article.slug} · ${result.migratedCount} migradas, ${result.skippedCount} saltadas`);
     }
   }
 
-  console.log(`Done. changedArticles=${changedArticles} migratedImages=${migratedImages} dryRun=${dryRun}`);
+  console.log(`\nDone. changedArticles=${changedArticles} migratedImages=${migratedImages} skippedImages=${skippedImages} dryRun=${dryRun}`);
 }
 
 main().catch((err) => {
   console.error(err);
-
   process.exit(1);
 });
