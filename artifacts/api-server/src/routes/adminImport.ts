@@ -18,6 +18,23 @@ interface ParsedPost {
   status: "published" | "draft";
 }
 
+function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
+  $("img").each((_, el) => {
+    const img = $(el);
+    const src = img.attr("src")?.trim();
+    const dataSrc = img.attr("data-src")?.trim();
+    const candidate = src || dataSrc;
+    if (!candidate) return;
+
+    const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate;
+    img.attr("src", normalized);
+    img.removeAttr("data-src");
+
+    if (!img.attr("loading")) img.attr("loading", "lazy");
+    if (!img.attr("decoding")) img.attr("decoding", "async");
+  });
+}
+
 function parseMediumHtml(html: string): ParsedPost {
   const $ = cheerio.load(html);
 
@@ -53,6 +70,7 @@ function parseMediumHtml(html: string): ParsedPost {
   }
 
   const $body = cheerio.load(bodyHtml);
+  normalizeMediumImageAttributes($body);
   $body("section").each(function () {
     $body(this).replaceWith($body(this).html() ?? "");
   });
