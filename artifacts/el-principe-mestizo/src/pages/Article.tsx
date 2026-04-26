@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Clock, Calendar, User, ArrowLeft, X, ZoomIn, ZoomOut, RotateCcw, Maximize2 } from "lucide-react";
 import { Link } from "wouter";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Sidebar from "@/components/Sidebar";
@@ -439,6 +439,20 @@ export default function Article() {
   const contentRef = useRef<HTMLDivElement>(null);
   const contentReady = !!article && !isLoading;
 
+  // Pre-procesar el HTML ANTES de inyectarlo en el DOM.
+  // Los <img> de Medium CDN necesitan referrerpolicy="no-referrer" desde el primer
+  // fetch — si lo añadimos con useEffect (post-paint) el browser ya lanzó las
+  // peticiones con Referer y el CDN las bloquea (403).
+  const processedContent = useMemo(() => {
+    const raw = article?.content;
+    if (!raw) return "";
+    return raw
+      // Normaliza URLs protocol-relative (//miro.medium.com → https://miro.medium.com)
+      .replace(/(<img[^>]+src=")\/\/([^"]+)"/gi, '$1https://$2"')
+      // Inyecta referrerpolicy solo si aún no lo tiene
+      .replace(/<img\b(?![^>]*referrerpolicy)/gi, '<img referrerpolicy="no-referrer"');
+  }, [article?.content]);
+
   // Orden importa: grid primero (reordena nodos), luego mejoras de img, luego lightbox
   useArticleImageGrid(contentRef, contentReady);
   useArticleImageLoading(contentRef, contentReady);
@@ -589,7 +603,7 @@ export default function Article() {
             <div
               ref={contentRef}
               className="article-body"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: processedContent }}
             />
 
             {/* Publicidad final */}
