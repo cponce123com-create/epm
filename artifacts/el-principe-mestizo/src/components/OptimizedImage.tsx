@@ -9,7 +9,7 @@ type Props = ImgHTMLAttributes<HTMLImageElement> & {
 
 export default function OptimizedImage({
   src,
-  fallbackSrc = "/opengraph.jpg",
+  fallbackSrc,
   optimizeWidth,
   priority = false,
   loading,
@@ -19,7 +19,7 @@ export default function OptimizedImage({
 }: Props) {
   const [failed, setFailed] = useState(false);
   const finalSrc = useMemo(() => {
-    const base = failed ? fallbackSrc : typeof src === "string" ? src : "";
+    const base = failed\n      ? (fallbackSrc ?? (typeof src === "string" ? src : ""))\n      : (typeof src === "string" ? src : "");
     return toCloudinaryDeliveryUrl(base, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
 
@@ -30,7 +30,7 @@ export default function OptimizedImage({
       loading={priority ? "eager" : (loading ?? "lazy")}
       decoding={decoding ?? "async"}
       onError={(e) => {
-        if (!failed) setFailed(true);
+        if (!failed && fallbackSrc) setFailed(true);
         onError?.(e);
       }}
     />

@@ -310,7 +310,7 @@ function useArticleImageLoading(contentRef: React.RefObject<HTMLDivElement | nul
       img.onerror = () => {
         if (img.dataset.fallbackApplied === "1") return;
         img.dataset.fallbackApplied = "1";
-        img.src = "/opengraph.jpg";
+        img.style.display = "none";
       };
     });
   }, [contentRef, ready]);
