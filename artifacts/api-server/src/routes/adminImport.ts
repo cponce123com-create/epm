@@ -91,18 +91,29 @@ function pickCategoryIdByHeuristic(
 }
 
 function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
+  // Remove noscript wrappers — Medium uses them for the lazy-load fallback;
+  // since we resolve data-src→src here the noscript duplicate is redundant.
+  $("noscript").each((_, el) => {
+    const ns = $(el);
+    if (ns.find("img").length > 0) ns.remove();
+  });
+
   $("img").each((_, el) => {
     const img = $(el);
-    const src = img.attr("src")?.trim();
+    const src     = img.attr("src")?.trim();
     const dataSrc = img.attr("data-src")?.trim();
     const candidate = src || dataSrc;
     if (!candidate) return;
 
-    const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate;
+    const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate.trim();
     img.attr("src", normalized);
     img.removeAttr("data-src");
+    img.removeAttr("srcset");         // Medium srcset URLs are also CDN-blocked
 
-    if (!img.attr("loading")) img.attr("loading", "lazy");
+    // These must be in stored HTML so the browser uses them on the FIRST request,
+    // before any JS (useEffect) can run.
+    img.attr("referrerpolicy", "no-referrer");
+    if (!img.attr("loading"))  img.attr("loading",  "lazy");
     if (!img.attr("decoding")) img.attr("decoding", "async");
   });
 }
@@ -437,6 +448,80 @@ router.post(
     const skipped  = results.filter(r => r.status === "skipped").length;
     res.json({ ok: true, imported, skipped, results });
   }
+);
+
+// ── POST /api/admin/fix-article-images ───────────────────────────────────────
+// Recorre TODOS los artículos y añade referrerpolicy="no-referrer" a cada <img>
+// (necesario para los artículos importados antes de este fix).
+// También normaliza protocol-relative URLs y elimina srcset de Medium.
+router.post(
+  "/admin/fix-article-images",
+  requireAuth,
+  async (req: import("express").Request, res: import("express").Response): Promise<void> => {
+    const dryRun = String(req.query["dryRun"] ?? req.body?.dryRun ?? "false") === "true";
+
+    const articles = await db
+      .select({ id: articlesTable.id, title: articlesTable.title, content: articlesTable.content })
+      .from(articlesTable);
+
+    let fixed = 0;
+    let skipped = 0;
+    const details: { id: number; title: string; changed: boolean }[] = [];
+
+    for (const article of articles) {
+      const original = article.content ?? "";
+      const $ = cheerio.load(original, { decodeEntities: false });
+
+      // Remove noscript wrappers that contain only an img (Medium lazy-load duplicate)
+      $("noscript").each((_, el) => {
+        if ($(el).find("img").length > 0) $(el).remove();
+      });
+
+      $("img").each((_, el) => {
+        const img = $(el);
+        const src     = img.attr("src")?.trim() ?? "";
+        const dataSrc = img.attr("data-src")?.trim() ?? "";
+        const candidate = src || dataSrc;
+
+        if (candidate) {
+          const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate;
+          img.attr("src", normalized);
+          img.removeAttr("data-src");
+          img.removeAttr("srcset");
+        }
+
+        img.attr("referrerpolicy", "no-referrer");
+        if (!img.attr("loading"))  img.attr("loading",  "lazy");
+        if (!img.attr("decoding")) img.attr("decoding", "async");
+      });
+
+      const updated = $("body").html() ?? original;
+      const changed = updated !== original;
+
+      details.push({ id: article.id, title: article.title, changed });
+
+      if (changed && !dryRun) {
+        await db
+          .update(articlesTable)
+          .set({ content: updated })
+          .where(eq(articlesTable.id, article.id));
+        fixed++;
+      } else if (!changed) {
+        skipped++;
+      } else {
+        fixed++; // dryRun: count as "would fix"
+      }
+    }
+
+    res.json({
+      ok: true,
+      dryRun,
+      articlesScanned: articles.length,
+      fixed,
+      skipped,
+      details: details.filter(d => d.changed).map(d => ({ id: d.id, title: d.title })),
+    });
+  },
 );
 
 export default router;

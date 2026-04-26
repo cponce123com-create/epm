@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Upload, FileArchive, CheckCircle, XCircle,
-  AlertCircle, Loader2, RefreshCw, Info, Wifi, Sparkles, Image
+  AlertCircle, Loader2, RefreshCw, Info, Wifi, Sparkles, Image, Wrench
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useGetCategories } from "@workspace/api-client-react";
@@ -184,6 +184,27 @@ export default function MediumImport() {
     setPhase("done");
     const imp = accumulated.filter(r => r.status === "imported").length;
     toast({ description: `Importación completada: ${imp} artículos importados.` });
+  };
+
+  const [fixingImages, setFixingImages] = useState(false);
+  const [fixResult, setFixResult]       = useState<string | null>(null);
+
+  const fixArticleImages = async () => {
+    setFixingImages(true);
+    setFixResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/fix-article-images`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({})) as { fixed?: number; articlesScanned?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setFixResult(`✓ ${data.fixed ?? 0} de ${data.articlesScanned ?? 0} artículos corregidos`);
+    } catch (err) {
+      setFixResult(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setFixingImages(false);
+    }
   };
 
   const purgeAllArticles = async () => {
@@ -473,6 +494,29 @@ export default function MediumImport() {
               <><Upload size={16} />Importar artículos</>
             )}
           </button>
+
+          {/* Reparar imágenes de artículos ya importados */}
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground font-sans-ui mb-2">
+              Si las imágenes no cargan en artículos ya importados, usa este botón para añadir
+              los atributos necesarios a todos los artículos existentes.
+            </p>
+            <button
+              type="button"
+              onClick={fixArticleImages}
+              disabled={fixingImages || loading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium font-sans-ui hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {fixingImages
+                ? <><Loader2 size={15} className="animate-spin" /> Reparando…</>
+                : <><Wrench size={15} /> Reparar imágenes de artículos existentes</>}
+            </button>
+            {fixResult && (
+              <p className={`mt-1.5 text-xs font-sans-ui ${fixResult.startsWith("✓") ? "text-green-700" : "text-red-600"}`}>
+                {fixResult}
+              </p>
+            )}
+          </div>
 
           <button
             type="button"
