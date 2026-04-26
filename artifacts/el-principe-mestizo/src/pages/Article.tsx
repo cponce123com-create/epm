@@ -171,7 +171,11 @@ function useArticleLightbox(contentRef: React.RefObject<HTMLDivElement | null>) 
     };
   }, [contentRef]);
 
-  return { lightbox, closeLightbox: () => setLightbox(null) };
+  return {
+    lightbox,
+    closeLightbox: () => setLightbox(null),
+    openLightbox: (src: string, alt: string) => setLightbox({ src, alt }),
+  };
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────
@@ -203,7 +207,7 @@ export default function Article() {
   const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);
-  const { lightbox, closeLightbox } = useArticleLightbox(contentRef);
+  const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
 
   // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──
   useArticleMetaTags(article ?? null, siteSettings);
@@ -276,7 +280,7 @@ export default function Article() {
               {article.category && (
                 <Link href={`/categoria/${article.category.slug}`}>
                   <span
-                    className="inline-block text-[11px] font-sans-ui font-bold px-2.5 py-0.5 text-white uppercase tracking-widest mb-3 hover:opacity-85 transition-opacity"
+                    className="category-tag mb-3"
                     style={{ backgroundColor: catColor }}
                   >
                     {article.category.name}
@@ -286,25 +290,31 @@ export default function Article() {
 
               <h1
                 className="font-display font-bold leading-tight mb-4 text-gray-900"
-                style={{ fontSize: "clamp(1.7rem, 3vw + 0.5rem, 2.8rem)", lineHeight: 1.15 }}
+                style={{ fontSize: "clamp(1.75rem, 3vw + 0.5rem, 2.85rem)", lineHeight: 1.12 }}
               >
                 {article.title}
               </h1>
 
-              <p className="font-serif-body text-lg text-gray-500 italic leading-relaxed mb-5">
-                {article.summary}
-              </p>
+              {article.summary && (
+                <p className="font-serif-body text-[1.1rem] text-gray-500 italic leading-relaxed mb-5" style={{ maxWidth: "62ch" }}>
+                  {article.summary}
+                </p>
+              )}
 
-              <div className="flex flex-wrap items-center gap-4 text-[12px] font-sans-ui text-gray-500 pb-4 border-b-2 border-gray-900">
-                <span className="flex items-center gap-1.5 font-semibold text-gray-700">
-                  <User size={13} /> {article.authorName}
-                </span>
+              <div className="article-meta">
+                {article.authorName && (
+                  <span className="article-meta__author">
+                    <User size={13} /> {article.authorName}
+                  </span>
+                )}
+                <span className="article-meta__sep">·</span>
                 <span className="flex items-center gap-1.5">
-                  <Calendar size={13} />
+                  <Calendar size={12} />
                   {format(date, "d 'de' MMMM 'de' yyyy", { locale: es })}
                 </span>
+                <span className="article-meta__sep">·</span>
                 <span className="flex items-center gap-1.5">
-                  <Clock size={13} />
+                  <Clock size={12} />
                   {article.readingTime} min de lectura
                 </span>
               </div>
@@ -317,16 +327,21 @@ export default function Article() {
 
             {/* Imagen de portada */}
             {article.coverImageUrl && (
-              <figure className="mb-6">
-                <img
-                  src={article.coverImageUrl}
-                  alt={article.coverImageAlt ?? article.title}
-                  className="w-full object-cover cursor-zoom-in"
-                  style={{ maxHeight: 480 }}
-                  onClick={() => article.coverImageUrl && closeLightbox()}
-                />
+              <figure className="mb-7">
+                <div className="relative overflow-hidden group">
+                  <img
+                    src={article.coverImageUrl}
+                    alt={article.coverImageAlt ?? article.title}
+                    className="w-full object-cover cursor-zoom-in transition-transform duration-500 group-hover:scale-[1.02]"
+                    style={{ maxHeight: 500 }}
+                    onClick={() => article.coverImageUrl && openLightbox(article.coverImageUrl, article.coverImageAlt ?? article.title)}
+                  />
+                  <div className="absolute top-3 right-3 bg-black/50 text-white/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <ZoomIn size={16} />
+                  </div>
+                </div>
                 {article.coverImageAlt && (
-                  <figcaption className="text-xs font-sans-ui text-gray-400 mt-1.5 text-center italic">
+                  <figcaption className="text-[0.78rem] font-sans-ui text-gray-400 mt-2 text-center italic leading-relaxed">
                     {article.coverImageAlt}
                   </figcaption>
                 )}
