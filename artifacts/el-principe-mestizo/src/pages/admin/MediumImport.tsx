@@ -38,15 +38,15 @@ export default function MediumImport() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [file, setFile]                       = useState<File | null>(null);
-  const [categoryId, setCategoryId]           = useState<string>("");
-  const [defaultStatus, setDefaultStatus]     = useState<"published" | "draft">("draft");
-  const [autoCategorize, setAutoCategorize]   = useState(true);
-  const [uploadImages, setUploadImages]       = useState(false);
-  const [phase, setPhase]                     = useState<Phase>("idle");
-  const [progress, setProgress]               = useState({ current: 0, total: 0 });
-  const [allResults, setAllResults]           = useState<BatchResult[]>([]);
-  const [error, setError]                     = useState<string | null>(null);
+  const [file, setFile]                     = useState<File | null>(null);
+  const [categoryId, setCategoryId]         = useState<string>("");
+  const [defaultStatus, setDefaultStatus]   = useState<"published" | "draft">("draft");
+  const [autoCategorize, setAutoCategorize] = useState(true);
+  const [migrateImages, setMigrateImages]   = useState(false);
+  const [phase, setPhase]                   = useState<Phase>("idle");
+  const [progress, setProgress]             = useState({ current: 0, total: 0 });
+  const [allResults, setAllResults]         = useState<BatchResult[]>([]);
+  const [error, setError]                   = useState<string | null>(null);
 
   const loading = phase === "waking" || phase === "preparing" || phase === "importing";
   const done    = phase === "done";
@@ -154,7 +154,7 @@ export default function MediumImport() {
             categoryId:    parseInt(categoryId, 10) || 0,
             defaultStatus,
             autoCategorize,
-            uploadImages,
+            migrateImages,
           }),
         });
 
@@ -184,6 +184,22 @@ export default function MediumImport() {
     setPhase("done");
     const imp = accumulated.filter(r => r.status === "imported").length;
     toast({ description: `Importación completada: ${imp} artículos importados.` });
+  };
+
+  const purgeAllArticles = async () => {
+    if (!confirm("¿Eliminar TODOS los artículos? Esta acción no se puede deshacer.")) return;
+    try {
+      const res = await fetch("/api/admin/articles/purge", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo eliminar.");
+      toast({ description: `Se eliminaron ${data.deleted ?? 0} artículos.` });
+      resetState();
+    } catch (err) {
+      toast({ description: err instanceof Error ? err.message : "Error eliminando artículos.", variant: "destructive" });
+    }
   };
 
   const phaseLabel = () => {
@@ -304,6 +320,35 @@ export default function MediumImport() {
                 )}
               </>
             )}
+            <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
+              {autoCategorize
+                ? "Auto-categorización activada: este campo se ignora."
+                : "Categoría por defecto para todos los artículos."}
+            </p>
+          </div>
+
+          {/* Opciones avanzadas */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoCategorize}
+                onChange={(e) => setAutoCategorize(e.target.checked)}
+                disabled={loading}
+                className="accent-primary"
+              />
+              Clasificar categorías automáticamente (IA heurística por texto)
+            </label>
+            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
+              <input
+                type="checkbox"
+                checked={migrateImages}
+                onChange={(e) => setMigrateImages(e.target.checked)}
+                disabled={loading}
+                className="accent-primary"
+              />
+              Subir imágenes de Medium a Cloudinary durante la importación
+            </label>
           </div>
 
           {/* Opciones */}
@@ -330,8 +375,8 @@ export default function MediumImport() {
             <label className="flex items-start gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
-                checked={uploadImages}
-                onChange={e => setUploadImages(e.target.checked)}
+                checked={migrateImages}
+                onChange={e => setMigrateImages(e.target.checked)}
                 disabled={loading}
                 className="mt-0.5 accent-primary"
               />
@@ -427,6 +472,15 @@ export default function MediumImport() {
             ) : (
               <><Upload size={16} />Importar artículos</>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={purgeAllArticles}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-700 rounded-lg text-sm font-medium font-sans-ui hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <XCircle size={16} /> Borrar TODOS los artículos
           </button>
         </div>
 

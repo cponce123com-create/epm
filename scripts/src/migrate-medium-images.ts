@@ -1,194 +1,162 @@
-/**
- * One-time bulk migration of Medium CDN images to Cloudinary.
- *
- * Usage:
- *   DATABASE_URL=... CLOUDINARY_CLOUD_NAME=... CLOUDINARY_API_KEY=... CLOUDINARY_API_SECRET=... \
- *     pnpm --filter @workspace/scripts tsx src/migrate-medium-images.ts
- *
- * Options (env vars):
- *   DRY_RUN=1       — Scan only, do not write to DB
- *   ARTICLE_IDS=1,2  — Comma-separated list of article IDs to process (default: all)
- */
-
+import * as cheerio from "cheerio";
+import { createHash } from "node:crypto";
 import { db, articlesTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { v2 as cloudinary } from "cloudinary";
 
-const DRY_RUN     = process.env["DRY_RUN"] === "1";
-const ARTICLE_IDS = process.env["ARTICLE_IDS"]
-  ? process.env["ARTICLE_IDS"].split(",").map(s => parseInt(s.trim(), 10)).filter(Boolean)
-  : null;
+type ArticleRow = {
+  id: number;
+  slug: string;
+  coverImageUrl: string | null;
+  content: string;
+};
 
-const MEDIUM_CDN_RE = /https?:\/\/(cdn-images-\d+\.medium\.com|miro\.medium\.com)\/[^\s"'<>)]+/g;
+const MEDIUM_HOST_RE = /(^|\.)medium\.com$|(^|\.)miro\.medium\.com$|(^|\.)cdn-images-\d+\.medium\.com$/i;
 
-function log(msg: string, data?: object) {
-  const ts = new Date().toISOString();
-  if (data) console.log(`[${ts}] ${msg}`, JSON.stringify(data, null, 0));
-  else       console.log(`[${ts}] ${msg}`);
+function mustEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required env var: ${name}`);
+  return value;
 }
 
-async function uploadUrl(imageUrl: string): Promise<string> {
-  // 1) Try direct URL upload (Cloudinary fetches it with our Referer header)
+function normalizeUrl(raw: string): string {
+  if (raw.startsWith("//")) return `https:${raw}`;
+  return raw.trim();
+}
+
+function isMediumImageUrl(raw: string): boolean {
   try {
-    const result = await cloudinary.uploader.upload(imageUrl, {
-      folder: "el-principe-mestizo/migrated",
-      resource_type: "image",
-      transformation: [{ quality: "auto:good", fetch_format: "auto" }],
-      headers: { "Referer": "https://medium.com" },
-    });
-    return result.secure_url;
+    const url = new URL(normalizeUrl(raw));
+    return MEDIUM_HOST_RE.test(url.hostname);
   } catch {
-    // fall through to manual fetch
+    return false;
+  }
+}
+
+function cloudinaryPublicIdFor(sourceUrl: string): string {
+  const hash = createHash("sha1").update(sourceUrl).digest("hex").slice(0, 24);
+  return `el-principe-mestizo/medium-migration/${hash}`;
+}
+
+function cloudinaryDeliveryUrl(publicId: string): string {
+  return cloudinary.url(publicId, {
+    secure: true,
+    resource_type: "image",
+    transformation: [{ fetch_format: "auto", quality: "auto:good" }],
+  });
+}
+
+const migratedCache = new Map<string, string>();
+
+async function migrateOneImage(sourceUrl: string, dryRun: boolean): Promise<string> {
+  const normalized = normalizeUrl(sourceUrl);
+  if (!isMediumImageUrl(normalized)) return normalized;
+  const cached = migratedCache.get(normalized);
+  if (cached) return cached;
+
+  const publicId = cloudinaryPublicIdFor(normalized);
+  const deliveryUrl = cloudinaryDeliveryUrl(publicId);
+  if (dryRun) {
+    migratedCache.set(normalized, deliveryUrl);
+    return deliveryUrl;
   }
 
-  // 2) Fetch locally and upload as buffer
-  const res = await fetch(imageUrl, {
-    headers: { "Referer": "https://medium.com", "User-Agent": "Mozilla/5.0" },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${imageUrl}`);
+  try {
+    await cloudinary.uploader.upload(normalized, {
+      public_id: publicId,
+      unique_filename: false,
+      overwrite: false,
+      resource_type: "image",
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Si ya existía, seguimos y reutilizamos.
+    if (!msg.toLowerCase().includes("already exists")) throw err;
+  }
 
-  const buf = Buffer.from(await res.arrayBuffer());
-  const ct  = res.headers.get("content-type") ?? "image/jpeg";
-  const dataUri = `data:${ct};base64,${buf.toString("base64")}`;
-
-  const result = await cloudinary.uploader.upload(dataUri, {
-    folder: "el-principe-mestizo/migrated",
-    resource_type: "image",
-    transformation: [{ quality: "auto:good", fetch_format: "auto" }],
-  });
-  return result.secure_url;
+  migratedCache.set(normalized, deliveryUrl);
+  return deliveryUrl;
 }
 
-function extractFirstImageSrc(html: string): string | null {
-  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return m?.[1] ?? null;
+async function migrateArticleImages(article: ArticleRow, dryRun: boolean) {
+  let changed = false;
+  let migratedCount = 0;
+
+  let nextCover = article.coverImageUrl;
+  if (article.coverImageUrl && isMediumImageUrl(article.coverImageUrl)) {
+    nextCover = await migrateOneImage(article.coverImageUrl, dryRun);
+    if (nextCover !== article.coverImageUrl) {
+      changed = true;
+      migratedCount += 1;
+    }
+  }
+
+  const $ = cheerio.load(article.content);
+  const imgNodes = $("img");
+  for (const el of imgNodes.toArray()) {
+    const node = $(el);
+    const raw = node.attr("src") ?? node.attr("data-src");
+    if (!raw) continue;
+    if (!isMediumImageUrl(raw)) continue;
+    const cloudinaryUrl = await migrateOneImage(raw, dryRun);
+    node.attr("src", cloudinaryUrl);
+    node.removeAttr("data-src");
+    migratedCount += 1;
+    changed = true;
+  }
+  const nextContent = $.html() ?? article.content;
+
+  if (changed && !dryRun) {
+    await db
+      .update(articlesTable)
+      .set({
+        coverImageUrl: nextCover ?? undefined,
+        content: nextContent,
+      })
+      .where(eq(articlesTable.id, article.id));
+  }
+
+  return { changed, migratedCount };
 }
 
 async function main() {
-  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-    console.error("Missing CLOUDINARY_* env vars.");
-    process.exit(1);
-  }
-
   cloudinary.config({
-    cloud_name: CLOUDINARY_CLOUD_NAME,
-    api_key:    CLOUDINARY_API_KEY,
-    api_secret: CLOUDINARY_API_SECRET,
+    cloud_name: mustEnv("CLOUDINARY_CLOUD_NAME"),
+    api_key: mustEnv("CLOUDINARY_API_KEY"),
+    api_secret: mustEnv("CLOUDINARY_API_SECRET"),
   });
 
-  log(`Starting migration (dryRun=${DRY_RUN})`);
+  const dryRun = process.argv.includes("--dry-run");
+  const onlySlugArg = process.argv.find((arg) => arg.startsWith("--slug="));
+  const onlySlug = onlySlugArg ? onlySlugArg.replace("--slug=", "") : null;
 
-  const articles = ARTICLE_IDS
-    ? await db.select({ id: articlesTable.id, title: articlesTable.title, content: articlesTable.content, coverImageUrl: articlesTable.coverImageUrl })
-        .from(articlesTable)
-        .where(inArray(articlesTable.id, ARTICLE_IDS))
-    : await db.select({ id: articlesTable.id, title: articlesTable.title, content: articlesTable.content, coverImageUrl: articlesTable.coverImageUrl })
-        .from(articlesTable);
+  const rows = (await db
+    .select({
+      id: articlesTable.id,
+      slug: articlesTable.slug,
+      coverImageUrl: articlesTable.coverImageUrl,
+      content: articlesTable.content,
+    })
+    .from(articlesTable)) as ArticleRow[];
 
-  log(`Found ${articles.length} articles to process`);
+  const candidates = onlySlug ? rows.filter((r) => r.slug === onlySlug) : rows;
+  let changedArticles = 0;
+  let migratedImages = 0;
 
-  // Deduplicated URL cache: Medium URL → Cloudinary URL (or null on failure)
-  const urlCache = new Map<string, string | null>();
-
-  let totalArticlesUpdated = 0;
-  let totalUrlsMigrated    = 0;
-  let totalUrlsFailed      = 0;
-
-  for (const article of articles) {
-    let content       = article.content ?? "";
-    let coverImageUrl = article.coverImageUrl ?? null;
-
-    const mediumUrls = [
-      ...new Set([
-        ...(content.match(MEDIUM_CDN_RE) ?? []),
-        ...(coverImageUrl ? (coverImageUrl.match(MEDIUM_CDN_RE) ?? []) : []),
-      ]),
-    ];
-
-    if (mediumUrls.length === 0 && coverImageUrl !== null) continue;
-
-    let migrated = 0;
-    let failed   = 0;
-
-    for (const originalUrl of mediumUrls) {
-      if (!urlCache.has(originalUrl)) {
-        try {
-          const newUrl = await uploadUrl(originalUrl);
-          urlCache.set(originalUrl, newUrl);
-          log(`  ✓ migrated`, { from: originalUrl.slice(0, 80), to: newUrl.slice(0, 60) });
-        } catch (err) {
-          urlCache.set(originalUrl, null);
-          log(`  ✗ failed`, { url: originalUrl.slice(0, 80), err: String(err) });
-        }
-      }
-
-      const newUrl = urlCache.get(originalUrl)!;
-      if (newUrl) {
-        content       = content.split(originalUrl).join(newUrl);
-        if (coverImageUrl === originalUrl) coverImageUrl = newUrl;
-        migrated++;
-      } else {
-        failed++;
-      }
-    }
-
-    // Back-fill missing cover
-    let coverSet = false;
-    if (!coverImageUrl) {
-      const firstSrc = extractFirstImageSrc(content);
-      if (firstSrc) {
-        if (!MEDIUM_CDN_RE.test(firstSrc)) {
-          coverImageUrl = firstSrc;
-          coverSet = true;
-        } else {
-          if (!urlCache.has(firstSrc)) {
-            try {
-              urlCache.set(firstSrc, await uploadUrl(firstSrc));
-            } catch {
-              urlCache.set(firstSrc, null);
-            }
-          }
-          const newCover = urlCache.get(firstSrc);
-          if (newCover) {
-            content = content.split(firstSrc).join(newCover);
-            coverImageUrl = newCover;
-            coverSet = true;
-            migrated++;
-          }
-        }
-      }
-    }
-
-    totalUrlsMigrated += migrated;
-    totalUrlsFailed   += failed;
-
-    if (migrated > 0 || coverSet) {
-      totalArticlesUpdated++;
-      log(`Article "${article.title.slice(0, 60)}" — ${migrated} migrated, ${failed} failed, coverSet=${coverSet}`);
-
-      if (!DRY_RUN) {
-        await db
-          .update(articlesTable)
-          .set({ content, coverImageUrl: coverImageUrl ?? undefined })
-          .where(eq(articlesTable.id, article.id));
-      }
+  for (const article of candidates) {
+    const result = await migrateArticleImages(article, dryRun);
+    if (result.changed) {
+      changedArticles += 1;
+      migratedImages += result.migratedCount;
+      console.log(`[updated] ${article.slug} · ${result.migratedCount} imágenes`);
     }
   }
 
-  log("Migration complete", {
-    dryRun:               DRY_RUN,
-    articlesScanned:      articles.length,
-    articlesUpdated:      totalArticlesUpdated,
-    totalUrlsMigrated,
-    totalUrlsFailed,
-    uniqueUrlsCached:     urlCache.size,
-  });
-
-  process.exit(0);
+  console.log(`Done. changedArticles=${changedArticles} migratedImages=${migratedImages} dryRun=${dryRun}`);
 }
 
-main().catch(err => {
-  console.error("Fatal:", err);
+main().catch((err) => {
+  console.error(err);
+
   process.exit(1);
 });

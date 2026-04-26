@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import type { Article } from "@workspace/api-client-react";
+import OptimizedImage from "@/components/OptimizedImage";
 
 interface Props {
   article: Article;
@@ -72,12 +73,11 @@ export default function ArticleCard({
         {article.coverImageUrl && (
           <Link href={`/articulo/${article.slug}`} className="shrink-0">
             <div className="overflow-hidden" style={{ width: 96, height: 72 }}>
-              <ImgWithFallback
+              <OptimizedImage
                 src={article.coverImageUrl}
                 alt={article.coverImageAlt ?? article.title}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                style={{ width: 96, height: 72 }}
-                loading="lazy"
+                optimizeWidth={320}
               />
             </div>
           </Link>
@@ -99,10 +99,10 @@ export default function ArticleCard({
       {/* Imagen */}
       {article.coverImageUrl ? (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
-          <ImgWithFallback
+          <OptimizedImage
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
-            loading="lazy"
+            optimizeWidth={960}
             className="w-full object-cover hover:scale-105 transition-transform duration-300"
             style={{ aspectRatio: "16/9" }}
           />

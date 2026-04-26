@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, articlesTable, categoriesTable, usersTable } from "@workspace/db";
+import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
 import { eq, desc, ilike, and, ne, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
@@ -324,6 +324,13 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     .where(eq(articlesTable.id, id));
 
   res.json(formatArticle(full as ArticleRow));
+});
+
+// Admin: delete article
+router.delete("/admin/articles/purge", requireAuth, async (_req, res): Promise<void> => {
+  const rows = await db.select({ id: articlesTable.id }).from(articlesTable);
+  await db.delete(articlesTable);
+  res.json({ ok: true, deleted: rows.length });
 });
 
 // Admin: delete article

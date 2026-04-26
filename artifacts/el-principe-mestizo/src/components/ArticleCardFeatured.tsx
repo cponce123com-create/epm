@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import type { Article } from "@workspace/api-client-react";
+import OptimizedImage from "@/components/OptimizedImage";
 
 function ImgWithFallback({ src, alt, className, style, loading }: {
   src: string; alt: string; className?: string; style?: React.CSSProperties; loading?: "lazy" | "eager";
@@ -39,11 +40,12 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
     return (
       <div className="hero-card animate-fade-in">
         {article.coverImageUrl ? (
-          <ImgWithFallback
+          <OptimizedImage
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
             className="hero-card__img"
-            loading="eager"
+            optimizeWidth={1400}
+            priority
           />
         ) : (
           <div
@@ -97,12 +99,12 @@ export default function ArticleCardFeatured({ article, large = false }: Props) {
   return (
     <div className="hero-card animate-fade-in-up stagger-2">
       {article.coverImageUrl ? (
-        <ImgWithFallback
+        <OptimizedImage
           src={article.coverImageUrl}
           alt={article.coverImageAlt ?? article.title}
           className="w-full object-cover block"
           style={{ aspectRatio: "4/3" }}
-          loading="lazy"
+          optimizeWidth={900}
         />
       ) : (
         <div className="w-full bg-gradient-to-br from-gray-700 to-red-900" style={{ aspectRatio: "4/3" }} />
