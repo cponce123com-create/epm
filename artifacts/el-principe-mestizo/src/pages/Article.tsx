@@ -12,6 +12,8 @@ import ShareButtons from "@/components/ShareButtons";
 import CommentSection from "@/components/CommentSection";
 import ArticleCard from "@/components/ArticleCard";
 import { useGetArticleBySlug, useGetRelatedArticles, useGetPublicSettings } from "@workspace/api-client-react";
+import OptimizedImage from "@/components/OptimizedImage";
+import { normalizeMaybeProtocolRelativeUrl } from "@/lib/image";
 
 // ── Hook para inyectar Open Graph / meta tags dinámicos ───────────────────
 /**
@@ -287,6 +289,33 @@ function useArticleLightbox(contentRef: React.RefObject<HTMLDivElement | null>) 
   };
 }
 
+function useArticleImageLoading(contentRef: React.RefObject<HTMLDivElement | null>, ready: boolean) {
+  useEffect(() => {
+    if (!ready) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const imgs = container.querySelectorAll<HTMLImageElement>("img");
+    imgs.forEach((img) => {
+      const dataSrc = img.getAttribute("data-src");
+      if (!img.getAttribute("src") && dataSrc) {
+        img.setAttribute("src", normalizeMaybeProtocolRelativeUrl(dataSrc));
+      }
+      const currentSrc = img.getAttribute("src");
+      if (currentSrc) img.setAttribute("src", normalizeMaybeProtocolRelativeUrl(currentSrc));
+
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.referrerPolicy = "no-referrer";
+      img.onerror = () => {
+        if (img.dataset.fallbackApplied === "1") return;
+        img.dataset.fallbackApplied = "1";
+        img.src = "/opengraph.jpg";
+      };
+    });
+  }, [contentRef, ready]);
+}
+
 // ── Hook: agrupa imágenes consecutivas en filas de 2 ─────────────────────
 function useArticleImageGrid(contentRef: React.RefObject<HTMLDivElement | null>, ready: boolean) {
   useEffect(() => {
@@ -374,6 +403,7 @@ export default function Article() {
 
   const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
   useArticleImageGrid(contentRef, contentReady);
+  useArticleImageLoading(contentRef, contentReady);
 
   // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──
   useArticleMetaTags(article ?? null, siteSettings);
@@ -495,11 +525,13 @@ export default function Article() {
             {article.coverImageUrl && (
               <figure className="mb-7">
                 <div className="relative overflow-hidden group">
-                  <img
+                  <OptimizedImage
                     src={article.coverImageUrl}
                     alt={article.coverImageAlt ?? article.title}
                     className="w-full object-cover cursor-zoom-in transition-transform duration-500 group-hover:scale-[1.02]"
                     style={{ maxHeight: 500 }}
+                    optimizeWidth={1400}
+                    priority
                     onClick={() => article.coverImageUrl && openLightbox(article.coverImageUrl, article.coverImageAlt ?? article.title)}
                   />
                   <div className="absolute top-3 right-3 bg-black/50 text-white/80 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
