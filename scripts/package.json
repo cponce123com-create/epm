@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "catalog:",
     "tsx": "catalog:"
   },
