@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Upload, FileArchive, CheckCircle, XCircle,
-  AlertCircle, Loader2, RefreshCw, Info, Wifi, Sparkles, Image, Wrench
+  AlertCircle, Loader2, RefreshCw, Info, Wifi, Sparkles, Image, Wrench, CloudUpload
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useGetCategories } from "@workspace/api-client-react";
@@ -26,6 +26,16 @@ interface BatchResult {
   title:   string;
   status:  "imported" | "skipped";
   reason?: string;
+}
+
+interface MigrateDetail {
+  articleId:    number;
+  title:        string;
+  urlsFound:    number;
+  urlsMigrated: number;
+  urlsFailed:   number;
+  coverSet:     boolean;
+  error?:       string;
 }
 
 const BATCH_SIZE = 5;
@@ -186,6 +196,7 @@ export default function MediumImport() {
     toast({ description: `Importación completada: ${imp} artículos importados.` });
   };
 
+  // ── Reparar imágenes (proxy → atributos correctos) ─────────────────────────
   const [fixingImages, setFixingImages] = useState(false);
   const [fixResult, setFixResult]       = useState<string | null>(null);
 
@@ -204,6 +215,52 @@ export default function MediumImport() {
       setFixResult(`Error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setFixingImages(false);
+    }
+  };
+
+  // ── Migrar imágenes a Cloudinary (la solución definitiva) ──────────────────
+  const [migratingToCloud, setMigratingToCloud]   = useState(false);
+  const [migrateCloudResult, setMigrateCloudResult] = useState<{
+    ok: boolean;
+    articlesScanned: number;
+    totalMigrated: number;
+    totalFailed: number;
+    details: MigrateDetail[];
+  } | null>(null);
+  const [migrateCloudError, setMigrateCloudError] = useState<string | null>(null);
+
+  const migrateImagesToCloudinary = async () => {
+    setMigratingToCloud(true);
+    setMigrateCloudResult(null);
+    setMigrateCloudError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/migrate-images`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({})) as {
+        ok?: boolean;
+        error?: string;
+        articlesScanned?: number;
+        totalMigrated?: number;
+        totalFailed?: number;
+        details?: MigrateDetail[];
+      };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setMigrateCloudResult({
+        ok:              true,
+        articlesScanned: data.articlesScanned ?? 0,
+        totalMigrated:   data.totalMigrated   ?? 0,
+        totalFailed:     data.totalFailed      ?? 0,
+        details:         data.details          ?? [],
+      });
+      toast({ description: `Migración completada: ${data.totalMigrated ?? 0} imágenes subidas a Cloudinary.` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setMigrateCloudError(msg);
+      toast({ description: `Error: ${msg}`, variant: "destructive" });
+    } finally {
+      setMigratingToCloud(false);
     }
   };
 
@@ -238,6 +295,96 @@ export default function MediumImport() {
           <p className="mt-1 text-sm text-muted-foreground font-sans-ui">
             Sube el archivo .zip que descargaste desde tu cuenta de Medium para importar todos tus artículos.
           </p>
+        </div>
+
+        {/* ── SECCIÓN PRINCIPAL: Migrar imágenes a Cloudinary ────────────────── */}
+        <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <CloudUpload size={22} className="text-blue-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold text-blue-900 font-sans-ui text-sm">
+                ¿Las imágenes no cargan en tus artículos?
+              </p>
+              <p className="text-xs text-blue-700 font-sans-ui mt-0.5">
+                Haz clic en el botón de abajo para subir todas las imágenes de Medium a Cloudinary.
+                Esto reemplazará las URLs antiguas por URLs permanentes de Cloudinary y las imágenes
+                siempre cargarán sin depender del proxy del servidor.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={migrateImagesToCloudinary}
+            disabled={migratingToCloud}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg text-sm font-semibold font-sans-ui hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            {migratingToCloud ? (
+              <><Loader2 size={16} className="animate-spin" /> Subiendo imágenes a Cloudinary… (puede tardar varios minutos)</>
+            ) : (
+              <><CloudUpload size={16} /> Migrar imágenes de Medium → Cloudinary</>
+            )}
+          </button>
+
+          {migratingToCloud && (
+            <p className="mt-2 text-xs text-blue-600 font-sans-ui text-center animate-pulse">
+              No cierres esta página. El proceso puede durar 5–15 minutos según la cantidad de imágenes.
+            </p>
+          )}
+
+          {migrateCloudResult && (
+            <div className="mt-3 p-3 bg-white rounded-lg border border-blue-100 text-sm font-sans-ui">
+              <p className="font-semibold text-green-700 flex items-center gap-1.5 mb-1">
+                <CheckCircle size={14} />
+                Migración completada
+              </p>
+              <ul className="text-xs text-gray-600 space-y-0.5">
+                <li>📄 Artículos escaneados: <strong>{migrateCloudResult.articlesScanned}</strong></li>
+                <li>✅ Imágenes migradas: <strong className="text-green-700">{migrateCloudResult.totalMigrated}</strong></li>
+                {migrateCloudResult.totalFailed > 0 && (
+                  <li>⚠️ Imágenes fallidas: <strong className="text-amber-600">{migrateCloudResult.totalFailed}</strong></li>
+                )}
+              </ul>
+              {migrateCloudResult.details.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
+                    Ver detalle por artículo ({migrateCloudResult.details.length})
+                  </summary>
+                  <div className="mt-1 max-h-48 overflow-y-auto space-y-1">
+                    {migrateCloudResult.details.map(d => (
+                      <div
+                        key={d.articleId}
+                        className={`px-2 py-1 rounded text-xs ${d.error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800"}`}
+                      >
+                        <span className="font-medium">{d.title}</span>
+                        {" — "}
+                        {d.urlsMigrated} migradas
+                        {d.urlsFailed > 0 && `, ${d.urlsFailed} fallidas`}
+                        {d.coverSet && " · portada actualizada"}
+                        {d.error && <span className="block text-red-600">{d.error}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
+
+          {migrateCloudError && (
+            <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700 font-sans-ui">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <strong>Error:</strong> {migrateCloudError}
+                {migrateCloudError.includes("no está configurado") && (
+                  <p className="mt-1">
+                    Ve al dashboard de Render → tu servicio <strong>epm-api</strong> → Environment
+                    y añade las variables <code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_API_KEY</code>
+                    y <code>CLOUDINARY_API_SECRET</code>.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Instrucciones */}
@@ -334,11 +481,6 @@ export default function MediumImport() {
                     <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                   ))}
                 </select>
-                {autoCategorize && (
-                  <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
-                    Auto-categorización activada: este campo se ignora.
-                  </p>
-                )}
               </>
             )}
             <p className="mt-1 text-xs text-muted-foreground font-sans-ui">
@@ -349,30 +491,6 @@ export default function MediumImport() {
           </div>
 
           {/* Opciones avanzadas */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoCategorize}
-                onChange={(e) => setAutoCategorize(e.target.checked)}
-                disabled={loading}
-                className="accent-primary"
-              />
-              Clasificar categorías automáticamente (IA heurística por texto)
-            </label>
-            <label className="flex items-center gap-2 text-sm font-sans-ui cursor-pointer">
-              <input
-                type="checkbox"
-                checked={migrateImages}
-                onChange={(e) => setMigrateImages(e.target.checked)}
-                disabled={loading}
-                className="accent-primary"
-              />
-              Subir imágenes de Medium a Cloudinary durante la importación
-            </label>
-          </div>
-
-          {/* Opciones */}
           <div className="space-y-3">
             <label className="flex items-start gap-2.5 cursor-pointer group">
               <input
@@ -404,11 +522,10 @@ export default function MediumImport() {
               <div>
                 <span className="flex items-center gap-1.5 text-sm font-sans-ui font-medium text-foreground group-hover:text-primary transition-colors">
                   <Image size={13} className="text-primary" />
-                  Subir imágenes de Medium a Cloudinary durante la importación
+                  Subir imágenes a Cloudinary durante la importación
                 </span>
                 <p className="text-xs text-muted-foreground font-sans-ui mt-0.5">
-                  Más lento pero garantiza que las portadas se muestren correctamente.
-                  Requiere Cloudinary configurado en el servidor.
+                  Más lento pero garantiza que las portadas se muestren correctamente desde el primer momento.
                 </p>
               </div>
             </label>
@@ -475,7 +592,7 @@ export default function MediumImport() {
             </div>
           )}
 
-          {/* Botón */}
+          {/* Botón principal importar */}
           <button
             onClick={doImport}
             disabled={loading || !canImport}
@@ -509,7 +626,7 @@ export default function MediumImport() {
             >
               {fixingImages
                 ? <><Loader2 size={15} className="animate-spin" /> Reparando…</>
-                : <><Wrench size={15} /> Reparar imágenes de artículos existentes</>}
+                : <><Wrench size={15} /> Reparar atributos de imágenes (artículos existentes)</>}
             </button>
             {fixResult && (
               <p className={`mt-1.5 text-xs font-sans-ui ${fixResult.startsWith("✓") ? "text-green-700" : "text-red-600"}`}>
@@ -528,7 +645,7 @@ export default function MediumImport() {
           </button>
         </div>
 
-        {/* Resultados */}
+        {/* Resultados de importación */}
         {(done || allResults.length > 0) && (
           <div className="mt-6 bg-card border border-border rounded-xl p-6 animate-fade-in-up">
             <div className="flex items-center gap-4 mb-4">
