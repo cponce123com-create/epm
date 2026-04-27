@@ -1,18 +1,24 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, articlesTable } from "@workspace/db";
-import { isNotNull, or, like, sql } from "drizzle-orm";
+import { isNotNull, or, like } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
+// Detecta URLs de Medium CDN directas
 const MEDIUM_CDN_RE = /https?:\/\/(cdn-images-\d+\.medium\.com|miro\.medium\.com)\/[^\s"'<>)]+/g;
+
+// Detecta URLs que ya pasaron por nuestro proxy local
+// Ej: /api/proxy-image?url=https%3A%2F%2Fcdn-images-1.medium.com%2F...
+const PROXY_URL_RE = /\/api\/proxy-image\?url=([^\s"'<>)]+)/g;
 
 function getCloudinaryConfig() {
   return {
-    cloudName:  process.env.CLOUDINARY_CLOUD_NAME,
-    apiKey:     process.env.CLOUDINARY_API_KEY,
-    apiSecret:  process.env.CLOUDINARY_API_SECRET,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
   };
 }
 
@@ -23,26 +29,30 @@ async function uploadUrlToCloudinary(imageUrl: string): Promise<string> {
   const { v2: cloudinary } = await import("cloudinary");
   cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
 
-  // Try direct URL upload first (fastest, no bandwidth used on server)
+  // Intentar subida directa con Referer de Medium para evitar bloqueo
   try {
     const result = await cloudinary.uploader.upload(imageUrl, {
-      folder: "el-principe-mestizo/migrated",
+      folder: "el-principe-mestizo/imported-medium",
       resource_type: "image",
       transformation: [{ quality: "auto:good", fetch_format: "auto" }],
-      // Pass Referer so Medium CDN allows the request
-      headers: { "Referer": "https://medium.com" },
+      headers: { Referer: "https://medium.com" },
     });
     return result.secure_url;
-  } catch {
-    // Fall back to fetching locally then uploading as buffer
+  } catch (firstErr) {
+    logger.warn({ imageUrl, firstErr }, "Direct upload failed, trying manual fetch");
   }
 
+  // Fallback: descargar localmente y subir como base64
   const fetchRes = await fetch(imageUrl, {
     headers: {
-      "Referer": "https://medium.com",
-      "User-Agent": "Mozilla/5.0",
+      Referer: "https://medium.com",
+      "User-Agent":
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     },
+    signal: AbortSignal.timeout(30_000),
   });
+
   if (!fetchRes.ok) throw new Error(`HTTP ${fetchRes.status} fetching ${imageUrl}`);
 
   const arrayBuffer = await fetchRes.arrayBuffer();
@@ -51,15 +61,74 @@ async function uploadUrlToCloudinary(imageUrl: string): Promise<string> {
   const b64 = buffer.toString("base64");
   const dataUri = `data:${contentType};base64,${b64}`;
 
-  const result = await cloudinary.uploader.upload(dataUri, {
-    folder: "el-principe-mestizo/migrated",
+  const { v2: cloudinary2 } = await import("cloudinary");
+  cloudinary2.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+  });
+
+  const result = await cloudinary2.uploader.upload(dataUri, {
+    folder: "el-principe-mestizo/imported-medium",
     resource_type: "image",
     transformation: [{ quality: "auto:good", fetch_format: "auto" }],
   });
   return result.secure_url;
 }
 
-// Extract first image src from HTML content
+// Extrae la URL original de Medium de dentro de una URL de proxy local
+// /api/proxy-image?url=https%3A%2F%2Fmiro.medium.com%2Fv2%2Fxxx → https://miro.medium.com/v2/xxx
+function extractOriginalFromProxy(proxyUrl: string): string | null {
+  try {
+    // proxyUrl puede ser relativa (/api/proxy-image?url=...) o absoluta
+    const search = proxyUrl.includes("?") ? proxyUrl.slice(proxyUrl.indexOf("?")) : "";
+    const params = new URLSearchParams(search);
+    const raw = params.get("url");
+    if (!raw) return null;
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+// Reúne todas las URLs de Medium que hay en un HTML, incluyendo las que
+// están encapsuladas dentro de nuestro proxy.
+function collectMediumUrls(html: string): Set<string> {
+  const found = new Set<string>();
+
+  // 1. URLs directas de Medium CDN
+  const directMatches = html.matchAll(new RegExp(MEDIUM_CDN_RE.source, "g"));
+  for (const m of directMatches) found.add(m[0]);
+
+  // 2. URLs de Medium encapsuladas en nuestro proxy
+  const proxyMatches = html.matchAll(new RegExp(PROXY_URL_RE.source, "g"));
+  for (const m of proxyMatches) {
+    const encoded = m[1]; // la parte tras ?url=
+    try {
+      const decoded = decodeURIComponent(encoded);
+      if (decoded.includes("medium.com")) found.add(decoded);
+    } catch {
+      // ignorar URLs malformadas
+    }
+  }
+
+  return found;
+}
+
+// Reemplaza en un HTML todas las apariciones de una URL de Medium
+// (tanto directas como dentro del proxy) por la nueva URL de Cloudinary.
+function replaceAllOccurrences(html: string, originalMediumUrl: string, newUrl: string): string {
+  // Reemplazar aparición directa
+  let result = html.split(originalMediumUrl).join(newUrl);
+
+  // Reemplazar aparición dentro del proxy: /api/proxy-image?url=ENCODED
+  const encoded = encodeURIComponent(originalMediumUrl);
+  result = result.split(`/api/proxy-image?url=${encoded}`).join(newUrl);
+
+  return result;
+}
+
+// Extrae la primera imagen src del HTML
 function extractFirstImageSrc(html: string): string | null {
   const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
   return m?.[1] ?? null;
@@ -68,13 +137,15 @@ function extractFirstImageSrc(html: string): string | null {
 /**
  * POST /api/admin/migrate-images
  *
- * Finds all Medium CDN image URLs in articles (content + coverImageUrl),
- * re-uploads each unique URL to Cloudinary, replaces references in the DB,
- * and back-fills missing coverImageUrl from the first image in content.
+ * Recorre todos los artículos y:
+ * 1. Detecta URLs de Medium CDN (directas o encapsuladas en el proxy local).
+ * 2. Sube cada imagen única a Cloudinary.
+ * 3. Reemplaza TODAS las referencias en content y coverImageUrl.
+ * 4. Rellena coverImageUrl si está vacío.
  *
  * Query params:
- *   ?dryRun=1  — scan only, no writes
- *   ?limit=N   — process at most N articles (default: all)
+ *   ?dryRun=1  — escanea sin escribir
+ *   ?limit=N   — procesa solo N artículos
  */
 router.post(
   "/admin/migrate-images",
@@ -82,34 +153,41 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const { cloudName, apiKey, apiSecret } = getCloudinaryConfig();
     if (!cloudName || !apiKey || !apiSecret) {
-      res.status(503).json({ error: "Cloudinary not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET." });
+      res.status(503).json({
+        error:
+          "Cloudinary no está configurado. Completa CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY y CLOUDINARY_API_SECRET en las variables de entorno de Render.",
+      });
       return;
     }
 
     const dryRun = req.query["dryRun"] === "1";
-    const limit  = req.query["limit"] ? parseInt(req.query["limit"] as string, 10) : undefined;
+    const limit = req.query["limit"] ? parseInt(req.query["limit"] as string, 10) : undefined;
 
-    // Pull articles that have at least one Medium CDN URL in content or coverImageUrl
+    // Traer artículos que aún tienen rastro de Medium (directo o vía proxy)
     const allArticles = await db
       .select({
-        id:            articlesTable.id,
-        title:         articlesTable.title,
-        slug:          articlesTable.slug,
-        content:       articlesTable.content,
+        id: articlesTable.id,
+        title: articlesTable.title,
+        slug: articlesTable.slug,
+        content: articlesTable.content,
         coverImageUrl: articlesTable.coverImageUrl,
       })
       .from(articlesTable)
       .where(
         or(
           like(articlesTable.content, "%medium.com%"),
+          like(articlesTable.content, "%proxy-image%"),
           like(articlesTable.coverImageUrl, "%medium.com%"),
-          isNotNull(sql`CASE WHEN ${articlesTable.coverImageUrl} IS NULL AND ${articlesTable.content} LIKE '%<img%' THEN 1 END`),
+          like(articlesTable.coverImageUrl, "%proxy-image%"),
+          isNotNull(
+            sql`CASE WHEN ${articlesTable.coverImageUrl} IS NULL AND ${articlesTable.content} LIKE '%<img%' THEN 1 END`,
+          ),
         ),
       );
 
     const articles = limit ? allArticles.slice(0, limit) : allArticles;
 
-    // Build a deduplicated map of Medium URLs → Cloudinary URLs
+    // Cache de Medium URL → Cloudinary URL (evita subir la misma imagen dos veces)
     const urlCache = new Map<string, string | null>();
 
     const summary: {
@@ -126,18 +204,16 @@ router.post(
     let totalFailed = 0;
 
     for (const article of articles) {
-      let content       = article.content ?? "";
+      let content = article.content ?? "";
       let coverImageUrl = article.coverImageUrl ?? null;
 
-      const mediumUrls = [
-        ...new Set([
-          ...(content.match(MEDIUM_CDN_RE) ?? []),
-          ...(coverImageUrl ? (coverImageUrl.match(MEDIUM_CDN_RE) ?? []) : []),
-        ]),
-      ];
+      // Recolectar todas las URLs de Medium presentes (directas + dentro del proxy)
+      const contentUrls = collectMediumUrls(content);
+      const coverUrls = coverImageUrl ? collectMediumUrls(coverImageUrl) : new Set<string>();
+      const mediumUrls = [...new Set([...contentUrls, ...coverUrls])];
 
       let migrated = 0;
-      let failed   = 0;
+      let failed = 0;
       let coverSet = false;
 
       for (const originalUrl of mediumUrls) {
@@ -145,7 +221,7 @@ router.post(
           try {
             const newUrl = await uploadUrlToCloudinary(originalUrl);
             urlCache.set(originalUrl, newUrl);
-            logger.info({ originalUrl, newUrl }, "Image migrated");
+            logger.info({ originalUrl, newUrl }, "Image migrated to Cloudinary");
           } catch (err) {
             urlCache.set(originalUrl, null);
             logger.warn({ originalUrl, err }, "Image migration failed");
@@ -154,52 +230,55 @@ router.post(
 
         const newUrl = urlCache.get(originalUrl);
         if (newUrl) {
-          content       = content.split(originalUrl).join(newUrl);
-          if (coverImageUrl === originalUrl) coverImageUrl = newUrl;
+          content = replaceAllOccurrences(content, originalUrl, newUrl);
+          if (coverImageUrl) {
+            coverImageUrl = replaceAllOccurrences(coverImageUrl, originalUrl, newUrl);
+          }
           migrated++;
         } else {
           failed++;
         }
       }
 
-      // Back-fill coverImageUrl if it's still NULL
-      if (!coverImageUrl) {
+      // Rellenar coverImageUrl si sigue vacío tras la migración
+      if (!coverImageUrl || coverImageUrl.includes("proxy-image") || coverImageUrl.includes("medium.com")) {
         const firstSrc = extractFirstImageSrc(content);
-        if (firstSrc) {
-          // If it's still a Medium URL that failed, skip; otherwise use it
-          if (!MEDIUM_CDN_RE.test(firstSrc)) {
-            coverImageUrl = firstSrc;
+        if (firstSrc && !firstSrc.includes("medium.com") && !firstSrc.includes("proxy-image")) {
+          coverImageUrl = firstSrc;
+          coverSet = true;
+        } else if (firstSrc && (firstSrc.includes("medium.com") || firstSrc.includes("proxy-image"))) {
+          // La primera imagen también es Medium — intentar migrarla
+          const rawSrc = firstSrc.includes("proxy-image")
+            ? extractOriginalFromProxy(firstSrc) ?? firstSrc
+            : firstSrc;
+
+          if (!urlCache.has(rawSrc)) {
+            try {
+              const newUrl = await uploadUrlToCloudinary(rawSrc);
+              urlCache.set(rawSrc, newUrl);
+            } catch {
+              urlCache.set(rawSrc, null);
+            }
+          }
+          const newCover = urlCache.get(rawSrc);
+          if (newCover) {
+            content = replaceAllOccurrences(content, rawSrc, newCover);
+            coverImageUrl = newCover;
             coverSet = true;
-          } else {
-            // Try migrating the cover independently
-            if (!urlCache.has(firstSrc)) {
-              try {
-                const newUrl = await uploadUrlToCloudinary(firstSrc);
-                urlCache.set(firstSrc, newUrl);
-              } catch {
-                urlCache.set(firstSrc, null);
-              }
-            }
-            const newCover = urlCache.get(firstSrc);
-            if (newCover) {
-              coverImageUrl = newCover;
-              content = content.split(firstSrc).join(newCover);
-              coverSet = true;
-              migrated++;
-            }
+            migrated++;
           }
         }
       }
 
       totalMigrated += migrated;
-      totalFailed   += failed;
+      totalFailed += failed;
 
       if (!dryRun && (migrated > 0 || coverSet)) {
         try {
           await db
             .update(articlesTable)
             .set({ content, coverImageUrl: coverImageUrl ?? undefined })
-            .where(sql`${articlesTable.id} = ${article.id}`);
+            .where(eq(articlesTable.id, article.id));
         } catch (err) {
           summary.push({
             articleId: article.id,
@@ -208,7 +287,7 @@ router.post(
             urlsMigrated: migrated,
             urlsFailed: failed,
             coverSet,
-            error: `DB update failed: ${err instanceof Error ? err.message : String(err)}`,
+            error: `Error al guardar en BD: ${err instanceof Error ? err.message : String(err)}`,
           });
           continue;
         }
@@ -227,12 +306,12 @@ router.post(
     }
 
     res.json({
-      ok:           true,
+      ok: true,
       dryRun,
-      articlesScanned:   articles.length,
+      articlesScanned: articles.length,
       totalMigrated,
       totalFailed,
-      details:      summary,
+      details: summary,
     });
   },
 );
