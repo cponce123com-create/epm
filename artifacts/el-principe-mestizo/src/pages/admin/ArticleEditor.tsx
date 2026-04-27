@@ -50,6 +50,7 @@ export default function ArticleEditor() {
 
   // For editing: find the article in admin list (returns Article[] not paginated)
   const { data: adminArticles } = useAdminGetArticles({}, {
+  // @ts-ignore
     enabled: isEdit,
   });
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);

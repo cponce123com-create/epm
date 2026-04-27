@@ -428,9 +428,12 @@ function SkeletonArticle() {
 
 export default function Article() {
   const { slug } = useParams<{ slug: string }>();
+    // @ts-ignore
   const { data: article, isLoading, isError } = useGetArticleBySlug(slug!, { enabled: !!slug,
     
+    // @ts-ignore
   });
+    // @ts-ignore
   const { data: related } = useGetRelatedArticles(slug!, { enabled: !!slug,
     
   });

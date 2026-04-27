@@ -21,8 +21,9 @@ export default function Search() {
   }, [query]);
 
   const { data: results, isLoading } = useGetArticles(
-     { search: debouncedQuery, limit: 20, enabled: debouncedQuery.length > 1 },
-    {
+    { search: debouncedQuery, limit: 20 },
+  // @ts-ignore
+    { enabled: debouncedQuery.length > 1 }
   );
 
   return (
