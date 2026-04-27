@@ -483,7 +483,7 @@ router.post(
 
     for (const article of articles) {
       const original = article.content ?? "";
-      const $ = cheerio.load(original, { decodeEntities: false });
+      const $ = cheerio.load(original);
 
       // Remove noscript wrappers that contain only an img (Medium lazy-load duplicate)
       $("noscript").each((_, el) => {

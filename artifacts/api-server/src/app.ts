@@ -106,7 +106,7 @@ function escHtml(str: string): string {
 }
 
 app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> => {
-  const slug = req.params["slug"] ?? "";
+  const slug = String(req.params["slug"] ?? "");
   const FALLBACK_URL = process.env["FRONTEND_URL"] ?? "https://elprincipemestizo.eu.cc";
 
   try {
