@@ -13,10 +13,19 @@ function isMediumUrl(url: string): boolean {
   }
 }
 
+// Lista de User-Agents para rotar y evitar bloqueos por rate limiting
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+];
+
+function randomUserAgent(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
 // GET /api/proxy-image?url=<encoded-medium-cdn-url>
-// Fetches the image from Medium CDN server-side (no Referer header sent),
-// bypassing their hotlink protection. Returns the image with immutable
-// Cache-Control so browsers only fetch it once.
 router.get("/proxy-image", async (req, res): Promise<void> => {
   const raw = String(req.query["url"] ?? "");
 
@@ -25,32 +34,70 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     return;
   }
 
-  try {
-    const upstream = await fetch(raw, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        // Deliberately no Referer — this is what bypasses Medium CDN blocking
-      },
-      signal: AbortSignal.timeout(20_000),
-    });
+  // Intentar con distintas combinaciones de headers para evitar el 403
+  const attempts = [
+    // Intento 1: con Referer de medium.com
+    {
+      "User-Agent": randomUserAgent(),
+      "Referer": "https://medium.com/",
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Cache-Control": "no-cache",
+    },
+    // Intento 2: sin Referer pero con más headers de navegador
+    {
+      "User-Agent": randomUserAgent(),
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "Sec-Fetch-Dest": "image",
+      "Sec-Fetch-Mode": "no-cors",
+      "Sec-Fetch-Site": "cross-site",
+    },
+    // Intento 3: Referer de Google (a veces funciona)
+    {
+      "User-Agent": randomUserAgent(),
+      "Referer": "https://www.google.com/",
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  ];
 
-    if (!upstream.ok) {
+  for (const headers of attempts) {
+    try {
+      const upstream = await fetch(raw, {
+        headers,
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (upstream.ok) {
+        const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        res.set("Content-Type", contentType);
+        res.set("Cache-Control", "public, max-age=31536000, immutable");
+        res.set("X-Content-Type-Options", "nosniff");
+        res.send(buffer);
+        return;
+      }
+
+      // Si es 403 o 429, intentar con el siguiente set de headers
+      if (upstream.status === 403 || upstream.status === 429) {
+        continue;
+      }
+
+      // Otro error — responder directamente
       res.status(upstream.status).end();
       return;
+
+    } catch {
+      continue;
     }
-
-    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-
-    res.set("Content-Type", contentType);
-    res.set("Cache-Control", "public, max-age=31536000, immutable");
-    res.set("X-Content-Type-Options", "nosniff");
-    res.send(buffer);
-  } catch {
-    res.status(502).end();
   }
+
+  // Todos los intentos fallaron
+  res.status(502).end();
 });
 
 export default router;
