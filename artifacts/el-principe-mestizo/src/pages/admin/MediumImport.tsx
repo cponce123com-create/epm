@@ -218,12 +218,29 @@ export default function MediumImport() {
   const purgeAllArticles = async () => {
     if (!confirm("¿Eliminar TODOS los artículos? Esta acción no se puede deshacer.")) return;
     try {
-      const purge = await fetchJsonWithFallback<{ deleted?: number }>("/api/admin/articles/purge", {
+      const headers = { Authorization: `Bearer ${token}` };
+      const before = await fetch(`${DEFAULT_API_BASE}/api/admin/articles`, { headers }).then(r => r.json());
+      const beforeCount = Array.isArray(before) ? before.length : (before.articles?.length ?? 0);
+
+      const purgeRes = await fetch(`${DEFAULT_API_BASE}/api/admin/articles/purge`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
-      if (!purge.ok) throw new Error(purge.error);
-      toast({ description: `Se eliminaron ${purge.data.deleted ?? 0} artículos.` });
+      const purgeText = await purgeRes.text();
+      const purgeData = (() => {
+        try { return JSON.parse(purgeText); } catch { return null; }
+      })();
+      if (!purgeRes.ok) {
+        const reason = purgeData?.error ?? purgeText ?? `Error HTTP ${purgeRes.status}`;
+        throw new Error(reason);
+      }
+
+      const after = await fetch(`${DEFAULT_API_BASE}/api/admin/articles`, { headers }).then(r => r.json());
+      const afterCount = Array.isArray(after) ? after.length : (after.articles?.length ?? 0);
+
+      toast({
+        description: `Purge OK (${purgeRes.status}). Antes: ${beforeCount} · Después: ${afterCount}`,
+      });
       resetState();
     } catch (err) {
       toast({ description: err instanceof Error ? err.message : "Error eliminando artículos.", variant: "destructive" });
