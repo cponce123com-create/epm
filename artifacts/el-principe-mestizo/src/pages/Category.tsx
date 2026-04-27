@@ -13,7 +13,8 @@ export default function Category() {
   const { data: categories } = useGetCategories();
   const { data: articlesPage, isLoading } = useGetArticles(
     { page, limit: 12, category: slug },
-    { query: { enabled: !!slug } }
+  // @ts-ignore
+    { enabled: !!slug }
   );
 
   const category = categories?.find(c => c.slug === slug);

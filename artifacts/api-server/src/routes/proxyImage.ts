@@ -13,10 +13,21 @@ function isMediumUrl(url: string): boolean {
   }
 }
 
-// GET /api/proxy-image?url=<encoded-medium-cdn-url>
-// Fetches the image from Medium CDN server-side (no Referer header sent),
-// bypassing their hotlink protection. Returns the image with immutable
-// Cache-Control so browsers only fetch it once.
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+];
+
+function randomUA(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+function sleep(ms: number) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
 router.get("/proxy-image", async (req, res): Promise<void> => {
   const raw = String(req.query["url"] ?? "");
 
@@ -25,32 +36,56 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     return;
   }
 
-  try {
-    const upstream = await fetch(raw, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        // Deliberately no Referer — this is what bypasses Medium CDN blocking
-      },
-      signal: AbortSignal.timeout(20_000),
-    });
+  const headerSets = [
+    {
+      "User-Agent": randomUA(),
+      "Referer": "https://medium.com/",
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+    {
+      "User-Agent": randomUA(),
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Sec-Fetch-Dest": "image",
+      "Sec-Fetch-Mode": "no-cors",
+      "Sec-Fetch-Site": "cross-site",
+    },
+    {
+      "User-Agent": randomUA(),
+      "Referer": "https://www.google.com/",
+      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    },
+  ];
 
-    if (!upstream.ok) {
-      res.status(upstream.status).end();
-      return;
+  for (let i = 0; i < headerSets.length; i++) {
+    if (i > 0) await sleep(300 * i);
+    try {
+      const upstream = await fetch(raw, {
+        headers: headerSets[i],
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (upstream.ok) {
+        const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        res.set("Content-Type", contentType);
+        res.set("Cache-Control", "public, max-age=31536000, immutable");
+        res.set("X-Content-Type-Options", "nosniff");
+        res.send(buffer);
+        return;
+      }
+
+      if (upstream.status !== 403 && upstream.status !== 429) {
+        res.status(upstream.status).end();
+        return;
+      }
+    } catch {
+      continue;
     }
-
-    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-
-    res.set("Content-Type", contentType);
-    res.set("Cache-Control", "public, max-age=31536000, immutable");
-    res.set("X-Content-Type-Options", "nosniff");
-    res.send(buffer);
-  } catch {
-    res.status(502).end();
   }
+
+  res.status(502).end();
 });
 
 export default router;

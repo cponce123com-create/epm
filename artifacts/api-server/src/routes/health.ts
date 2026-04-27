@@ -1,15 +1,20 @@
-import { Router, type IRouter } from "express";
+import { Router, Request, Response } from 'express';
 
-const router: IRouter = Router();
+const router = Router();
 
-// Render espera GET /api/health según render.yaml healthCheckPath
-router.get("/health", (_req, res) => {
-  res.json({ status: "ok", ts: new Date().toISOString() });
-});
-
-// También mantenemos /healthz por compatibilidad
-router.get("/healthz", (_req, res) => {
-  res.json({ status: "ok", ts: new Date().toISOString() });
+router.get('/health', async (req: Request, res: Response) => {
+  try {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 export default router;

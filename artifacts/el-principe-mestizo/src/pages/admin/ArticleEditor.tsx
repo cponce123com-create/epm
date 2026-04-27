@@ -49,8 +49,9 @@ export default function ArticleEditor() {
   });
 
   // For editing: find the article in admin list (returns Article[] not paginated)
-  const { data: adminArticles } = useAdminGetArticles({ limit: 200 }, {
-    query: { enabled: isEdit },
+  const { data: adminArticles } = useAdminGetArticles({}, {
+  // @ts-ignore
+    enabled: isEdit,
   });
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
@@ -67,7 +68,7 @@ export default function ArticleEditor() {
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
         status: articleFromList.status as "draft" | "published",
-        featured: articleFromList.isFeatured,
+        featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
         coverImageAlt: articleFromList.coverImageAlt ?? "",
       });
