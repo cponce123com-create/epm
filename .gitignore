@@ -50,3 +50,5 @@ Thumbs.db
 scripts/.env
 scripts/*.zip
 scripts/.env
+artifacts/*.js
+artifacts/*.d.ts
