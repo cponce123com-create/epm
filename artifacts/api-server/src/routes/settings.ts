@@ -34,6 +34,7 @@ const SETTING_KEYS = [
   // Publicidad
   "adsense_client",
 ] as const;
+const SETTING_KEYS_SET = new Set<string>(SETTING_KEYS);
 
 async function getAllSettings() {
   const rows = await db.select().from(siteSettingsTable);
@@ -89,6 +90,10 @@ router.put("/admin/settings", requireAuth, async (req, res): Promise<void> => {
 
   if (!key || typeof value !== "string") {
     res.status(400).json({ error: "key and value are required" });
+    return;
+  }
+  if (!SETTING_KEYS_SET.has(key)) {
+    res.status(400).json({ error: "Invalid setting key" });
     return;
   }
 

@@ -13,7 +13,6 @@ import {
   Heading2, Heading3, Minus,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useAuth } from "@/lib/auth";
 import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 
 interface Props {
@@ -22,7 +21,6 @@ interface Props {
 }
 
 export default function RichEditor({ value, onChange }: Props) {
-  const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -49,9 +47,9 @@ export default function RichEditor({ value, onChange }: Props) {
 
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value);
     }
-  }, [value]);
+  }, [value, editor]);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {

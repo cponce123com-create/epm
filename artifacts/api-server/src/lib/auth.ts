@@ -1,6 +1,13 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "change-me-in-production";
+const isProd = process.env.NODE_ENV === "production";
+const sessionSecret = process.env.SESSION_SECRET;
+
+if (isProd && !sessionSecret) {
+  throw new Error("SESSION_SECRET is required in production");
+}
+
+const JWT_SECRET = sessionSecret ?? "dev-only-session-secret";
 
 export interface JwtPayload {
   userId: number;

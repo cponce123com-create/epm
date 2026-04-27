@@ -8,6 +8,21 @@ import { eq, and } from "drizzle-orm";
 
 const app: Express = express();
 
+const allowedOrigins = new Set(
+  [
+    process.env["FRONTEND_URL"],
+    ...(process.env["ALLOWED_ORIGINS"] ?? "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ].filter(Boolean),
+);
+
+if (allowedOrigins.size === 0 && process.env["NODE_ENV"] !== "production") {
+  allowedOrigins.add("http://localhost:3000");
+  allowedOrigins.add("http://127.0.0.1:3000");
+}
+
 // ── Logging ──────────────────────────────────────────────────────────────────
 app.use(
   pinoHttp({
@@ -29,7 +44,17 @@ app.use(
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 const corsOptions: cors.CorsOptions = {
-  origin: true,
+  origin(origin, callback) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
   allowedHeaders: [
     "Content-Type",
@@ -46,7 +71,12 @@ app.use(cors(corsOptions));
 // Preflight OPTIONS
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
+    const origin = req.headers.origin;
+    if (origin && !allowedOrigins.has(origin)) {
+      res.status(403).json({ error: "CORS origin forbidden" });
+      return;
+    }
+    res.setHeader("Access-Control-Allow-Origin", origin ?? "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader(
       "Access-Control-Allow-Headers",
@@ -106,7 +136,8 @@ function escHtml(str: string): string {
 }
 
 app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> => {
-  const slug = req.params["slug"] ?? "";
+  const rawSlug = req.params["slug"];
+  const slug = Array.isArray(rawSlug) ? rawSlug[0] ?? "" : rawSlug ?? "";
   const FALLBACK_URL = process.env["FRONTEND_URL"] ?? "https://elprincipemestizo.eu.cc";
 
   try {

@@ -31,7 +31,7 @@ export default function ArticleList() {
 
   const handlePublishToggle = async (id: number, published: boolean) => {
     try {
-      await publishArticle.mutateAsync({ id, data: { published: !published } });
+      await publishArticle.mutateAsync({ id });
       invalidate();
       toast({ description: published ? "Artículo despublicado." : "Artículo publicado." });
     } catch {

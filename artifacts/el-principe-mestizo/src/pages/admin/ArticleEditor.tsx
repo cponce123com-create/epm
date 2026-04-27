@@ -5,14 +5,12 @@ import { Link } from "wouter";
 import AdminLayout from "@/components/admin/AdminLayout";
 import RichEditor from "@/components/admin/RichEditor";
 import {
-  useGetArticleBySlug,
   useGetCategories,
   useAdminCreateArticle,
   useAdminUpdateArticle,
   useAdminGetArticles,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -32,7 +30,6 @@ export default function ArticleEditor() {
   const isEdit = !!id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { token } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -49,9 +46,7 @@ export default function ArticleEditor() {
   });
 
   // For editing: find the article in admin list (returns Article[] not paginated)
-  const { data: adminArticles } = useAdminGetArticles({ limit: 200 }, {
-    query: { enabled: isEdit },
-  });
+  const { data: adminArticles } = useAdminGetArticles();
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
   const { data: categories } = useGetCategories();
@@ -67,7 +62,7 @@ export default function ArticleEditor() {
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
         status: articleFromList.status as "draft" | "published",
-        featured: articleFromList.isFeatured,
+        featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
         coverImageAlt: articleFromList.coverImageAlt ?? "",
       });

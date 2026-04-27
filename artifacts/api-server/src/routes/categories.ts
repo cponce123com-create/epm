@@ -73,7 +73,8 @@ router.post("/admin/categories", requireAuth, async (req, res): Promise<void> =>
 
 // ── PUT /admin/categories/:id — editar categoría ─────────────────────────────
 router.put("/admin/categories/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId ?? "", 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID inválido" });
     return;
@@ -101,7 +102,8 @@ router.put("/admin/categories/:id", requireAuth, async (req, res): Promise<void>
 
 // ── DELETE /admin/categories/:id — eliminar categoría ───────────────────────
 router.delete("/admin/categories/:id", requireAuth, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId ?? "", 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID inválido" });
     return;

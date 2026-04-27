@@ -38,6 +38,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /health:
+    get:
+      operationId: healthCheckCompat
+      tags: [health]
+      summary: Health check (compat route)
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
 
   /articles:
     get:
@@ -491,6 +503,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/upload:
+    post:
+      operationId: adminUpload
+      tags: [upload, admin]
+      summary: Upload image/media to Cloudinary (admin route)
+      responses:
+        "200":
+          description: Uploaded file URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/import-medium/prepare:
+    post:
+      operationId: adminPrepareMediumImport
+      tags: [admin]
+      summary: Parse Medium ZIP and return parsed articles
+      responses:
+        "200":
+          description: Parsed articles
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/import-medium/batch:
+    post:
+      operationId: adminImportMediumBatch
+      tags: [admin]
+      summary: Import a parsed batch of Medium articles
+      responses:
+        "200":
+          description: Batch import result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/import-medium:
+    post:
+      operationId: adminImportMediumLegacy
+      tags: [admin]
+      summary: Legacy endpoint for direct Medium ZIP import
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/fix-article-images:
+    post:
+      operationId: adminFixArticleImages
+      tags: [admin]
+      summary: Rewrite Medium image URLs to proxy URLs in article content
+      responses:
+        "200":
+          description: Fix result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/migrate-images:
+    post:
+      operationId: adminMigrateImages
+      tags: [admin]
+      summary: Migrate Medium image URLs to Cloudinary and rewrite references
+      responses:
+        "200":
+          description: Migration result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
 
   /admin/settings:
     get:

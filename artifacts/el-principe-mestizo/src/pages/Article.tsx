@@ -428,12 +428,9 @@ function SkeletonArticle() {
 
 export default function Article() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: article, isLoading, isError } = useGetArticleBySlug(slug!, {
-    query: { enabled: !!slug },
-  });
-  const { data: related } = useGetRelatedArticles(slug!, {
-    query: { enabled: !!slug },
-  });
+  const safeSlug = slug ?? "";
+  const { data: article, isLoading, isError } = useGetArticleBySlug(safeSlug);
+  const { data: related } = useGetRelatedArticles(safeSlug);
   const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);

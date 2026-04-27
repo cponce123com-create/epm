@@ -11,9 +11,9 @@ export default function Category() {
   const { slug } = useParams<{ slug: string }>();
   const [page, setPage] = useState(1);
   const { data: categories } = useGetCategories();
+  const categoryParam = slug ?? "";
   const { data: articlesPage, isLoading } = useGetArticles(
-    { page, limit: 12, category: slug },
-    { query: { enabled: !!slug } }
+    { page, limit: 12, category: categoryParam || undefined }
   );
 
   const category = categories?.find(c => c.slug === slug);

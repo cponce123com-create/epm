@@ -6,7 +6,7 @@ import { useAdminGetStats, useGetMostRead, useAdminGetComments } from "@workspac
 export default function Dashboard() {
   const { data: stats } = useAdminGetStats();
   const { data: mostRead } = useGetMostRead();
-  const { data: comments } = useAdminGetComments({ status: "pending", limit: 5 });
+  const { data: comments } = useAdminGetComments({ status: "pending" });
 
   const statCards = [
     { label: "Publicados", value: stats?.publishedArticles ?? 0, icon: FileText, color: "bg-blue-50 text-blue-600", link: "/admin/articles" },
