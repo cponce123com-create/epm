@@ -264,19 +264,35 @@ export default function MediumImport() {
     }
   };
 
+  const [purging, setPurging] = useState(false);
+
   const purgeAllArticles = async () => {
-    if (!confirm("¿Eliminar TODOS los artículos? Esta acción no se puede deshacer.")) return;
+    // Primera confirmación
+    if (!confirm("⚠️ ¿Eliminar TODOS los artículos?\n\nEsta acción NO se puede deshacer.")) return;
+    // Segunda confirmación: escribir BORRAR
+    const typed = window.prompt('Escribe BORRAR (en mayúsculas) para confirmar:');
+    if (typed !== "BORRAR") {
+      toast({ description: "Cancelado. No escribiste BORRAR.", variant: "destructive" });
+      return;
+    }
+    setPurging(true);
     try {
-      const res = await fetch("/api/admin/articles/purge", {
+      const res = await fetch(`${API_BASE}/api/admin/articles/purge`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "No se pudo eliminar.");
-      toast({ description: `Se eliminaron ${data.deleted ?? 0} artículos.` });
+      const data = await res.json().catch(() => ({})) as { ok?: boolean; deleted?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status} — No se pudo eliminar.`);
+      toast({ description: `✓ Se eliminaron ${data.deleted ?? 0} artículos correctamente.` });
       resetState();
+      setAllResults([]);
     } catch (err) {
-      toast({ description: err instanceof Error ? err.message : "Error eliminando artículos.", variant: "destructive" });
+      toast({
+        description: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        variant: "destructive",
+      });
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -638,10 +654,12 @@ export default function MediumImport() {
           <button
             type="button"
             onClick={purgeAllArticles}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-700 rounded-lg text-sm font-medium font-sans-ui hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={loading || purging}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-red-200 text-red-700 rounded-lg text-sm font-medium font-sans-ui hover:bg-red-50 hover:border-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <XCircle size={16} /> Borrar TODOS los artículos
+            {purging
+              ? <><Loader2 size={16} className="animate-spin" /> Eliminando artículos…</>
+              : <><XCircle size={16} /> Borrar TODOS los artículos</>}
           </button>
         </div>
 
