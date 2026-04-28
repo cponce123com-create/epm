@@ -40,6 +40,7 @@ export default function Header() {
     { label: "Investigación", href: "/categoria/investigacion", color: "#27AE60" },
     { label: "Ciudad",        href: "/categoria/ciudad",        color: "#E67E22" },
     { label: "Política",      href: "/categoria/politica",      color: "#8E44AD" },
+    { label: "Políticos",     href: "/categoria/politicos",     color: "#6C3483" },
     { label: "Acerca de",     href: "/acerca-de" },
   ];
 
