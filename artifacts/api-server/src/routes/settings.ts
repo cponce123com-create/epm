@@ -102,7 +102,7 @@ router.get("/admin/settings", requireAuth, async (_req, res): Promise<void> => {
 });
 
 // ── PUT admin — guarda un campo a la vez ──────────────────────────────────
-router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
+router.put("/admin/settings", requireAuth, async (req, res): Promise<void> => {
   const { key, value } = req.body as { key: string; value: string };
 
   if (!key || typeof value !== "string") {
