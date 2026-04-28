@@ -443,24 +443,40 @@ export default function Article() {
   const contentReady = !!article && !isLoading;
 
   // Pre-procesar el HTML ANTES de inyectarlo en el DOM.
-  // Reescribe las URLs de Medium CDN al proxy local para evitar el bloqueo
-  // de hotlinks — debe hacerse en el string HTML antes de dangerouslySetInnerHTML
-  // porque los navegadores ya emiten las peticiones en el primer render.
+  // Reescribe URLs de Medium y proxy relativas a absolutas usando VITE_API_URL.
+  const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
   const processedContent = useMemo(() => {
     const raw = article?.content;
     if (!raw) return "";
 
     const MEDIUM_SRC_RE = /(<img[^>]+src=")((https?:)?\/\/(?:miro\.medium\.com|cdn-images-\d+\.medium\.com)[^"]*?)"/gi;
+    const RELATIVE_PROXY_RE = /(<img[^>]+src=")(\/api\/proxy-image\?[^"]*)"/gi;
 
     return raw
-      // Primero normaliza protocol-relative
       .replace(/(<img[^>]+src=")\/\/([^"]+)"/gi, '$1https://$2"')
-      // Reescribe URLs de Medium CDN al proxy local (datos ya normalizados)
       .replace(MEDIUM_SRC_RE, (_, prefix, url) => {
         const normalized = url.startsWith("//") ? `https:${url}` : url;
-        return `${prefix}/api/proxy-image?url=${encodeURIComponent(normalized)}"`;
+        return `${prefix}${API_BASE}/api/proxy-image?url=${encodeURIComponent(normalized)}"`;
+      })
+      .replace(RELATIVE_PROXY_RE, (_, prefix, path) => {
+        return `${prefix}${API_BASE}${path}"`;
       });
-  }, [article?.content]);
+  }, [article?.content, API_BASE]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Orden importa: grid primero (reordena nodos), luego mejoras de img, luego lightbox
   useArticleImageGrid(contentRef, contentReady);
