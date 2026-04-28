@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Search, Zap } from "lucide-react";
-import { useGetArticles, useGetPublicSettings } from "@workspace/api-client-react";
+import { useGetArticles, useGetPublicSettings, useGetCategories } from "@workspace/api-client-react";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,6 +17,7 @@ export default function Header() {
 
   // Configuración del sitio (logo, nombre)
   const { data: siteSettings } = useGetPublicSettings();
+  const { data: allCategories } = useGetCategories();
   const rawLogoUrl = ((siteSettings as any)?.logoUrl ?? "").trim();
   const siteName   = ((siteSettings as any)?.siteName || "").trim() || "El Príncipe Mestizo";
 
@@ -41,6 +42,11 @@ export default function Header() {
     { label: "Política",      href: "/categoria/politica",      color: "#8E44AD" },
     { label: "Acerca de",     href: "/acerca-de" },
   ];
+
+  // Categorías con subcategorías para el dropdown
+  const parentCats = allCategories?.filter(c => !c.parentId) ?? [];
+  const getChildren = (parentId: number) => allCategories?.filter(c => c.parentId === parentId) ?? [];
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -146,20 +152,43 @@ export default function Header() {
         <div className="site-header-nav">
           <nav className="max-w-7xl mx-auto px-4">
             <ul className="hidden lg:flex items-center">
-              {navLinks.map(link => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={`block text-[13px] font-sans-ui font-medium px-3.5 py-2.5 whitespace-nowrap transition-colors border-b-2 ${
-                      isActive(link.href)
-                        ? "text-white border-white"
-                        : "text-red-200 border-transparent hover:text-white hover:border-red-300"
-                    }`}
+              {navLinks.map(link => {
+                const slug = link.href.replace("/categoria/", "");
+                const parent = parentCats.find(c => c.slug === slug);
+                const children = parent ? getChildren(parent.id) : [];
+                const hasChildren = children.length > 0;
+                return (
+                  <li key={link.href} className="relative"
+                    onMouseEnter={() => hasChildren && setOpenDropdown(link.href)}
+                    onMouseLeave={() => setOpenDropdown(null)}
                   >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+                    <Link
+                      href={link.href}
+                      className={`flex items-center gap-1 text-[13px] font-sans-ui font-medium px-3.5 py-2.5 whitespace-nowrap transition-colors border-b-2 ${
+                        isActive(link.href)
+                          ? "text-white border-white"
+                          : "text-red-200 border-transparent hover:text-white hover:border-red-300"
+                      }`}
+                    >
+                      {link.label}
+                      {hasChildren && <span className="text-[10px] opacity-70">▾</span>}
+                    </Link>
+                    {hasChildren && openDropdown === link.href && (
+                      <div className="absolute top-full left-0 bg-white shadow-lg rounded-b-md min-w-[160px] z-50 py-1 border border-gray-100">
+                        {children.map(child => (
+                          <Link
+                            key={child.id}
+                            href={`/categoria/${child.slug}`}
+                            className="block px-4 py-2 text-[13px] font-sans-ui text-gray-700 hover:bg-gray-50 hover:text-red-700 transition-colors"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </nav>
         </div>
