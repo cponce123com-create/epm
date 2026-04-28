@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useGetMostRead, useGetCategories } from "@workspace/api-client-react";
+import { useGetMostRead, useGetCategories, useGetPublicSettings } from "@workspace/api-client-react";
 
 function SidebarSkeleton() {
   return (
@@ -17,18 +17,40 @@ function SidebarSkeleton() {
   );
 }
 
+function AdBanner({ url, link, alt }: { url: string; link?: string; alt?: string }) {
+  if (!url) return (
+    <div className="ad-slot ad-slot--rectangle">
+      <span className="text-xs mt-6">Publicidad 300 × 250</span>
+    </div>
+  );
+  const img = (
+    <img
+      src={url}
+      alt={alt || "Publicidad"}
+      className="w-full h-auto rounded object-cover"
+      style={{ maxHeight: "300px" }}
+    />
+  );
+  if (link) return (
+    <a href={link} target="_blank" rel="noopener noreferrer sponsored" className="block hover:opacity-90 transition-opacity">
+      {img}
+    </a>
+  );
+  return <div>{img}</div>;
+}
+
 export default function Sidebar() {
   const { data: mostRead, isLoading: loadingMR } = useGetMostRead();
   const { data: categories, isLoading: loadingCats } = useGetCategories();
+  const { data: settings } = useGetPublicSettings();
+  const s = settings as any;
 
   return (
     <aside>
 
-      {/* Publicidad rectangular */}
+      {/* Banner 1 */}
       <div className="mb-6">
-        <div className="ad-slot ad-slot--rectangle">
-          <span className="text-xs mt-6">300 × 250</span>
-        </div>
+        <AdBanner url={s?.adBanner1Url ?? ""} link={s?.adBanner1Link} alt={s?.adBanner1Alt} />
       </div>
 
       {/* Lo más leído */}
@@ -63,6 +85,13 @@ export default function Sidebar() {
         )}
       </div>
 
+      {/* Banner 2 */}
+      {s?.adBanner2Url && (
+        <div className="sidebar-block" style={{ borderTop: "none", paddingTop: 0 }}>
+          <AdBanner url={s.adBanner2Url} link={s.adBanner2Link} alt={s.adBanner2Alt} />
+        </div>
+      )}
+
       {/* Categorías */}
       <div className="sidebar-block">
         <div className="sidebar-block__title">Categorías</div>
@@ -74,7 +103,7 @@ export default function Sidebar() {
           </div>
         ) : (
           <ul>
-            {categories?.map(cat => (
+            {categories?.filter(c => !c.parentId).map(cat => (
               <li key={cat.id}>
                 <Link
                   href={`/categoria/${cat.slug}`}
@@ -99,12 +128,12 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Segunda publicidad */}
-      <div className="sidebar-block" style={{ borderTop: "none", paddingTop: 0 }}>
-        <div className="ad-slot ad-slot--rectangle">
-          <span className="text-xs mt-6">300 × 250</span>
+      {/* Banner 3 */}
+      {s?.adBanner3Url && (
+        <div className="sidebar-block" style={{ borderTop: "none", paddingTop: 0 }}>
+          <AdBanner url={s.adBanner3Url} link={s.adBanner3Link} alt={s.adBanner3Alt} />
         </div>
-      </div>
+      )}
 
     </aside>
   );
