@@ -61,31 +61,48 @@ async function getAllSettings() {
   }
   return {
     // General
-    siteName:          map["site_name"]          ?? "El Príncipe Mestizo",
-    siteDescription:   map["site_description"]   ?? "Blog de periodismo ciudadano desde San Ramón, Chanchamayo (Perú)",
-    siteUrl:           map["site_url"]            ?? "",
-    contactEmail:      map["contact_email"]       ?? "",
+    siteName:           map["site_name"]           ?? "El Príncipe Mestizo",
+    siteTagline:        map["site_tagline"]         ?? "",
+    siteDescription:    map["site_description"]    ?? "Comunicador ciudadano desde San Ramón, Chanchamayo (Perú)",
+    siteUrl:            map["site_url"]             ?? "",
+    contactEmail:       map["contact_email"]        ?? "",
     // Identidad visual
-    logoUrl:           map["logo_url"]            ?? "",
-    faviconUrl:        map["favicon_url"]         ?? "",
+    logoUrl:            map["logo_url"]             ?? "",
+    faviconUrl:         map["favicon_url"]          ?? "",
+    // Header
+    headerTopText:      map["header_top_text"]      ?? "",
     // SEO / Open Graph
-    ogImage:           map["og_image"]            ?? "",
-    metaKeywords:      map["meta_keywords"]       ?? "",
+    ogImage:            map["og_image"]             ?? "",
+    metaKeywords:       map["meta_keywords"]        ?? "",
     // Redes sociales
-    twitterUrl:        map["twitter_url"]         ?? "",
-    facebookUrl:       map["facebook_url"]        ?? "",
-    youtubeUrl:        map["youtube_url"]         ?? "",
-    instagramUrl:      map["instagram_url"]       ?? "",
+    twitterUrl:         map["twitter_url"]          ?? "",
+    facebookUrl:        map["facebook_url"]         ?? "",
+    youtubeUrl:         map["youtube_url"]          ?? "",
+    instagramUrl:       map["instagram_url"]        ?? "",
+    tiktokUrl:          map["tiktok_url"]           ?? "",
     // Pie de página
-    footerText:        map["footer_text"]         ?? "Periodismo ciudadano, opinión y denuncia desde la selva central peruana.",
-    footerCopyright:   map["footer_copyright"]    ?? "",
-    footerLocation:    map["footer_location"]     ?? "San Ramón, Chanchamayo — Junín, Perú",
-    footerContactEmail:map["footer_contact_email"]?? "",
-    footerShowSections:map["footer_show_sections"]?? "true",
+    footerText:         map["footer_text"]          ?? "Opinión y denuncia ciudadana desde la selva central peruana.",
+    footerCopyright:    map["footer_copyright"]     ?? "",
+    footerLocation:     map["footer_location"]      ?? "San Ramón, Chanchamayo — Junín, Perú",
+    footerContactEmail: map["footer_contact_email"] ?? "",
+    footerShowSections: map["footer_show_sections"] ?? "true",
     // Acerca de
-    aboutText:         map["about_text"]          ?? "",
-    // Publicidad
-    adsenseClient:     map["adsense_client"]      ?? "",
+    aboutTitle:         map["about_title"]          ?? "",
+    aboutText:          map["about_text"]           ?? "",
+    aboutPhotoUrl:      map["about_photo_url"]      ?? "",
+    aboutRole:          map["about_role"]           ?? "",
+    // Publicidad banners
+    adBanner1Url:       map["ad_banner_1_url"]      ?? "",
+    adBanner1Link:      map["ad_banner_1_link"]     ?? "",
+    adBanner1Alt:       map["ad_banner_1_alt"]      ?? "",
+    adBanner2Url:       map["ad_banner_2_url"]      ?? "",
+    adBanner2Link:      map["ad_banner_2_link"]     ?? "",
+    adBanner2Alt:       map["ad_banner_2_alt"]      ?? "",
+    adBanner3Url:       map["ad_banner_3_url"]      ?? "",
+    adBanner3Link:      map["ad_banner_3_link"]     ?? "",
+    adBanner3Alt:       map["ad_banner_3_alt"]      ?? "",
+    // AdSense
+    adsenseClient:      map["adsense_client"]       ?? "",
   };
 }
 
