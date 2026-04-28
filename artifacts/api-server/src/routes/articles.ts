@@ -114,7 +114,9 @@ router.get("/articles", async (req, res): Promise<void> => {
 
   if (categorySlug) {
     const [cat] = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.slug, categorySlug));
-    if (cat) conditions.push(eq(articlesTable.categoryId, cat.id));
+    if (cat) conditions.push(
+      sql`(${articlesTable.categoryId} = ${cat.id} OR ${articlesTable.secondaryCategoryId} = ${cat.id})`
+    );
   }
 
   const whereClause = search
