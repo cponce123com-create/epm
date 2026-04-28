@@ -6,8 +6,8 @@
    · Stale-while-revalidate → páginas HTML (SPA shell)
    ───────────────────────────────────────────────────────────── */
 
-const CACHE_NAME  = "epm-v1";
-const SHELL_CACHE = "epm-shell-v1";
+const CACHE_NAME  = "epm-v3";
+const SHELL_CACHE = "epm-shell-v3";
 
 // Recursos del shell que se pre-cachean en install
 const SHELL_URLS = ["/", "/index.html", "/manifest.json"];
@@ -56,16 +56,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   // 2. Imágenes de Cloudinary → Cache-first con TTL implícito
-  if (url.hostname.includes("cloudinary.com") || url.hostname.includes("res.cloudinary.com")) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
-        return response;
-      }).catch(() => new Response("", { status: 503 }))
-    );
+  if (url.hostname.includes("cloudinary.com") || url.hostname.includes("res.cloudinary.com") || url.hostname.includes("cdn-images") || url.hostname.includes("miro.medium.com")) {
+    // Pass through directly — no SW caching for external images
+    event.respondWith(fetch(request).catch(() => new Response("", { status: 503 })));
     return;
   }
 
