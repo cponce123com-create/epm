@@ -10,12 +10,15 @@ const router: IRouter = Router();
 const SETTING_KEYS = [
   // General
   "site_name",
+  "site_tagline",
   "site_description",
   "site_url",
   "contact_email",
   // Identidad visual
   "logo_url",
   "favicon_url",
+  // Header
+  "header_top_text",
   // SEO / Open Graph
   "og_image",
   "meta_keywords",
@@ -24,6 +27,7 @@ const SETTING_KEYS = [
   "facebook_url",
   "youtube_url",
   "instagram_url",
+  "tiktok_url",
   // Pie de página
   "footer_text",
   "footer_copyright",
@@ -31,8 +35,21 @@ const SETTING_KEYS = [
   "footer_contact_email",
   "footer_show_sections",
   // Acerca de
+  "about_title",
   "about_text",
-  // Publicidad
+  "about_photo_url",
+  "about_role",
+  // Publicidad banners manuales
+  "ad_banner_1_url",
+  "ad_banner_1_link",
+  "ad_banner_1_alt",
+  "ad_banner_2_url",
+  "ad_banner_2_link",
+  "ad_banner_2_alt",
+  "ad_banner_3_url",
+  "ad_banner_3_link",
+  "ad_banner_3_alt",
+  // Publicidad AdSense
   "adsense_client",
 ] as const;
 
