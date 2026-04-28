@@ -544,16 +544,28 @@ export default function Article() {
 
             {/* Cabecera */}
             <header className="mb-6 max-w-3xl">
-              {article.category && (
-                <Link href={`/categoria/${article.category.slug}`}>
-                  <span
-                    className="category-tag mb-3"
-                    style={{ backgroundColor: catColor }}
-                  >
-                    {article.category.name}
-                  </span>
-                </Link>
-              )}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {article.category && (
+                  <Link href={`/categoria/${article.category.slug}`}>
+                    <span
+                      className="category-tag"
+                      style={{ backgroundColor: catColor }}
+                    >
+                      {article.category.name}
+                    </span>
+                  </Link>
+                )}
+                {(article as any).secondaryCategory && (
+                  <Link href={`/categoria/${(article as any).secondaryCategory.slug}`}>
+                    <span
+                      className="category-tag"
+                      style={{ backgroundColor: (article as any).secondaryCategory.color ?? "#555" }}
+                    >
+                      {(article as any).secondaryCategory.name}
+                    </span>
+                  </Link>
+                )}
+              </div>
 
               <h1
                 className="font-display font-bold leading-tight mb-4 text-gray-900"
