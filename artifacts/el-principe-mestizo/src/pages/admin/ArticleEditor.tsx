@@ -19,6 +19,7 @@ interface FormState {
   summary: string;
   content: string;
   categoryId: number;
+  secondaryCategoryId: number | null;
   status: "draft" | "published";
   featured: boolean;
   coverImageUrl: string;
@@ -39,6 +40,7 @@ export default function ArticleEditor() {
     summary: "",
     content: "",
     categoryId: 0,
+    secondaryCategoryId: null,
     status: "draft",
     featured: false,
     coverImageUrl: "",
@@ -63,6 +65,7 @@ export default function ArticleEditor() {
         summary: articleFromList.summary,
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
+        secondaryCategoryId: (articleFromList as any).secondaryCategoryId ?? null,
         status: articleFromList.status as "draft" | "published",
         featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
@@ -118,6 +121,7 @@ export default function ArticleEditor() {
       summary: form.summary,
       content: form.content,
       categoryId: form.categoryId,
+      secondaryCategoryId: form.secondaryCategoryId ?? undefined,
       status,
       featured: form.featured,
       coverImageUrl: form.coverImageUrl || null,
@@ -243,15 +247,36 @@ export default function ArticleEditor() {
             {/* Category */}
             <div className="bg-card border border-card-border rounded-lg p-4">
               <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Categoría
+                Categoría principal
               </h3>
               <select
                 value={form.categoryId}
                 onChange={e => setForm(f => ({ ...f, categoryId: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {categories?.map(cat => (
+                {categories?.filter(c => !c.parentId).map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+
+              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 mt-4">
+                Categoría secundaria <span className="font-normal normal-case text-muted-foreground">(opcional)</span>
+              </h3>
+              <select
+                value={form.secondaryCategoryId ?? ""}
+                onChange={e => setForm(f => ({ ...f, secondaryCategoryId: e.target.value ? Number(e.target.value) : null }))}
+                className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">— Ninguna —</option>
+                {categories?.filter(c => !c.parentId).map(parent => (
+                  <optgroup key={parent.id} label={parent.name}>
+                    {categories.filter(c => c.parentId === parent.id).map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+                {categories?.filter(c => !c.parentId && !categories.some(s => s.parentId === c.id)).map(cat => (
+                  <option key={`top-${cat.id}`} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>

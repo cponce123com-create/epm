@@ -44,6 +44,7 @@ function formatArticle(a: ArticleRow) {
     coverImageAlt: a.coverImageAlt ?? null,
     content: a.content,
     categoryId: a.categoryId,
+    secondaryCategoryId: a.secondaryCategoryId ?? null,
     authorId: a.authorId,
     status: a.status,
     featured: a.featured,
@@ -73,6 +74,7 @@ const articleSelect = {
   coverImageAlt: articlesTable.coverImageAlt,
   content: articlesTable.content,
   categoryId: articlesTable.categoryId,
+  secondaryCategoryId: articlesTable.secondaryCategoryId,
   authorId: articlesTable.authorId,
   status: articlesTable.status,
   featured: articlesTable.featured,
@@ -244,7 +246,7 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
   }
 
   const user = (req as typeof req & { user: { userId: number } }).user;
-  const { title, summary, content, categoryId, coverImageUrl, coverImageAlt, featured, status } = parsed.data;
+  const { title, summary, content, categoryId, secondaryCategoryId, coverImageUrl, coverImageAlt, featured, status } = parsed.data;
 
   const slug = makeSlug(title);
   const readingTime = calcReadingTime(content);
@@ -256,6 +258,7 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     summary,
     content,
     categoryId,
+    secondaryCategoryId: secondaryCategoryId ?? null,
     authorId: user.userId,
     coverImageUrl: coverImageUrl ?? undefined,
     coverImageAlt: coverImageAlt ?? undefined,
@@ -304,6 +307,7 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     updates.readingTime = calcReadingTime(d.content);
   }
   if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
+  if (d.secondaryCategoryId !== undefined) updates.secondaryCategoryId = d.secondaryCategoryId ?? null;
   if (d.coverImageUrl !== undefined) updates.coverImageUrl = d.coverImageUrl ?? undefined;
   if (d.coverImageAlt !== undefined) updates.coverImageAlt = d.coverImageAlt ?? undefined;
   if (d.featured !== undefined) updates.featured = d.featured;

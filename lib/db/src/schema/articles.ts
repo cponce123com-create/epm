@@ -15,6 +15,7 @@ export const articlesTable = pgTable("articles", {
   coverImageAlt: varchar("cover_image_alt", { length: 500 }),
   content: text("content").notNull().default(""),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
+  secondaryCategoryId: integer("secondary_category_id").references(() => categoriesTable.id, { onDelete: "set null" }),
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   status: articleStatusEnum("status").notNull().default("draft"),
   featured: boolean("featured").notNull().default(false),
