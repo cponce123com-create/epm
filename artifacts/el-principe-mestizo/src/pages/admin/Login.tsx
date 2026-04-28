@@ -57,7 +57,7 @@ export default function Login() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-3 py-2.5 text-sm font-sans-ui bg-[hsl(210_15%_18%)] border border-[hsl(210_12%_25%)] text-white rounded-md focus:outline-none focus:ring-2 focus:ring-[hsl(355_72%_55%)] placeholder:text-[hsl(210_10%_40%)]"
-                placeholder="admin@elprincinemestizo.com"
+                placeholder="user1@epm.com"
                 required
                 autoComplete="email"
               />

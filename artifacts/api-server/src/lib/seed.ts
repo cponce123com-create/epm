@@ -31,8 +31,8 @@ export async function seed() {
     }
 
     // Seed admin user
-    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@elprincinemestizo.com";
-    const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
+    const adminEmail = process.env.ADMIN_EMAIL ?? "elprincipemestizosr@gmail.com";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "Hadrones456%";
     const existingAdmin = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, adminEmail));
 
     if (existingAdmin.length === 0) {
