@@ -1,27 +1,29 @@
 import { useState, useEffect, useRef } from "react";
-import { Save, Upload, Image as ImageIcon, Globe, Palette, FileText, Share2, Mail, Shield, AlertCircle } from "lucide-react";
+import { Save, Upload, Globe, Palette, FileText, Share2, Mail, Shield, User, Megaphone, ChevronRight, Eye } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAdminGetSettings, useAdminUpdateSettings } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 
 interface FormState {
   // General
   siteName: string;
+  siteTagline: string;
   siteDescription: string;
   siteUrl: string;
+  contactEmail: string;
   // Identidad visual
   logoUrl: string;
   faviconUrl: string;
-  // SEO & Open Graph
   ogImage: string;
-  metaKeywords: string;
+  // Header
+  headerTopText: string;
   // Redes sociales
   twitterUrl: string;
   facebookUrl: string;
   youtubeUrl: string;
   instagramUrl: string;
+  tiktokUrl: string;
   // Pie de página
   footerText: string;
   footerCopyright: string;
@@ -29,190 +31,208 @@ interface FormState {
   footerContactEmail: string;
   footerShowSections: string;
   // Acerca de
+  aboutTitle: string;
   aboutText: string;
-  // Publicidad
+  aboutPhotoUrl: string;
+  aboutRole: string;
+  // Publicidad manual
+  adBanner1Url: string;
+  adBanner1Link: string;
+  adBanner1Alt: string;
+  adBanner2Url: string;
+  adBanner2Link: string;
+  adBanner2Alt: string;
+  adBanner3Url: string;
+  adBanner3Link: string;
+  adBanner3Alt: string;
+  // SEO
+  metaKeywords: string;
   adsenseClient: string;
-  // Contacto
-  contactEmail: string;
 }
 
 const KEY_MAP: Record<keyof FormState, string> = {
   siteName: "site_name",
+  siteTagline: "site_tagline",
   siteDescription: "site_description",
   siteUrl: "site_url",
+  contactEmail: "contact_email",
   logoUrl: "logo_url",
   faviconUrl: "favicon_url",
   ogImage: "og_image",
-  metaKeywords: "meta_keywords",
+  headerTopText: "header_top_text",
   twitterUrl: "twitter_url",
   facebookUrl: "facebook_url",
   youtubeUrl: "youtube_url",
   instagramUrl: "instagram_url",
+  tiktokUrl: "tiktok_url",
   footerText: "footer_text",
   footerCopyright: "footer_copyright",
   footerLocation: "footer_location",
   footerContactEmail: "footer_contact_email",
   footerShowSections: "footer_show_sections",
+  aboutTitle: "about_title",
   aboutText: "about_text",
+  aboutPhotoUrl: "about_photo_url",
+  aboutRole: "about_role",
+  adBanner1Url: "ad_banner_1_url",
+  adBanner1Link: "ad_banner_1_link",
+  adBanner1Alt: "ad_banner_1_alt",
+  adBanner2Url: "ad_banner_2_url",
+  adBanner2Link: "ad_banner_2_link",
+  adBanner2Alt: "ad_banner_2_alt",
+  adBanner3Url: "ad_banner_3_url",
+  adBanner3Link: "ad_banner_3_link",
+  adBanner3Alt: "ad_banner_3_alt",
+  metaKeywords: "meta_keywords",
   adsenseClient: "adsense_client",
-  contactEmail: "contact_email",
 };
 
-// ── Subcomponente: campo de imagen con preview y upload ────────────────────
-function ImageUploadField({
-  label,
-  value,
-  hint,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  onChange: (url: string) => void;
+// ── ImageUpload ────────────────────────────────────────────────────────────
+function ImageUpload({ label, value, hint, onChange }: {
+  label: string; value: string; hint?: string; onChange: (url: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
-
-  const cloudName    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME    ?? "";
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET ?? "";
-  const missingEnv   = !cloudName || !uploadPreset;
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
-    setProgress(0);
     try {
       const formData = new FormData();
       formData.append("image", file);
-
       const token = localStorage.getItem("epm_token");
       const apiUrl = import.meta.env.VITE_API_URL ?? "";
-      
-      const response = await fetch(`${apiUrl}/api/admin/upload`, {
+      const res = await fetch(`${apiUrl}/api/admin/upload`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al subir la imagen");
-      }
-
-      const result = await response.json();
-      onChange(result.url);
+      if (!res.ok) throw new Error((await res.json()).error || "Error al subir");
+      const data = await res.json();
+      onChange(data.url);
       toast({ description: "Imagen subida correctamente." });
     } catch (err: any) {
-      toast({
-        description: `Error al subir: ${err?.message ?? "Error desconocido"}`,
-        variant: "destructive",
-      });
+      toast({ description: err?.message ?? "Error al subir", variant: "destructive" });
     } finally {
       setUploading(false);
-      setProgress(0);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
 
   return (
-    <div>
-      <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+    <div className="space-y-2">
+      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </label>
-
-      {missingEnv && (
-        <div className="mb-2 flex items-start gap-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-300 dark:border-yellow-700 px-3 py-2 text-xs text-yellow-800 dark:text-yellow-300">
-          <AlertCircle size={13} className="mt-0.5 shrink-0" />
-          <span>
-            Configura <code className="font-mono font-semibold">VITE_CLOUDINARY_CLOUD_NAME</code> y{" "}
-            <code className="font-mono font-semibold">VITE_CLOUDINARY_UPLOAD_PRESET</code> en{" "}
-            <strong>Render → epm-frontend → Environment</strong>. O pega una URL directa abajo.
-          </span>
-        </div>
-      )}
-
-      <div className="flex gap-2 items-start">
+      <div className="flex gap-2">
         <input
           type="url"
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder="https://... o sube una imagen →"
-          className="flex-1 px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <button
           type="button"
-          disabled={uploading || missingEnv}
+          disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-muted hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-muted hover:bg-accent transition-colors disabled:opacity-50 whitespace-nowrap"
         >
-          <Upload size={14} />
-          {uploading ? `${progress}%` : "Subir"}
+          <Upload size={13} />
+          {uploading ? "Subiendo…" : "Subir"}
         </button>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
       </div>
-
-      {uploading && (
-        <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-200"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
       {value && (
-        <div className="mt-2 flex items-center gap-3">
-          <img
-            src={value}
-            alt={label}
-            className="h-10 w-auto rounded border border-border object-contain bg-muted"
-            onError={e => (e.currentTarget.style.display = "none")}
-          />
-          <span className="text-xs text-muted-foreground font-sans-ui truncate max-w-xs">{value}</span>
+        <div className="flex items-center gap-3 p-2 bg-muted/40 rounded-md border border-border">
+          <img src={value} alt={label} className="h-12 w-auto rounded object-contain bg-white" onError={e => (e.currentTarget.style.display = "none")} />
+          <span className="text-xs text-muted-foreground font-sans-ui truncate">{value}</span>
         </div>
       )}
-      {hint && <p className="mt-1 text-xs font-sans-ui text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>}
     </div>
   );
 }
 
-// ── Componente principal ───────────────────────────────────────────────────
+// ── AdBannerCard ─────────────────────────────────────────────────────────
+function AdBannerCard({ num, urlKey, linkKey, altKey, form, set }: {
+  num: number;
+  urlKey: keyof FormState;
+  linkKey: keyof FormState;
+  altKey: keyof FormState;
+  form: FormState;
+  set: (key: keyof FormState) => (val: string) => void;
+}) {
+  return (
+    <div className="border border-border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-sans-ui font-semibold">Banner {num}</span>
+        {form[urlKey] && (
+          <a href={form[urlKey]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+            <Eye size={12} /> Vista previa
+          </a>
+        )}
+      </div>
+      <ImageUpload
+        label="Imagen del banner"
+        value={form[urlKey]}
+        hint="Tamaño recomendado: 300×250 px (cuadrado) o 300×600 px (vertical)"
+        onChange={set(urlKey)}
+      />
+      <div>
+        <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          Enlace al hacer clic
+        </label>
+        <input
+          type="url"
+          value={form[linkKey]}
+          onChange={e => set(linkKey)(e.target.value)}
+          placeholder="https://..."
+          className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          Texto alternativo (accesibilidad)
+        </label>
+        <input
+          type="text"
+          value={form[altKey]}
+          onChange={e => set(altKey)(e.target.value)}
+          placeholder="Descripción breve del anuncio"
+          className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Settings principal ────────────────────────────────────────────────────
 export default function Settings() {
   const { data: settings, isLoading } = useAdminGetSettings();
   const update = useAdminUpdateSettings();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<
-    "general" | "visual" | "footer" | "seo" | "social" | "about" | "ads"
-  >("general");
 
-  const [form, setForm] = useState<FormState>({
-    siteName: "",
-    siteDescription: "",
-    siteUrl: "",
-    logoUrl: "",
-    faviconUrl: "",
-    ogImage: "",
-    metaKeywords: "",
-    twitterUrl: "",
-    facebookUrl: "",
-    youtubeUrl: "",
-    instagramUrl: "",
-    footerText: "",
-    footerCopyright: "",
-    footerLocation: "",
-    footerContactEmail: "",
-    footerShowSections: "true",
-    aboutText: "",
-    adsenseClient: "",
-    contactEmail: "",
-  });
+  type TabId = "general" | "header" | "visual" | "about" | "ads" | "social" | "footer" | "seo";
+  const [activeTab, setActiveTab] = useState<TabId>("general");
+  const [saving, setSaving] = useState(false);
+
+  const INITIAL: FormState = {
+    siteName: "", siteTagline: "", siteDescription: "", siteUrl: "", contactEmail: "",
+    logoUrl: "", faviconUrl: "", ogImage: "", headerTopText: "",
+    twitterUrl: "", facebookUrl: "", youtubeUrl: "", instagramUrl: "", tiktokUrl: "",
+    footerText: "", footerCopyright: "", footerLocation: "", footerContactEmail: "", footerShowSections: "true",
+    aboutTitle: "", aboutText: "", aboutPhotoUrl: "", aboutRole: "",
+    adBanner1Url: "", adBanner1Link: "", adBanner1Alt: "",
+    adBanner2Url: "", adBanner2Link: "", adBanner2Alt: "",
+    adBanner3Url: "", adBanner3Link: "", adBanner3Alt: "",
+    metaKeywords: "", adsenseClient: "",
+  };
+
+  const [form, setForm] = useState<FormState>(INITIAL);
 
   useEffect(() => {
     if (settings) {
@@ -220,24 +240,39 @@ export default function Settings() {
       setForm(f => ({
         ...f,
         siteName: s.siteName ?? "",
+        siteTagline: s.siteTagline ?? "",
         siteDescription: s.siteDescription ?? "",
         siteUrl: s.siteUrl ?? "",
+        contactEmail: s.contactEmail ?? "",
         logoUrl: s.logoUrl ?? "",
         faviconUrl: s.faviconUrl ?? "",
         ogImage: s.ogImage ?? "",
-        metaKeywords: s.metaKeywords ?? "",
+        headerTopText: s.headerTopText ?? "",
         twitterUrl: s.twitterUrl ?? "",
         facebookUrl: s.facebookUrl ?? "",
         youtubeUrl: s.youtubeUrl ?? "",
         instagramUrl: s.instagramUrl ?? "",
+        tiktokUrl: s.tiktokUrl ?? "",
         footerText: s.footerText ?? "",
         footerCopyright: s.footerCopyright ?? "",
         footerLocation: s.footerLocation ?? "",
         footerContactEmail: s.footerContactEmail ?? "",
         footerShowSections: s.footerShowSections ?? "true",
+        aboutTitle: s.aboutTitle ?? "",
         aboutText: s.aboutText ?? "",
+        aboutPhotoUrl: s.aboutPhotoUrl ?? "",
+        aboutRole: s.aboutRole ?? "",
+        adBanner1Url: s.adBanner1Url ?? "",
+        adBanner1Link: s.adBanner1Link ?? "",
+        adBanner1Alt: s.adBanner1Alt ?? "",
+        adBanner2Url: s.adBanner2Url ?? "",
+        adBanner2Link: s.adBanner2Link ?? "",
+        adBanner2Alt: s.adBanner2Alt ?? "",
+        adBanner3Url: s.adBanner3Url ?? "",
+        adBanner3Link: s.adBanner3Link ?? "",
+        adBanner3Alt: s.adBanner3Alt ?? "",
+        metaKeywords: s.metaKeywords ?? "",
         adsenseClient: s.adsenseClient ?? "",
-        contactEmail: s.contactEmail ?? "",
       }));
     }
   }, [settings]);
@@ -247,6 +282,7 @@ export default function Settings() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
       for (const [formKey, apiKey] of Object.entries(KEY_MAP)) {
         const value = form[formKey as keyof FormState];
@@ -256,105 +292,69 @@ export default function Settings() {
       }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/settings/public"] });
-      queryClient.invalidateQueries({ queryKey: ["settings"] }); // Por si se usan keys parciales
       toast({ description: "✅ Configuración guardada correctamente." });
     } catch {
       toast({ description: "Error al guardar la configuración.", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const textField = (key: keyof FormState, label: string, placeholder = "", hint?: string) => (
-    <div>
-      <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-        {label}
-      </label>
+  const field = (key: keyof FormState, label: string, opts?: { placeholder?: string; hint?: string; type?: string }) => (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
       <input
-        type="text"
+        type={opts?.type ?? "text"}
         value={form[key]}
-        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-        placeholder={placeholder}
-        className="w-full px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        onChange={e => set(key)(e.target.value)}
+        placeholder={opts?.placeholder}
+        className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
       />
-      {hint && <p className="mt-1 text-xs font-sans-ui text-muted-foreground">{hint}</p>}
+      {opts?.hint && <p className="text-xs font-sans-ui text-muted-foreground">{opts.hint}</p>}
     </div>
   );
 
-  const emailField = (key: keyof FormState, label: string, hint?: string) => (
-    <div>
-      <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-        {label}
-      </label>
-      <input
-        type="email"
-        value={form[key]}
-        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-        placeholder="correo@ejemplo.com"
-        className="w-full px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-      />
-      {hint && <p className="mt-1 text-xs font-sans-ui text-muted-foreground">{hint}</p>}
-    </div>
-  );
-
-  const urlField = (key: keyof FormState, label: string, placeholder = "https://...") => (
-    <div>
-      <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-        {label}
-      </label>
-      <input
-        type="url"
-        value={form[key]}
-        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-        placeholder={placeholder}
-        className="w-full px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-      />
-    </div>
-  );
-
-  const textareaField = (key: keyof FormState, label: string, rows = 4, hint?: string) => (
-    <div>
-      <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-        {label}
-      </label>
+  const textarea = (key: keyof FormState, label: string, rows = 4, hint?: string) => (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
       <textarea
         value={form[key]}
-        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+        onChange={e => set(key)(e.target.value)}
         rows={rows}
-        className="w-full px-3 py-2.5 text-sm font-serif border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+        className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
       />
-      {hint && <p className="mt-1 text-xs font-sans-ui text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>}
     </div>
   );
 
-  const TABS = [
-    { id: "general",  label: "General",       icon: <Globe size={14} /> },
-    { id: "visual",   label: "Identidad",      icon: <Palette size={14} /> },
-    { id: "footer",   label: "Pie de página",  icon: <FileText size={14} /> },
-    { id: "seo",      label: "SEO",            icon: <Shield size={14} /> },
-    { id: "social",   label: "Redes sociales", icon: <Share2 size={14} /> },
-    { id: "about",    label: "Acerca de",      icon: <ImageIcon size={14} /> },
-    { id: "ads",      label: "Publicidad",     icon: <Mail size={14} /> },
-  ] as const;
+  const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: "general",  label: "General",      icon: <Globe size={14} /> },
+    { id: "header",   label: "Cabecera",     icon: <ChevronRight size={14} /> },
+    { id: "visual",   label: "Identidad",    icon: <Palette size={14} /> },
+    { id: "about",    label: "Acerca de",    icon: <User size={14} /> },
+    { id: "ads",      label: "Publicidad",   icon: <Megaphone size={14} /> },
+    { id: "social",   label: "Redes",        icon: <Share2 size={14} /> },
+    { id: "footer",   label: "Footer",       icon: <FileText size={14} /> },
+    { id: "seo",      label: "SEO",          icon: <Shield size={14} /> },
+  ];
 
   return (
     <AdminLayout>
       <div className="max-w-3xl mx-auto">
-        {/* Título */}
         <div className="mb-6">
-          <h1 className="font-display text-2xl font-bold">Configuración del sitio</h1>
+          <h1 className="font-display text-2xl font-bold">Superadministración</h1>
           <p className="text-sm font-sans-ui text-muted-foreground mt-0.5">
-            Super administración — controla todos los aspectos de tu portal
+            Controla todos los aspectos de tu portal
           </p>
         </div>
 
         {isLoading ? (
           <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-            ))}
+            {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
           </div>
         ) : (
           <form onSubmit={handleSave}>
-            {/* Tabs de navegación */}
+            {/* Tabs */}
             <div className="flex flex-wrap gap-1 mb-6 border-b border-border pb-3">
               {TABS.map(tab => (
                 <button
@@ -373,180 +373,180 @@ export default function Settings() {
               ))}
             </div>
 
-            {/* ── TAB: GENERAL ── */}
+            {/* GENERAL */}
             {activeTab === "general" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
-                  Información general del sitio
+                  Información general
                 </h2>
-                {textField("siteName", "Nombre del sitio", "El Príncipe Mestizo")}
-                {textareaField(
-                  "siteDescription",
-                  "Descripción corta del sitio",
-                  3,
-                  "Aparece en el encabezado, en Google y en las vistas previas al compartir."
+                {field("siteName", "Nombre del sitio", { placeholder: "El Príncipe Mestizo" })}
+                {field("siteTagline", "Eslogan / tagline", {
+                  placeholder: "Comunicador ciudadano independiente desde Chanchamayo",
+                  hint: "Aparece debajo del nombre en el encabezado.",
+                })}
+                {textarea("siteDescription", "Descripción del sitio", 3,
+                  "Aparece en Google y al compartir en redes sociales."
                 )}
-                {urlField(
-                  "siteUrl",
-                  "URL principal del sitio",
-                  "https://epm-1.onrender.com"
-                )}
-                {emailField(
-                  "contactEmail",
-                  "Correo de contacto principal",
-                  "Se muestra en la sección de publicidad del pie de página."
-                )}
+                {field("siteUrl", "URL principal", { placeholder: "https://elprincipemestizo.eu.cc", type: "url" })}
+                {field("contactEmail", "Correo de contacto", { type: "email", placeholder: "correo@ejemplo.com" })}
               </div>
             )}
 
-            {/* ── TAB: IDENTIDAD VISUAL ── */}
+            {/* CABECERA */}
+            {activeTab === "header" && (
+              <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
+                <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
+                  Textos de la cabecera
+                </h2>
+                {field("headerTopText", "Texto barra superior", {
+                  placeholder: "San Ramón, Chanchamayo · Comunicador ciudadano independiente",
+                  hint: "Aparece en la franja oscura superior del encabezado. Si lo dejas vacío se usa el texto por defecto.",
+                })}
+                <div className="rounded-md bg-muted/50 border border-border p-3 text-xs font-sans-ui text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground">Ejemplo actual:</p>
+                  <p className="italic">San Ramón, Chanchamayo · Periodismo ciudadano independiente</p>
+                  <p className="font-semibold text-foreground mt-2">Puedes cambiarlo a:</p>
+                  <p className="italic">San Ramón, Chanchamayo · Comunicador y columnista ciudadano</p>
+                  <p className="italic">San Ramón, Chanchamayo · Opinión y denuncia ciudadana</p>
+                  <p className="italic">San Ramón, Chanchamayo · Crítico y comunicador ciudadano</p>
+                </div>
+              </div>
+            )}
+
+            {/* IDENTIDAD VISUAL */}
             {activeTab === "visual" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-6">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Logotipo y favicon
                 </h2>
-                <ImageUploadField
+                <ImageUpload
                   label="Logotipo del sitio"
                   value={form.logoUrl}
-                  hint="Imagen PNG o SVG con fondo transparente. Se muestra en el encabezado. Recomendado: 200×60 px."
+                  hint="PNG o SVG con fondo transparente. Recomendado: 200×60 px."
                   onChange={set("logoUrl")}
                 />
-                <ImageUploadField
+                <ImageUpload
                   label="Favicon (ícono de la pestaña)"
                   value={form.faviconUrl}
-                  hint="Imagen PNG cuadrada. Se muestra en la pestaña del navegador. Recomendado: 512×512 px o 32×32 px."
+                  hint="PNG cuadrado. Recomendado: 512×512 px."
                   onChange={set("faviconUrl")}
                 />
-                <div className="rounded-md bg-muted/50 border border-border p-3 text-xs font-sans-ui text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">¿Cómo se aplican?</p>
-                  <p>• El <strong>logotipo</strong> reemplaza el texto "El Príncipe Mestizo" en la cabecera.</p>
-                  <p>• El <strong>favicon</strong> se actualiza automáticamente en todas las pestañas.</p>
-                  <p>• Los cambios se ven después de recargar la página (Ctrl + F5).</p>
-                </div>
               </div>
             )}
 
-            {/* ── TAB: PIE DE PÁGINA ── */}
-            {activeTab === "footer" && (
+            {/* ACERCA DE */}
+            {activeTab === "about" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
-                  Pie de página (footer)
+                  Página «Acerca de»
                 </h2>
-                {textareaField(
-                  "footerText",
-                  "Descripción del pie de página",
-                  3,
-                  "Texto corto que aparece debajo del nombre del sitio en el footer."
-                )}
-                {textField(
-                  "footerCopyright",
-                  "Texto de derechos de autor",
-                  "© 2025 El Príncipe Mestizo. Todos los derechos reservados.",
-                  "Aparece en la franja inferior del footer."
-                )}
-                {textField(
-                  "footerLocation",
-                  "Ubicación mostrada en el footer",
-                  "San Ramón, Chanchamayo — Junín, Perú"
-                )}
-                {emailField(
-                  "footerContactEmail",
-                  "Correo de contacto del footer",
-                  "Se muestra en la sección «Publicidad» del footer."
-                )}
-                <div>
-                  <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-                    Mostrar columna de secciones
-                  </label>
-                  <select
-                    value={form.footerShowSections}
-                    onChange={e => setForm(f => ({ ...f, footerShowSections: e.target.value }))}
-                    className="w-full px-3 py-2.5 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="true">Sí — mostrar columna de secciones</option>
-                    <option value="false">No — ocultar columna de secciones</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* ── TAB: SEO ── */}
-            {activeTab === "seo" && (
-              <div className="bg-card border border-card-border rounded-lg p-6 space-y-6">
-                <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
-                  SEO y Open Graph (miniatura al compartir)
-                </h2>
-                <ImageUploadField
-                  label="Imagen por defecto al compartir (Open Graph)"
-                  value={form.ogImage}
-                  hint="Esta imagen aparece cuando alguien comparte la portada del sitio en Facebook, WhatsApp, Twitter, etc. Recomendado: 1200×630 px."
-                  onChange={set("ogImage")}
+                {field("aboutTitle", "Tu nombre o alias", { placeholder: "Carlos Ponce" })}
+                {field("aboutRole", "Tu rol / descripción corta", {
+                  placeholder: "Comunicador ciudadano · Columnista · Crítico social",
+                  hint: "Aparece debajo de tu nombre como subtítulo.",
+                })}
+                <ImageUpload
+                  label="Tu foto de perfil"
+                  value={form.aboutPhotoUrl}
+                  hint="Foto tuya o imagen representativa. Recomendado: cuadrada, mínimo 400×400 px."
+                  onChange={set("aboutPhotoUrl")}
                 />
-                {textareaField(
-                  "metaKeywords",
-                  "Palabras clave SEO (meta keywords)",
-                  2,
-                  'Separa las palabras con comas. Ejemplo: periodismo, Chanchamayo, San Ramón, Perú, denuncia'
+                {textarea("aboutText", "Texto de presentación", 12,
+                  "Cuéntale a tus lectores quién eres, por qué escribes y qué encuentran en este espacio. Puedes usar saltos de línea."
                 )}
-                <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs font-sans-ui text-blue-800 dark:text-blue-300 space-y-1">
-                  <p className="font-semibold">¿Por qué la miniatura de un artículo no aparece?</p>
-                  <p>Cada artículo usa su <strong>portada</strong> como miniatura al compartir. Asegúrate de que el artículo tenga una imagen de portada cargada. Si no tiene, usará la imagen por defecto que configures aquí.</p>
+                {form.aboutPhotoUrl && (
+                  <div className="rounded-md bg-muted/40 border border-border p-4">
+                    <p className="text-xs font-sans-ui text-muted-foreground mb-3 font-semibold">Vista previa:</p>
+                    <div className="flex items-start gap-4">
+                      <img src={form.aboutPhotoUrl} alt="Foto de perfil" className="w-20 h-20 rounded-full object-cover border-2 border-border" onError={e => (e.currentTarget.style.display = "none")} />
+                      <div>
+                        <p className="font-display font-bold text-lg">{form.aboutTitle || "Tu nombre"}</p>
+                        <p className="text-sm text-muted-foreground font-sans-ui">{form.aboutRole || "Tu rol"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PUBLICIDAD */}
+            {activeTab === "ads" && (
+              <div className="bg-card border border-card-border rounded-lg p-6 space-y-6">
+                <div>
+                  <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2 mb-1">
+                    Banners publicitarios manuales
+                  </h2>
+                  <p className="text-xs font-sans-ui text-muted-foreground">
+                    Sube imágenes de tus anunciantes y agrega el enlace a su negocio. Estos banners aparecen en la barra lateral del sitio.
+                  </p>
+                </div>
+                <AdBannerCard num={1} urlKey="adBanner1Url" linkKey="adBanner1Link" altKey="adBanner1Alt" form={form} set={set} />
+                <AdBannerCard num={2} urlKey="adBanner2Url" linkKey="adBanner2Link" altKey="adBanner2Alt" form={form} set={set} />
+                <AdBannerCard num={3} urlKey="adBanner3Url" linkKey="adBanner3Link" altKey="adBanner3Alt" form={form} set={set} />
+
+                <div className="border-t border-border pt-5 space-y-3">
+                  <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">Google AdSense (opcional)</h3>
+                  {field("adsenseClient", "ID de cliente AdSense", {
+                    placeholder: "ca-pub-xxxxxxxxxxxxxxxxx",
+                    hint: "Si tienes cuenta de AdSense, ingresa tu ID para habilitar anuncios automáticos.",
+                  })}
                 </div>
               </div>
             )}
 
-            {/* ── TAB: REDES SOCIALES ── */}
+            {/* REDES SOCIALES */}
             {activeTab === "social" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Redes sociales
                 </h2>
-                {urlField("facebookUrl", "URL de Facebook")}
-                {urlField("twitterUrl", "URL de Twitter / X")}
-                {urlField("youtubeUrl", "URL de YouTube")}
-                {urlField("instagramUrl", "URL de Instagram")}
+                {field("facebookUrl", "Facebook", { type: "url", placeholder: "https://facebook.com/..." })}
+                {field("twitterUrl", "Twitter / X", { type: "url", placeholder: "https://twitter.com/..." })}
+                {field("instagramUrl", "Instagram", { type: "url", placeholder: "https://instagram.com/..." })}
+                {field("youtubeUrl", "YouTube", { type: "url", placeholder: "https://youtube.com/..." })}
+                {field("tiktokUrl", "TikTok", { type: "url", placeholder: "https://tiktok.com/@..." })}
               </div>
             )}
 
-            {/* ── TAB: ACERCA DE ── */}
-            {activeTab === "about" && (
+            {/* FOOTER */}
+            {activeTab === "footer" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
-                  Página "Acerca de"
+                  Pie de página
                 </h2>
-                {textareaField(
-                  "aboutText",
-                  "Texto de presentación",
-                  10,
-                  "Este texto aparece en la página /acerca-de. Puedes usar saltos de línea."
-                )}
+                {textarea("footerText", "Descripción breve en el footer", 3, "Aparece debajo del nombre del sitio en el pie de página.")}
+                {field("footerCopyright", "Texto de derechos de autor", { placeholder: "© 2025 El Príncipe Mestizo. Todos los derechos reservados." })}
+                {field("footerLocation", "Ubicación", { placeholder: "San Ramón, Chanchamayo — Junín, Perú" })}
+                {field("footerContactEmail", "Correo en el footer", { type: "email", placeholder: "contacto@ejemplo.com" })}
               </div>
             )}
 
-            {/* ── TAB: PUBLICIDAD ── */}
-            {activeTab === "ads" && (
+            {/* SEO */}
+            {activeTab === "seo" && (
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-5">
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
-                  Google AdSense
+                  SEO y Open Graph
                 </h2>
-                {textField(
-                  "adsenseClient",
-                  "ID de cliente AdSense",
-                  "ca-pub-xxxxxxxxxxxxxxxxx",
-                  "Ingresa tu ID de cliente de AdSense para habilitar anuncios en el sitio."
-                )}
+                <ImageUpload
+                  label="Imagen por defecto al compartir"
+                  value={form.ogImage}
+                  hint="Aparece cuando alguien comparte la portada del sitio en redes. Recomendado: 1200×630 px."
+                  onChange={set("ogImage")}
+                />
+                {textarea("metaKeywords", "Palabras clave SEO", 2, "Separadas por comas. Ejemplo: Chanchamayo, San Ramón, denuncia, Perú, opinión")}
               </div>
             )}
 
-            {/* Botón guardar */}
-            <div className="flex justify-end mt-6">
+            {/* Guardar */}
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+              <p className="text-xs font-sans-ui text-muted-foreground">Los cambios se aplican al recargar la página del sitio.</p>
               <button
                 type="submit"
-                disabled={update.isPending}
+                disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground font-sans-ui text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-60"
               >
                 <Save size={16} />
-                {update.isPending ? "Guardando..." : "Guardar cambios"}
+                {saving ? "Guardando…" : "Guardar cambios"}
               </button>
             </div>
           </form>

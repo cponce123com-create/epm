@@ -82,7 +82,7 @@ export default function Header() {
       <div style={{ background: "#1a0a0a", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="max-w-7xl mx-auto px-4 lg:px-8 flex items-center justify-between h-8">
           <span style={{ fontSize: "11px", color: "rgba(255,200,200,0.6)", fontFamily: "sans-serif", letterSpacing: "0.04em" }}>
-            San Ramón, Chanchamayo · Periodismo ciudadano independiente
+            {((siteSettings as any)?.headerTopText || "San Ramón, Chanchamayo · Comunicador ciudadano independiente")}
           </span>
           <div className="flex items-center gap-4">
             <Link href="/buscar" style={{ fontSize: "11px", color: "rgba(255,200,200,0.6)", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "4px" }} className="hover:text-white transition-colors">
