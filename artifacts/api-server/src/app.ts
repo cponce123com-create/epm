@@ -28,8 +28,12 @@ app.use(
 );
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : true; // dev: allow all origins
+
 const corsOptions: cors.CorsOptions = {
-  origin: true,
+  origin: allowedOrigins,
   credentials: true,
   allowedHeaders: [
     "Content-Type",
@@ -42,26 +46,6 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
-
-// Preflight OPTIONS
-app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Accept",
-    );
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    );
-    res.setHeader("Access-Control-Max-Age", "86400");
-    res.status(204).end();
-    return;
-  }
-  next();
-});
 
 // ── Body parsers ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "50mb" }));

@@ -92,6 +92,11 @@ router.put("/admin/settings", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (!(SETTING_KEYS as readonly string[]).includes(key)) {
+    res.status(400).json({ error: `Invalid setting key: ${key}` });
+    return;
+  }
+
   await db
     .insert(siteSettingsTable)
     .values({ key, value })

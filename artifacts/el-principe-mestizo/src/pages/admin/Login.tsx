@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 
@@ -12,8 +12,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
 
   if (isAuthenticated) {
-    setLocation("/admin/dashboard");
-    return null;
+    return <Redirect to="/admin/dashboard" />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

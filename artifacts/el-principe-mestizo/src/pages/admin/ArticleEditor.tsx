@@ -5,14 +5,12 @@ import { Link } from "wouter";
 import AdminLayout from "@/components/admin/AdminLayout";
 import RichEditor from "@/components/admin/RichEditor";
 import {
-  useGetArticleBySlug,
   useGetCategories,
   useAdminCreateArticle,
   useAdminUpdateArticle,
   useAdminGetArticles,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -32,7 +30,6 @@ export default function ArticleEditor() {
   const isEdit = !!id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { token } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -50,8 +47,7 @@ export default function ArticleEditor() {
 
   // For editing: find the article in admin list (returns Article[] not paginated)
   const { data: adminArticles } = useAdminGetArticles({}, {
-  // @ts-ignore
-    enabled: isEdit,
+    query: { enabled: isEdit },
   });
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
@@ -135,7 +131,7 @@ export default function ArticleEditor() {
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
       } else {
-        const created = await createArticle.mutateAsync({ data: payload });
+        await createArticle.mutateAsync({ data: payload });
         toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
@@ -176,7 +172,7 @@ export default function ArticleEditor() {
               disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
-              {form.status === "published" ? <Globe size={15} /> : <Globe size={15} />}
+              {form.status === "published" ? <EyeOff size={15} /> : <Globe size={15} />}
               {isSaving ? "Guardando..." : "Publicar"}
             </button>
           </div>
