@@ -28,30 +28,33 @@ async function initDb() {
       password_hash TEXT NOT NULL,
       display_name TEXT,
       avatar_url TEXT,
-      role TEXT NOT NULL DEFAULT 'user',
+      role TEXT NOT NULL DEFAULT 'author',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS categories (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
-      color TEXT,
+      color TEXT NOT NULL DEFAULT '#333333',
       description TEXT,
+      parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS articles (
       id SERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
-      summary TEXT,
-      content TEXT,
+      summary TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
       cover_image_url TEXT,
-      category_id INTEGER REFERENCES categories(id),
-      author_id INTEGER REFERENCES users(id),
+      cover_image_alt TEXT,
+      category_id INTEGER NOT NULL REFERENCES categories(id),
+      author_id INTEGER NOT NULL REFERENCES users(id),
       status TEXT NOT NULL DEFAULT 'draft',
       featured BOOLEAN NOT NULL DEFAULT FALSE,
       views INTEGER NOT NULL DEFAULT 0,
-      reading_time INTEGER,
+      reading_time INTEGER NOT NULL DEFAULT 1,
       published_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -31,8 +31,8 @@ export async function seed() {
     }
 
     // Seed admin user
-    const adminEmail = process.env.ADMIN_EMAIL ?? "elprincipemestizosr@gmail.com";
-    const adminPassword = process.env.ADMIN_PASSWORD ?? "Hadrones456%";
+    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@elprincinemestizo.com";
+    const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123";
     const existingAdmin = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, adminEmail));
 
     if (existingAdmin.length === 0) {
@@ -41,13 +41,25 @@ export async function seed() {
         email: adminEmail,
         passwordHash,
         displayName: "El Príncipe Mestizo",
-        role: "admin",
+        role: "superadmin",
       });
-      logger.info({ email: adminEmail }, "Seeded admin user");
+      logger.info({ email: adminEmail }, "Seeded superadmin user");
     }
 
     // Seed settings
-    for (const setting of DEFAULT_SETTINGS) {
+    const EXTENDED_SETTINGS = [
+      ...DEFAULT_SETTINGS,
+      { key: "site_name", value: "El Príncipe Mestizo" },
+      { key: "site_url", value: "https://elprincipemestizo.eu.cc" },
+      { key: "logo_url", value: "" },
+      { key: "favicon_url", value: "" },
+      { key: "og_image", value: "" },
+      { key: "footer_text", value: "Periodismo ciudadano, opinión y denuncia desde la selva central peruana." },
+      { key: "footer_location", value: "San Ramón, Chanchamayo — Junín, Perú" },
+      { key: "footer_show_sections", value: "true" },
+    ];
+
+    for (const setting of EXTENDED_SETTINGS) {
       const existing = await db.select({ id: siteSettingsTable.id }).from(siteSettingsTable).where(eq(siteSettingsTable.key, setting.key));
       if (existing.length === 0) {
         await db.insert(siteSettingsTable).values(setting);

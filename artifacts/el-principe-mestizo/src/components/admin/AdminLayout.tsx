@@ -15,19 +15,21 @@ import {
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
-  { label: "Artículos", icon: FileText, href: "/admin/articles" },
-  { label: "Categorías", icon: FolderOpen, href: "/admin/categories" },
-  { label: "Comentarios", icon: MessageSquare, href: "/admin/comments" },
-  { label: "Importar Medium", icon: Upload, href: "/admin/import-medium" },
-  { label: "Configuración", icon: Settings, href: "/admin/settings" },
-];
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [location] = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  const isSuperAdmin = (user as any)?.role === "superadmin";
+
+  const navItems = [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
+    { label: "Artículos", icon: FileText, href: "/admin/articles" },
+    { label: "Categorías", icon: FolderOpen, href: "/admin/categories" },
+    { label: "Comentarios", icon: MessageSquare, href: "/admin/comments" },
+    { label: "Importar Medium", icon: Upload, href: "/admin/import-medium" },
+    ...(isSuperAdmin ? [{ label: "Configuración", icon: Settings, href: "/admin/settings" }] : []),
+  ];
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex flex-col h-full ${mobile ? "" : "h-screen"}`}>

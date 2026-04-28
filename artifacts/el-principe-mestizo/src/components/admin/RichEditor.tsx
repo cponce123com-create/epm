@@ -55,7 +55,21 @@ export default function RichEditor({ value, onChange }: Props) {
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const result = await uploadToCloudinary(file);
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const apiUrl = import.meta.env.VITE_API_URL ?? "";
+      const response = await fetch(`${apiUrl}/api/admin/upload`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) return null;
+
+      const result = await response.json();
       return result.url;
     } catch {
       return null;

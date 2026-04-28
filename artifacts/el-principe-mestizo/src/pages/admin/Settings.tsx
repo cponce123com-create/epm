@@ -83,18 +83,29 @@ function ImageUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (missingEnv) {
-      toast({
-        description: "Faltan VITE_CLOUDINARY_CLOUD_NAME y VITE_CLOUDINARY_UPLOAD_PRESET en Render → epm-frontend → Environment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setUploading(true);
     setProgress(0);
     try {
-      const result = await uploadToCloudinary(file, (pct) => setProgress(pct));
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const token = localStorage.getItem("epm_token");
+      const apiUrl = import.meta.env.VITE_API_URL ?? "";
+      
+      const response = await fetch(`${apiUrl}/api/admin/upload`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al subir la imagen");
+      }
+
+      const result = await response.json();
       onChange(result.url);
       toast({ description: "Imagen subida correctamente." });
     } catch (err: any) {
@@ -245,6 +256,7 @@ export default function Settings() {
       }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/settings/public"] });
+      queryClient.invalidateQueries({ queryKey: ["settings"] }); // Por si se usan keys parciales
       toast({ description: "✅ Configuración guardada correctamente." });
     } catch {
       toast({ description: "Error al guardar la configuración.", variant: "destructive" });

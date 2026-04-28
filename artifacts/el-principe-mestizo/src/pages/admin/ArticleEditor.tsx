@@ -5,12 +5,14 @@ import { Link } from "wouter";
 import AdminLayout from "@/components/admin/AdminLayout";
 import RichEditor from "@/components/admin/RichEditor";
 import {
+  useGetArticleBySlug,
   useGetCategories,
   useAdminCreateArticle,
   useAdminUpdateArticle,
   useAdminGetArticles,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import { uploadToCloudinary } from "@/lib/cloudinaryUpload";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -19,7 +21,6 @@ interface FormState {
   summary: string;
   content: string;
   categoryId: number;
-  secondaryCategoryId: number | null;
   status: "draft" | "published";
   featured: boolean;
   coverImageUrl: string;
@@ -31,6 +32,7 @@ export default function ArticleEditor() {
   const isEdit = !!id;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { token } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -40,7 +42,6 @@ export default function ArticleEditor() {
     summary: "",
     content: "",
     categoryId: 0,
-    secondaryCategoryId: null,
     status: "draft",
     featured: false,
     coverImageUrl: "",
@@ -49,7 +50,8 @@ export default function ArticleEditor() {
 
   // For editing: find the article in admin list (returns Article[] not paginated)
   const { data: adminArticles } = useAdminGetArticles({}, {
-    query: { enabled: isEdit },
+  // @ts-ignore
+    enabled: isEdit,
   });
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
@@ -65,7 +67,6 @@ export default function ArticleEditor() {
         summary: articleFromList.summary,
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
-        secondaryCategoryId: (articleFromList as any).secondaryCategoryId ?? null,
         status: articleFromList.status as "draft" | "published",
         featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
@@ -86,7 +87,24 @@ export default function ArticleEditor() {
     if (!file) return;
     setUploading(true);
     try {
-      const result = await uploadToCloudinary(file);
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const apiUrl = import.meta.env.VITE_API_URL ?? "";
+      const response = await fetch(`${apiUrl}/api/admin/upload`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al subir la imagen");
+      }
+
+      const result = await response.json();
       setForm(f => ({ ...f, coverImageUrl: result.url }));
       toast({ description: "Imagen de portada cargada correctamente." });
     } catch (err: any) {
@@ -121,7 +139,6 @@ export default function ArticleEditor() {
       summary: form.summary,
       content: form.content,
       categoryId: form.categoryId,
-      secondaryCategoryId: form.secondaryCategoryId ?? undefined,
       status,
       featured: form.featured,
       coverImageUrl: form.coverImageUrl || null,
@@ -135,7 +152,7 @@ export default function ArticleEditor() {
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
       } else {
-        await createArticle.mutateAsync({ data: payload });
+        const created = await createArticle.mutateAsync({ data: payload });
         toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
@@ -176,7 +193,7 @@ export default function ArticleEditor() {
               disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-60"
             >
-              {form.status === "published" ? <EyeOff size={15} /> : <Globe size={15} />}
+              {form.status === "published" ? <Globe size={15} /> : <Globe size={15} />}
               {isSaving ? "Guardando..." : "Publicar"}
             </button>
           </div>
@@ -247,36 +264,15 @@ export default function ArticleEditor() {
             {/* Category */}
             <div className="bg-card border border-card-border rounded-lg p-4">
               <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Categoría principal
+                Categoría
               </h3>
               <select
                 value={form.categoryId}
                 onChange={e => setForm(f => ({ ...f, categoryId: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {categories?.filter(c => !c.parentId).map(cat => (
+                {categories?.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-
-              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 mt-4">
-                Categoría secundaria <span className="font-normal normal-case text-muted-foreground">(opcional)</span>
-              </h3>
-              <select
-                value={form.secondaryCategoryId ?? ""}
-                onChange={e => setForm(f => ({ ...f, secondaryCategoryId: e.target.value ? Number(e.target.value) : null }))}
-                className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">— Ninguna —</option>
-                {categories?.filter(c => !c.parentId).map(parent => (
-                  <optgroup key={parent.id} label={parent.name}>
-                    {categories.filter(c => c.parentId === parent.id).map(sub => (
-                      <option key={sub.id} value={sub.id}>{sub.name}</option>
-                    ))}
-                  </optgroup>
-                ))}
-                {categories?.filter(c => !c.parentId && !categories.some(s => s.parentId === c.id)).map(cat => (
-                  <option key={`top-${cat.id}`} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>

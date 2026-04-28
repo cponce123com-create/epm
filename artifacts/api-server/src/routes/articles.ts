@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
-import { eq, sql, desc, ilike, and, ne, count, sql } from "drizzle-orm";
+import { eq, desc, ilike, and, ne, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import {
@@ -31,9 +31,6 @@ type ArticleRow = {
   categorySlug: string | null;
   categoryColor: string | null;
   categoryDescription: string | null;
-  secondaryCategoryName: string | null;
-  secondaryCategorySlug: string | null;
-  secondaryCategoryColor: string | null;
   authorName: string | null;
 };
 
@@ -47,7 +44,6 @@ function formatArticle(a: ArticleRow) {
     coverImageAlt: a.coverImageAlt ?? null,
     content: a.content,
     categoryId: a.categoryId,
-    secondaryCategoryId: a.secondaryCategoryId ?? null,
     authorId: a.authorId,
     status: a.status,
     featured: a.featured,
@@ -64,12 +60,6 @@ function formatArticle(a: ArticleRow) {
       description: a.categoryDescription ?? null,
       articleCount: 0,
     },
-    secondaryCategory: a.secondaryCategoryId ? {
-      id: a.secondaryCategoryId,
-      name: a.secondaryCategoryName ?? "",
-      slug: a.secondaryCategorySlug ?? "",
-      color: a.secondaryCategoryColor ?? "#333333",
-    } : null,
     authorName: a.authorName ?? "El Príncipe Mestizo",
   };
 }
@@ -83,7 +73,6 @@ const articleSelect = {
   coverImageAlt: articlesTable.coverImageAlt,
   content: articlesTable.content,
   categoryId: articlesTable.categoryId,
-  secondaryCategoryId: articlesTable.secondaryCategoryId,
   authorId: articlesTable.authorId,
   status: articlesTable.status,
   featured: articlesTable.featured,
@@ -96,9 +85,6 @@ const articleSelect = {
   categorySlug: categoriesTable.slug,
   categoryColor: categoriesTable.color,
   categoryDescription: categoriesTable.description,
-  secondaryCategoryName: sql<string | null>`sc.name`,
-  secondaryCategorySlug: sql<string | null>`sc.slug`,
-  secondaryCategoryColor: sql<string | null>`sc.color`,
   authorName: usersTable.displayName,
 } as const;
 
@@ -114,9 +100,7 @@ router.get("/articles", async (req, res): Promise<void> => {
 
   if (categorySlug) {
     const [cat] = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.slug, categorySlug));
-    if (cat) conditions.push(
-      sql`(${articlesTable.categoryId} = ${cat.id} OR ${articlesTable.secondaryCategoryId} = ${cat.id})`
-    );
+    if (cat) conditions.push(eq(articlesTable.categoryId, cat.id));
   }
 
   const whereClause = search
@@ -133,7 +117,6 @@ router.get("/articles", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(whereClause)
     .orderBy(desc(articlesTable.publishedAt))
@@ -155,7 +138,6 @@ router.get("/articles/featured", async (_req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(eq(articlesTable.featured, true), eq(articlesTable.status, "published")))
     .orderBy(desc(articlesTable.publishedAt))
@@ -170,7 +152,6 @@ router.get("/admin/most-read", async (_req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.status, "published"))
     .orderBy(desc(articlesTable.views))
@@ -187,7 +168,6 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(eq(articlesTable.slug, slug), eq(articlesTable.status, "published")));
 
@@ -220,7 +200,6 @@ router.get("/articles/:slug/related", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(
       eq(articlesTable.categoryId, article.categoryId),
@@ -238,7 +217,14 @@ router.get("/admin/articles", requireAuth, async (req, res): Promise<void> => {
   const status = req.query.status as string | undefined;
   const search = req.query.search as string | undefined;
 
+  const user = (req as any).user;
   const conditions = [];
+  
+  // Si no es superadmin, solo ve sus propios artículos
+  if (user.role !== "superadmin") {
+    conditions.push(eq(articlesTable.authorId, user.userId));
+  }
+
   if (status === "published") conditions.push(eq(articlesTable.status, "published"));
   else if (status === "draft") conditions.push(eq(articlesTable.status, "draft"));
   if (search) conditions.push(ilike(articlesTable.title, `%${search}%`));
@@ -249,7 +235,6 @@ router.get("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(whereClause)
     .orderBy(desc(articlesTable.createdAt));
@@ -266,7 +251,7 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
   }
 
   const user = (req as typeof req & { user: { userId: number } }).user;
-  const { title, summary, content, categoryId, secondaryCategoryId, coverImageUrl, coverImageAlt, featured, status } = parsed.data;
+  const { title, summary, content, categoryId, coverImageUrl, coverImageAlt, featured, status } = parsed.data;
 
   const slug = makeSlug(title);
   const readingTime = calcReadingTime(content);
@@ -278,7 +263,6 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     summary,
     content,
     categoryId,
-    secondaryCategoryId: secondaryCategoryId ?? null,
     authorId: user.userId,
     coverImageUrl: coverImageUrl ?? undefined,
     coverImageAlt: coverImageAlt ?? undefined,
@@ -292,7 +276,6 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, article.id));
 
@@ -310,9 +293,16 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     return;
   }
 
+  const user = (req as any).user;
   const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  // Solo el autor o un superadmin pueden editar/borrar
+  if (user.role !== "superadmin" && existing.authorId !== user.userId) {
+    res.status(403).json({ error: "No tienes permiso para realizar esta acción sobre este artículo" });
     return;
   }
 
@@ -328,7 +318,6 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     updates.readingTime = calcReadingTime(d.content);
   }
   if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
-  if (d.secondaryCategoryId !== undefined) updates.secondaryCategoryId = d.secondaryCategoryId ?? null;
   if (d.coverImageUrl !== undefined) updates.coverImageUrl = d.coverImageUrl ?? undefined;
   if (d.coverImageAlt !== undefined) updates.coverImageAlt = d.coverImageAlt ?? undefined;
   if (d.featured !== undefined) updates.featured = d.featured;
@@ -345,7 +334,6 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 
@@ -379,9 +367,16 @@ router.patch("/admin/articles/:id/publish", requireAuth, async (req, res): Promi
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(rawId, 10);
 
+  const user = (req as any).user;
   const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  // Solo el autor o un superadmin pueden editar/borrar
+  if (user.role !== "superadmin" && existing.authorId !== user.userId) {
+    res.status(403).json({ error: "No tienes permiso para realizar esta acción sobre este artículo" });
     return;
   }
 
@@ -394,7 +389,6 @@ router.patch("/admin/articles/:id/publish", requireAuth, async (req, res): Promi
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 
@@ -406,9 +400,16 @@ router.patch("/admin/articles/:id/feature", requireAuth, async (req, res): Promi
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(rawId, 10);
 
+  const user = (req as any).user;
   const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
   if (!existing) {
     res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  // Solo el autor o un superadmin pueden editar/borrar
+  if (user.role !== "superadmin" && existing.authorId !== user.userId) {
+    res.status(403).json({ error: "No tienes permiso para realizar esta acción sobre este artículo" });
     return;
   }
 
@@ -418,7 +419,6 @@ router.patch("/admin/articles/:id/feature", requireAuth, async (req, res): Promi
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
-    .leftJoin(sql`categories sc`, sql`sc.id = articles.secondary_category_id`)
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 

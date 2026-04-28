@@ -5,7 +5,10 @@ import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
-router.get("/admin/stats", requireAuth, async (_req, res): Promise<void> => {
+router.get("/admin/stats", requireAuth, async (req, res): Promise<void> => {
+  const user = (req as any).user;
+  const whereClause = user.role === "superadmin" ? undefined : eq(articlesTable.authorId, user.userId);
+
   const [totals] = await db
     .select({
       totalArticles: count(articlesTable.id),
@@ -13,7 +16,8 @@ router.get("/admin/stats", requireAuth, async (_req, res): Promise<void> => {
       publishedArticles: sql<number>`count(case when ${articlesTable.status} = 'published' then 1 end)`,
       draftArticles: sql<number>`count(case when ${articlesTable.status} = 'draft' then 1 end)`,
     })
-    .from(articlesTable);
+    .from(articlesTable)
+    .where(whereClause);
 
   const [commentTotals] = await db
     .select({

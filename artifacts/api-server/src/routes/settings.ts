@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 
 const router: IRouter = Router();
 
@@ -84,16 +85,11 @@ router.get("/admin/settings", requireAuth, async (_req, res): Promise<void> => {
 });
 
 // ── PUT admin — guarda un campo a la vez ──────────────────────────────────
-router.put("/admin/settings", requireAuth, async (req, res): Promise<void> => {
+router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
   const { key, value } = req.body as { key: string; value: string };
 
   if (!key || typeof value !== "string") {
     res.status(400).json({ error: "key and value are required" });
-    return;
-  }
-
-  if (!(SETTING_KEYS as readonly string[]).includes(key)) {
-    res.status(400).json({ error: `Invalid setting key: ${key}` });
     return;
   }
 
