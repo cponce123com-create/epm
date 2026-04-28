@@ -7,8 +7,15 @@ type Props = ImgHTMLAttributes<HTMLImageElement> & {
   priority?: boolean;
 };
 
+// Base URL del API — en producción es la URL de Render, en dev es vacío (proxy de Vite)
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
 function toProxyUrl(url: string): string {
-  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+function isProxyUrl(url: string): boolean {
+  return url.includes("/api/proxy-image");
 }
 
 export default function OptimizedImage({
@@ -26,7 +33,13 @@ export default function OptimizedImage({
   const finalSrc = useMemo(() => {
     const source = typeof src === "string" ? src : "";
     const base = failed ? (fallbackSrc ?? source) : source;
-    // Route Medium CDN URLs through our proxy to bypass hotlink protection
+
+    // Si ya es una URL proxy relativa (/api/proxy-image?...), añadir el API_BASE
+    if (isProxyUrl(base) && base.startsWith("/api/")) {
+      return `${API_BASE}${base}`;
+    }
+
+    // Rutar URLs de Medium CDN a través del proxy
     const routed = isMediumImageUrl(base) ? toProxyUrl(base) : base;
     return toCloudinaryDeliveryUrl(routed, { width: optimizeWidth });
   }, [failed, fallbackSrc, optimizeWidth, src]);
