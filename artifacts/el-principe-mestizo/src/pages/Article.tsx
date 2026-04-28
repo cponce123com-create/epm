@@ -443,23 +443,16 @@ export default function Article() {
   const contentReady = !!article && !isLoading;
 
   // Pre-procesar el HTML ANTES de inyectarlo en el DOM.
-  // Reescribe URLs de Medium y proxy relativas a absolutas usando VITE_API_URL.
+  // Convierte URLs proxy relativas a absolutas. No toca las que ya son absolutas.
   const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
   const processedContent = useMemo(() => {
     const raw = article?.content;
     if (!raw) return "";
 
-    const MEDIUM_SRC_RE = /(<img[^>]+src=")((https?:)?\/\/(?:miro\.medium\.com|cdn-images-\d+\.medium\.com)[^"]*?)"/gi;
-    const RELATIVE_PROXY_RE = /(<img[^>]+src=")(\/api\/proxy-image\?[^"]*)"/gi;
-
     return raw
-      .replace(/(<img[^>]+src=")\/\/([^"]+)"/gi, '$1https://$2"')
-      .replace(MEDIUM_SRC_RE, (_, prefix, url) => {
-        const normalized = url.startsWith("//") ? `https:${url}` : url;
-        return `${prefix}${API_BASE}/api/proxy-image?url=${encodeURIComponent(normalized)}"`;
-      })
-      .replace(RELATIVE_PROXY_RE, (_, prefix, path) => {
-        return `${prefix}${API_BASE}${path}"`;
+      // Convierte rutas proxy relativas (/api/proxy-image?...) a absolutas
+      .replace(/src="(\/api\/proxy-image\?[^"]*)"/gi, (_, path) => {
+        return `src="${API_BASE}${path}"`;
       });
   }, [article?.content, API_BASE]);
 
