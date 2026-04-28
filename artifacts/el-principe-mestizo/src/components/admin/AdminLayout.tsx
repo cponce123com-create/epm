@@ -28,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: "Categorías", icon: FolderOpen, href: "/admin/categories" },
     { label: "Comentarios", icon: MessageSquare, href: "/admin/comments" },
     { label: "Importar Medium", icon: Upload, href: "/admin/import-medium" },
-    ...(isSuperAdmin ? [{ label: "Configuración", icon: Settings, href: "/admin/settings" }] : []),
+    { label: "Configuración", icon: Settings, href: "/admin/settings" },
   ];
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
