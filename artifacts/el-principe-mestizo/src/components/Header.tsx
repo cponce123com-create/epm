@@ -1,53 +1,46 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Search, Zap } from "lucide-react";
+import { Menu, X, Search, Zap, ChevronDown } from "lucide-react";
 import { useGetArticles, useGetPublicSettings, useGetCategories } from "@workspace/api-client-react";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [location, navigate] = useLocation();
+  const dropdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { setMenuOpen(false); }, [location]);
 
-  // Último artículo para el breaking bar
   const { data: latest } = useGetArticles({ page: 1, limit: 1 });
   const latestArticle = latest?.articles?.[0];
-
-  // Configuración del sitio (logo, nombre)
   const { data: siteSettings } = useGetPublicSettings();
   const { data: allCategories } = useGetCategories();
+
   const rawLogoUrl = ((siteSettings as any)?.logoUrl ?? "").trim();
   const siteName   = ((siteSettings as any)?.siteName || "").trim() || "El Príncipe Mestizo";
-
-  // Solo mostrar logo si es una URL válida de Cloudinary o https real
-  // Ignorar URLs de picsum.photos (placeholders del backend sin Cloudinary)
-  const logoUrl = rawLogoUrl.startsWith("https://") && !rawLogoUrl.includes("picsum.photos")
-    ? rawLogoUrl
-    : "";
-
-  // Estado para saber si el logo cargó correctamente
+  const logoUrl = rawLogoUrl.startsWith("https://") && !rawLogoUrl.includes("picsum.photos") ? rawLogoUrl : "";
   const [logoError, setLogoError] = useState(false);
-  // Resetear el error cuando cambia la URL
   useEffect(() => { setLogoError(false); }, [logoUrl]);
   const showLogo = !!logoUrl && !logoError;
 
   const navLinks = [
     { label: "Inicio",        href: "/" },
-    { label: "Denuncia",      href: "/categoria/denuncia",      color: "#C0392B" },
-    { label: "Opinión",       href: "/categoria/opinion",       color: "#2980B9" },
-    { label: "Investigación", href: "/categoria/investigacion", color: "#27AE60" },
-    { label: "Ciudad",        href: "/categoria/ciudad",        color: "#E67E22" },
-    { label: "Política",      href: "/categoria/politica",      color: "#8E44AD" },
-    { label: "Políticos",     href: "/categoria/politicos",     color: "#6C3483" },
+    { label: "Denuncia",      href: "/categoria/denuncia" },
+    { label: "Opinión",       href: "/categoria/opinion" },
+    { label: "Investigación", href: "/categoria/investigacion" },
+    { label: "Ciudad",        href: "/categoria/ciudad" },
+    { label: "Política",      href: "/categoria/politica" },
+    { label: "Políticos",     href: "/categoria/politicos" },
     { label: "Acerca de",     href: "/acerca-de" },
   ];
 
-  // Categorías con subcategorías para el dropdown
-  const parentCats = allCategories?.filter(c => !c.parentId) ?? [];
-  const getChildren = (parentId: number) => allCategories?.filter(c => c.parentId === parentId) ?? [];
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const getChildren = (slug: string) => {
+    const parent = allCategories?.find(c => c.slug === slug);
+    if (!parent) return [];
+    return allCategories?.filter(c => c.parentId === parent.id) ?? [];
+  };
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -61,19 +54,25 @@ export default function Header() {
     }
   };
 
+  const handleMouseEnter = (href: string) => {
+    if (dropdownTimer.current) clearTimeout(dropdownTimer.current);
+    setOpenDropdown(href);
+  };
+
+  const handleMouseLeave = () => {
+    dropdownTimer.current = setTimeout(() => setOpenDropdown(null), 150);
+  };
+
   return (
     <>
-      {/* ── Header principal ── */}
       <header className="site-header">
-
-        {/* Franja superior: fecha + búsqueda */}
+        {/* Franja superior */}
         <div className="site-header-top">
           <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between">
             <span className="text-[11px] font-sans-ui text-red-200 hidden sm:block">
               San Ramón, Chanchamayo — Periodismo ciudadano independiente
             </span>
             <div className="flex items-center gap-3 ml-auto">
-              {/* Búsqueda */}
               {searchOpen ? (
                 <form onSubmit={handleSearch} className="flex items-center gap-1">
                   <input
@@ -103,10 +102,9 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Logo centrado */}
+        {/* Logo */}
         <div className="site-header-brand">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-            {/* Menú hamburguesa móvil */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="lg:hidden text-white p-1.5 -ml-1.5"
@@ -115,7 +113,6 @@ export default function Header() {
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
 
-            {/* Logo — imagen si carga bien, texto como fallback */}
             <Link href="/" className="flex flex-col items-center mx-auto lg:mx-0">
               {showLogo ? (
                 <img
@@ -136,10 +133,8 @@ export default function Header() {
               )}
             </Link>
 
-            {/* Espacio derecho balanceado en desktop */}
             <div className="hidden lg:block w-40" />
 
-            {/* Ícono búsqueda móvil */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
               className="lg:hidden text-white p-1.5 -mr-1.5"
@@ -149,19 +144,22 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Nav de categorías */}
+        {/* Nav desktop */}
         <div className="site-header-nav">
           <nav className="max-w-7xl mx-auto px-4">
             <ul className="hidden lg:flex items-center">
               {navLinks.map(link => {
                 const slug = link.href.replace("/categoria/", "");
-                const parent = parentCats.find(c => c.slug === slug);
-                const children = parent ? getChildren(parent.id) : [];
+                const children = getChildren(slug);
                 const hasChildren = children.length > 0;
+                const isOpen = openDropdown === link.href;
+
                 return (
-                  <li key={link.href} className="relative"
-                    onMouseEnter={() => hasChildren && setOpenDropdown(link.href)}
-                    onMouseLeave={() => setOpenDropdown(null)}
+                  <li
+                    key={link.href}
+                    className="relative"
+                    onMouseEnter={() => hasChildren && handleMouseEnter(link.href)}
+                    onMouseLeave={() => hasChildren && handleMouseLeave()}
                   >
                     <Link
                       href={link.href}
@@ -172,16 +170,25 @@ export default function Header() {
                       }`}
                     >
                       {link.label}
-                      {hasChildren && <span className="text-[10px] opacity-70">▾</span>}
+                      {hasChildren && <ChevronDown size={12} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />}
                     </Link>
-                    {hasChildren && openDropdown === link.href && (
-                      <div className="absolute top-full left-0 bg-white shadow-lg rounded-b-md min-w-[160px] z-50 py-1 border border-gray-100">
+
+                    {hasChildren && isOpen && (
+                      <div
+                        className="absolute top-full left-0 bg-white shadow-xl rounded-b-md z-50 py-1 min-w-[180px] border border-gray-100"
+                        onMouseEnter={() => handleMouseEnter(link.href)}
+                        onMouseLeave={() => handleMouseLeave()}
+                      >
                         {children.map(child => (
                           <Link
                             key={child.id}
                             href={`/categoria/${child.slug}`}
-                            className="block px-4 py-2 text-[13px] font-sans-ui text-gray-700 hover:bg-gray-50 hover:text-red-700 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-sans-ui text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
                           >
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: child.color ?? "#C0392B" }}
+                            />
                             {child.name}
                           </Link>
                         ))}
@@ -194,27 +201,47 @@ export default function Header() {
           </nav>
         </div>
 
-        {/* Menú móvil desplegable */}
-        <div className={`lg:hidden overflow-hidden transition-all duration-200 bg-[hsl(355_80%_28%)] ${menuOpen ? "max-h-96" : "max-h-0"}`}>
-          <nav className="max-w-7xl mx-auto px-4 py-2 grid grid-cols-2 gap-0.5">
-            {navLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-sans-ui px-3 py-2.5 rounded transition-colors ${
-                  isActive(link.href)
-                    ? "text-white bg-[hsl(355_80%_22%)]"
-                    : "text-red-200 hover:text-white hover:bg-[hsl(355_80%_22%)]"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+        {/* Menú móvil */}
+        <div className={`lg:hidden overflow-hidden transition-all duration-200 bg-[hsl(355_80%_28%)] ${menuOpen ? "max-h-screen" : "max-h-0"}`}>
+          <nav className="max-w-7xl mx-auto px-4 py-2">
+            {navLinks.map(link => {
+              const slug = link.href.replace("/categoria/", "");
+              const children = getChildren(slug);
+              const hasChildren = children.length > 0;
+              return (
+                <div key={link.href}>
+                  <Link
+                    href={link.href}
+                    className={`block text-sm font-sans-ui px-3 py-2.5 rounded transition-colors ${
+                      isActive(link.href)
+                        ? "text-white bg-[hsl(355_80%_22%)]"
+                        : "text-red-200 hover:text-white hover:bg-[hsl(355_80%_22%)]"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                  {hasChildren && (
+                    <div className="ml-4 mb-1">
+                      {children.map(child => (
+                        <Link
+                          key={child.id}
+                          href={`/categoria/${child.slug}`}
+                          className="flex items-center gap-2 text-xs font-sans-ui px-3 py-2 text-red-300 hover:text-white transition-colors"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                          {child.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
       </header>
 
-      {/* ── Breaking news bar ── */}
+      {/* Breaking news */}
       {latestArticle && (
         <div className="breaking-bar">
           <div className="max-w-7xl mx-auto flex items-stretch overflow-hidden">
