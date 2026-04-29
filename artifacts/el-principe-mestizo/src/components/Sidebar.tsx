@@ -80,6 +80,7 @@ export default function Sidebar() {
       {latestArticles.length > 0 && (
         <div className="sidebar-block">
           <div className="sidebar-block__title">Últimas noticias</div>
+
           <div>
             {latestArticles.map((article: any) => {
               const date = article.publishedAt
@@ -130,7 +131,10 @@ export default function Sidebar() {
 
       {/* Lo más leído */}
       <div className="sidebar-block">
-        <div className="sidebar-block__title">Lo más leído</div>
+        <div className="sidebar-block__title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="#7A1F1F" aria-hidden="true"><path d="M12 2c1 4 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 1-5 1 1 2 1 3-4Z"/></svg>
+          Lo más leído
+        </div>
         {loadingMR ? (
           <SidebarSkeleton />
         ) : (
@@ -141,16 +145,16 @@ export default function Sidebar() {
                 <div className="min-w-0">
                   <Link
                     href={`/articulo/${article.slug}`}
-                    className="sidebar-item__title block hover:text-red-700 transition-colors"
+                    className="sidebar-item__title block"
                   >
                     {article.title}
                   </Link>
                   {article.category && (
                     <span
-                      className="text-[10px] font-sans-ui font-semibold uppercase tracking-wide mt-1 block"
-                      style={{ color: article.category.color ?? "#C0392B" }}
+                      className="epm-mono mt-1 block"
+                      style={{ fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase", color: article.category.color ?? "#7A1F1F" }}
                     >
-                      {article.category.name}
+                      {article.category.name} · {(article as any).views?.toLocaleString("es-PE") ?? ""} lecturas
                     </span>
                   )}
                 </div>
@@ -212,7 +216,7 @@ export default function Sidebar() {
 
       {/* Categorías */}
       <div className="sidebar-block">
-        <div className="sidebar-block__title">Categorías</div>
+        <div className="sidebar-block__title">Explorar por sección</div>
         {loadingCats ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (

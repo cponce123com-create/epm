@@ -53,13 +53,14 @@ export default function ArticleCard({
   /* ── Horizontal (thumbnail a la derecha) ── */
   if (horizontal) {
     return (
-      <div className={`news-card animate-fade-in-up ${stagger} flex gap-3 items-start`}>
+      <div className={`news-card animate-fade-in-up ${stagger} flex gap-3 items-start`}
+        style={{ borderTopColor: catColor }}>
         <div className="flex-1 min-w-0">
           <div className="news-card__section" style={{ color: catColor }}>
             {article.category?.name}
           </div>
           <Link href={`/articulo/${article.slug}`}>
-            <h3 className={`news-card__title ${size === "sm" ? "text-[0.88rem]" : ""} hover:text-red-700`}>
+            <h3 className={`news-card__title ${size === "sm" ? "text-[0.88rem]" : ""}`}>
               {article.title}
             </h3>
           </Link>
@@ -93,7 +94,9 @@ export default function ArticleCard({
       : "news-card__title";
 
   return (
-    <div className={`news-card animate-fade-in-up ${stagger}`}>
+    <div className={`news-card animate-fade-in-up ${stagger}`}
+      style={{ borderTopColor: catColor }}>
+
       {/* Imagen */}
       {article.coverImageUrl ? (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
@@ -108,24 +111,25 @@ export default function ArticleCard({
       ) : (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
           <div
-            className="w-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center"
-            style={{ aspectRatio: "16/9" }}
+            className="w-full flex items-center justify-center"
+            style={{ aspectRatio: "16/9", background: "repeating-linear-gradient(135deg, #e8e1d4 0 12px, #ddd3c0 12px 13px)" }}
           >
-            <span className="font-display text-3xl text-gray-400 font-bold select-none opacity-40">EPM</span>
+            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "rgba(90,86,78,0.3)", fontWeight: 400 }}>EPM</span>
           </div>
         </Link>
       )}
 
       {/* Categoría */}
       <div className="news-card__section" style={{ color: catColor }}>
-        <Link href={`/categoria/${article.category?.slug ?? ""}`} className="hover:underline">
+        <Link href={`/categoria/${article.category?.slug ?? ""}`} style={{ color: catColor, textDecoration: "none" }}
+          className="hover:underline">
           {article.category?.name}
         </Link>
       </div>
 
       {/* Título */}
-      <Link href={`/articulo/${article.slug}`}>
-        <h3 className={`${titleClass} hover:text-red-700`}>{article.title}</h3>
+      <Link href={`/articulo/${article.slug}`} style={{ textDecoration: "none" }}>
+        <h3 className={titleClass}>{article.title}</h3>
       </Link>
 
       {/* Resumen opcional */}

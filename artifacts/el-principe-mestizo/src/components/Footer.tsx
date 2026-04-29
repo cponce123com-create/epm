@@ -1,96 +1,132 @@
 import { Link } from "wouter";
-import { MapPin, Facebook, Twitter, Youtube, Instagram, Mail } from "lucide-react";
+import { Facebook, Twitter, Youtube, Instagram } from "lucide-react";
 import { useGetPublicSettings } from "@workspace/api-client-react";
+
+function Crest({ size = 36, color = "#7A1F1F" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 60 60" fill="none" aria-hidden="true">
+      <circle cx="30" cy="30" r="28.5" stroke={color} strokeWidth="1" />
+      <path d="M14 22l5-7 4 5 4-8 4 8 4-5 5 7v4H14v-4z" fill={color} />
+      <rect x="14" y="28" width="32" height="1" fill={color} />
+      <text x="30" y="46" textAnchor="middle" fill={color}
+        fontFamily="'DM Serif Display', serif" fontSize="14" fontWeight="400"
+        fontStyle="italic">P</text>
+    </svg>
+  );
+}
 
 export default function Footer() {
   const year = new Date().getFullYear();
   const { data: settings } = useGetPublicSettings();
+  const s = settings as any;
 
-  const siteName         = (settings as any)?.siteName         ?? "El Príncipe Mestizo";
-  const footerText       = (settings as any)?.footerText        ?? "Periodismo ciudadano, opinión y denuncia desde la selva central peruana.";
-  const footerLocation   = (settings as any)?.footerLocation    ?? "San Ramón, Chanchamayo — Junín, Perú";
-  const footerCopyright  = (settings as any)?.footerCopyright   ?? `© ${year} El Príncipe Mestizo. Todos los derechos reservados.`;
-  const contactEmail     = (settings as any)?.footerContactEmail || (settings as any)?.contactEmail || "contacto@elprincipemestizo.com";
-  const showSections     = (settings as any)?.footerShowSections !== "false";
+  const siteName        = s?.siteName         ?? "El Príncipe Mestizo";
+  const footerText      = s?.footerText       ?? "Periodismo ciudadano independiente desde San Ramón, Chanchamayo. Sin financiamiento estatal ni partidario. Lectores, no anunciantes.";
+  const footerCopyright = s?.footerCopyright  ?? `© ${year} El Príncipe Mestizo · San Ramón, Chanchamayo, Junín, Perú`;
+  const contactEmail    = s?.footerContactEmail || s?.contactEmail || "contacto@elprincipemestizo.com";
+  const showSections    = s?.footerShowSections !== "false";
 
-  const twitterUrl   = (settings as any)?.twitterUrl   ?? "";
-  const facebookUrl  = (settings as any)?.facebookUrl  ?? "";
-  const youtubeUrl   = (settings as any)?.youtubeUrl   ?? "";
-  const instagramUrl = (settings as any)?.instagramUrl ?? "";
+  const twitterUrl   = s?.twitterUrl   ?? "";
+  const facebookUrl  = s?.facebookUrl  ?? "";
+  const youtubeUrl   = s?.youtubeUrl   ?? "";
+  const instagramUrl = s?.instagramUrl ?? "";
 
-  const hasSocial = twitterUrl || facebookUrl || youtubeUrl || instagramUrl;
+  const INK     = "#15140F";
+  const PAPER   = "#F4F0E7";
+  const GRANATE = "#7A1F1F";
 
   return (
-    <footer className="bg-gray-900 text-gray-400 mt-12">
-      {/* Banda roja superior */}
-      <div className="h-[3px] bg-red-700" />
+    <footer style={{ background: INK, color: PAPER, marginTop: 48 }}>
+      {/* Banda granate superior */}
+      <div style={{ height: 4, background: GRANATE }} />
 
-      <div className="max-w-7xl mx-auto px-4 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8" style={{ padding: "48px 32px 28px" }}>
+
+        {/* Grid 4 columnas */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(1, 1fr)",
+          gap: 36,
+          paddingBottom: 32,
+          borderBottom: "1px solid rgba(244,240,231,0.1)",
+        }} className="md:grid-cols-4">
 
           {/* Marca */}
-          <div className="md:col-span-1">
-            <Link href="/">
-              <span className="font-display text-xl font-bold text-white block mb-2 hover:text-red-400 transition-colors">
-                {siteName}
-              </span>
-            </Link>
-            <p className="text-sm leading-relaxed mb-3 text-gray-500">
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <Crest size={38} color={GRANATE} />
+              <Link href="/" style={{ textDecoration: "none" }}>
+                <span style={{
+                  fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+                  fontWeight: 400, fontSize: "1.35rem",
+                  color: PAPER,
+                }}>
+                  {siteName}
+                </span>
+              </Link>
+            </div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.65, color: "rgba(244,240,231,0.6)", margin: "0 0 14px", maxWidth: 380 }}>
               {footerText}
             </p>
-            <div className="flex items-center gap-1.5 text-xs font-sans-ui text-gray-600">
-              <MapPin size={11} className="text-red-500 shrink-0" />
-              <span>{footerLocation}</span>
-            </div>
 
-            {/* Iconos de redes sociales */}
-            {hasSocial && (
-              <div className="flex items-center gap-3 mt-4">
-                {facebookUrl && (
-                  <a href={facebookUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-500 hover:text-blue-400 transition-colors"
-                    aria-label="Facebook">
-                    <Facebook size={17} />
-                  </a>
-                )}
-                {twitterUrl && (
-                  <a href={twitterUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-500 hover:text-sky-400 transition-colors"
-                    aria-label="Twitter / X">
-                    <Twitter size={17} />
-                  </a>
-                )}
-                {youtubeUrl && (
-                  <a href={youtubeUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-500 hover:text-red-400 transition-colors"
-                    aria-label="YouTube">
-                    <Youtube size={17} />
-                  </a>
-                )}
-                {instagramUrl && (
-                  <a href={instagramUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-500 hover:text-pink-400 transition-colors"
-                    aria-label="Instagram">
-                    <Instagram size={17} />
-                  </a>
-                )}
-              </div>
-            )}
+            {/* Redes sociales */}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              {facebookUrl && (
+                <a href={facebookUrl} target="_blank" rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  style={{ width: 32, height: 32, border: "1px solid rgba(244,240,231,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(244,240,231,0.55)", transition: "color 0.15s, border-color 0.15s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = PAPER; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.5)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(244,240,231,0.55)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.2)"; }}>
+                  <Facebook size={15} />
+                </a>
+              )}
+              {twitterUrl && (
+                <a href={twitterUrl} target="_blank" rel="noopener noreferrer"
+                  aria-label="Twitter / X"
+                  style={{ width: 32, height: 32, border: "1px solid rgba(244,240,231,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(244,240,231,0.55)", transition: "color 0.15s, border-color 0.15s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = PAPER; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.5)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(244,240,231,0.55)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.2)"; }}>
+                  <Twitter size={15} />
+                </a>
+              )}
+              {youtubeUrl && (
+                <a href={youtubeUrl} target="_blank" rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  style={{ width: 32, height: 32, border: "1px solid rgba(244,240,231,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(244,240,231,0.55)", transition: "color 0.15s, border-color 0.15s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = PAPER; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.5)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(244,240,231,0.55)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.2)"; }}>
+                  <Youtube size={15} />
+                </a>
+              )}
+              {instagramUrl && (
+                <a href={instagramUrl} target="_blank" rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  style={{ width: 32, height: 32, border: "1px solid rgba(244,240,231,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(244,240,231,0.55)", transition: "color 0.15s, border-color 0.15s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = PAPER; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.5)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(244,240,231,0.55)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(244,240,231,0.2)"; }}>
+                  <Instagram size={15} />
+                </a>
+              )}
+            </div>
           </div>
 
-          {/* Secciones (se puede ocultar desde el admin) */}
+          {/* Secciones */}
           {showSections && (
             <div>
-              <h3 className="text-xs font-sans-ui font-700 uppercase tracking-widest text-gray-500 mb-4">Secciones</h3>
-              <nav className="space-y-2">
+              <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, color: "rgba(244,240,231,0.4)" }}>
+                Secciones
+              </div>
+              <nav style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 {[
                   { label: "Denuncia",      href: "/categoria/denuncia" },
-                  { label: "Opinión",       href: "/categoria/opinion" },
                   { label: "Investigación", href: "/categoria/investigacion" },
+                  { label: "Opinión",       href: "/categoria/opinion" },
                   { label: "Ciudad",        href: "/categoria/ciudad" },
                   { label: "Política",      href: "/categoria/politica" },
                 ].map(l => (
-                  <Link key={l.href} href={l.href} className="block text-sm hover:text-white transition-colors">
+                  <Link key={l.href} href={l.href}
+                    style={{ fontSize: 13, color: "rgba(244,240,231,0.72)", textDecoration: "none", transition: "color 0.15s" }}
+                    className="hover:text-white">
                     {l.label}
                   </Link>
                 ))}
@@ -98,48 +134,53 @@ export default function Footer() {
             </div>
           )}
 
-          {/* El blog */}
+          {/* La redacción */}
           <div>
-            <h3 className="text-xs font-sans-ui font-700 uppercase tracking-widest text-gray-500 mb-4">El blog</h3>
-            <nav className="space-y-2">
+            <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, color: "rgba(244,240,231,0.4)" }}>
+              La redacción
+            </div>
+            <nav style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {[
                 { label: "Inicio",           href: "/" },
                 { label: "Acerca de",        href: "/acerca-de" },
                 { label: "Buscar artículos", href: "/buscar" },
                 { label: "Administración",   href: "/admin/login" },
               ].map(l => (
-                <Link key={l.href} href={l.href} className="block text-sm hover:text-white transition-colors">
+                <Link key={l.href} href={l.href}
+                  style={{ fontSize: 13, color: "rgba(244,240,231,0.72)", textDecoration: "none", transition: "color 0.15s" }}
+                  className="hover:text-white">
                   {l.label}
                 </Link>
               ))}
             </nav>
           </div>
 
-          {/* Publicidad local */}
+          {/* Publicidad / Apoyo */}
           <div>
-            <h3 className="text-xs font-sans-ui font-700 uppercase tracking-widest text-gray-500 mb-4">Publicidad</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, color: "rgba(244,240,231,0.4)" }}>
+              Apóyanos
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 14 }}>
               ¿Tienes un negocio en Chanchamayo? Anúnciate aquí y llega a tu comunidad.
             </p>
             {contactEmail && (
-              <a
-                href={`mailto:${contactEmail}`}
-                className="inline-flex items-center gap-1.5 mt-3 text-xs font-sans-ui text-red-400 hover:text-red-300 underline underline-offset-3 transition-colors"
-              >
-                <Mail size={11} />
+              <a href={`mailto:${contactEmail}`}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "var(--app-font-mono)", color: GRANATE, textDecoration: "none", letterSpacing: "0.1em", transition: "opacity 0.15s" }}
+                className="hover:opacity-75">
                 Contáctanos →
               </a>
             )}
           </div>
         </div>
 
-        {/* Copyright */}
-        <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans-ui text-gray-600">
-          <span>
-            {footerCopyright ||
-              `© ${year} ${siteName}. Todos los derechos reservados.`}
+        {/* Copyright + frase */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 24, flexWrap: "wrap", gap: 12 }}>
+          <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.38)", letterSpacing: "0.06em" }}>
+            {footerCopyright}
           </span>
-          <span>Periodismo libre e independiente desde Chanchamayo, Perú.</span>
+          <span className="epm-italic" style={{ fontSize: 15, color: "rgba(244,240,231,0.55)", fontStyle: "italic", fontFamily: "'Libre Baskerville', Georgia, serif" }}>
+            "La verdad no necesita permiso para existir."
+          </span>
         </div>
       </div>
     </footer>
