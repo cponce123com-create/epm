@@ -20,7 +20,7 @@ router.get("/categories", async (_req, res): Promise<void> => {
       articleCount: sql<number>`cast(count(${articlesTable.id}) as int)`,
     })
     .from(categoriesTable)
-    .leftJoin(articlesTable, sql`${categoriesTable.id} = ${articlesTable.categoryId} OR ${categoriesTable.id} = ${articlesTable.secondaryCategoryId}`)
+    .leftJoin(articlesTable, sql`(${categoriesTable.id} = ${articlesTable.categoryId} OR ${categoriesTable.id} = ${articlesTable.secondaryCategoryId}) AND ${articlesTable.status} = 'published'`)
     .groupBy(categoriesTable.id)
     .orderBy(categoriesTable.order, categoriesTable.name);
 

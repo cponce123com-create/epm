@@ -1,18 +1,46 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Search, ChevronDown } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { useGetArticles, useGetPublicSettings, useGetCategories } from "@workspace/api-client-react";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [location, navigate] = useLocation();
   const dropdownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [location]);
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); setSearchQ(""); setDebouncedQ(""); }, [location]);
+
+  // Debounce query for live search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(searchQ), 320);
+    return () => clearTimeout(t);
+  }, [searchQ]);
+
+  // Click-outside closes search dropdown
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        desktopSearchRef.current?.contains(target) ||
+        mobileSearchRef.current?.contains(target)
+      ) return;
+      setSearchOpen(false);
+      setSearchQ("");
+      setDebouncedQ("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [searchOpen]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -21,6 +49,12 @@ export default function Header() {
   }, []);
 
   const { data: latest } = useGetArticles({ page: 1, limit: 3 });
+  const { data: liveData, isLoading: liveLoading } = useGetArticles(
+    { search: debouncedQ, limit: 5 } as any,
+    // @ts-ignore
+    { enabled: debouncedQ.length >= 2 }
+  );
+  const liveArticles: any[] = (liveData as any)?.articles ?? [];
   const { data: siteSettings } = useGetPublicSettings();
   const { data: allCategories } = useGetCategories();
 
@@ -45,18 +79,23 @@ export default function Header() {
   const getChildren = (slug: string) => {
     const parent = allCategories?.find(c => c.slug === slug);
     if (!parent) return [];
-    return allCategories?.filter(c => c.parentId === parent.id) ?? [];
+    return allCategories?.filter(c => (c as any).parentId === parent.id) ?? [];
   };
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
 
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQ("");
+    setDebouncedQ("");
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQ.trim()) {
       navigate(`/buscar?q=${encodeURIComponent(searchQ.trim())}`);
-      setSearchOpen(false);
-      setSearchQ("");
+      closeSearch();
     }
   };
 
@@ -120,33 +159,46 @@ export default function Header() {
             )}
           </Link>
 
-          {/* Right: search expanded on desktop */}
-          <div className="hidden lg:flex items-center gap-3">
-            {searchOpen ? (
-              <form onSubmit={handleSearch} className="flex items-center gap-2 bg-white/10 rounded px-3 py-1.5">
-                <Search size={14} className="text-red-200" />
-                <input
-                  autoFocus
-                  value={searchQ}
-                  onChange={e => setSearchQ(e.target.value)}
-                  placeholder="Buscar artículos…"
-                  style={{ background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: "13px", width: "180px", fontFamily: "sans-serif" }}
-                  className="placeholder:text-red-300"
-                />
-                <button type="button" onClick={() => setSearchOpen(false)} className="text-red-300 hover:text-white">
-                  <X size={13} />
+          {/* Right: search with live dropdown on desktop */}
+          <div className="hidden lg:flex items-center gap-3" ref={desktopSearchRef}>
+            <div style={{ position: "relative" }}>
+              {searchOpen ? (
+                <>
+                  <form onSubmit={handleSearch} className="flex items-center gap-2 bg-white/10 rounded px-3 py-1.5">
+                    <Search size={14} className="text-red-200" />
+                    <input
+                      autoFocus
+                      value={searchQ}
+                      onChange={e => setSearchQ(e.target.value)}
+                      placeholder="Buscar artículos…"
+                      style={{ background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: "13px", width: "200px", fontFamily: "sans-serif" }}
+                      className="placeholder:text-red-300"
+                    />
+                    <button type="button" onClick={closeSearch} className="text-red-300 hover:text-white">
+                      <X size={13} />
+                    </button>
+                  </form>
+                  {/* Live results dropdown */}
+                  {debouncedQ.length >= 2 && (
+                    <LiveSearchDropdown
+                      query={debouncedQ}
+                      articles={liveArticles}
+                      isLoading={liveLoading}
+                      onClose={closeSearch}
+                    />
+                  )}
+                </>
+              ) : (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="flex items-center gap-2 text-red-200 hover:text-white transition-colors"
+                  style={{ fontSize: "13px", fontFamily: "sans-serif" }}
+                >
+                  <Search size={15} />
+                  <span>Buscar</span>
                 </button>
-              </form>
-            ) : (
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="flex items-center gap-2 text-red-200 hover:text-white transition-colors"
-                style={{ fontSize: "13px", fontFamily: "sans-serif" }}
-              >
-                <Search size={15} />
-                <span>Buscar</span>
-              </button>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Mobile search */}
@@ -157,7 +209,7 @@ export default function Header() {
 
         {/* Mobile search expanded */}
         {searchOpen && (
-          <div className="lg:hidden px-4 pt-2 pb-1">
+          <div className="lg:hidden px-4 pt-2 pb-1" ref={mobileSearchRef} style={{ position: "relative" }}>
             <form onSubmit={handleSearch} className="flex items-center gap-2 bg-white/10 rounded px-3 py-2">
               <Search size={14} className="text-red-200" />
               <input
@@ -168,7 +220,22 @@ export default function Header() {
                 style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#fff", fontSize: "14px", fontFamily: "sans-serif" }}
                 className="placeholder:text-red-300"
               />
+              {searchQ && (
+                <button type="button" onClick={closeSearch} className="text-red-300 hover:text-white shrink-0">
+                  <X size={14} />
+                </button>
+              )}
             </form>
+            {/* Live results dropdown mobile */}
+            {debouncedQ.length >= 2 && (
+              <LiveSearchDropdown
+                query={debouncedQ}
+                articles={liveArticles}
+                isLoading={liveLoading}
+                onClose={closeSearch}
+                mobile
+              />
+            )}
           </div>
         )}
       </div>
@@ -388,5 +455,116 @@ export default function Header() {
         </div>
       )}
     </>
+  );
+}
+
+/* ── Live Search Dropdown ─────────────────────────────────────────────────── */
+function LiveSearchDropdown({
+  query,
+  articles,
+  isLoading,
+  onClose,
+  mobile = false,
+}: {
+  query: string;
+  articles: any[];
+  isLoading: boolean;
+  onClose: () => void;
+  mobile?: boolean;
+}) {
+  const dropdownStyle: React.CSSProperties = {
+    position: "absolute",
+    top: mobile ? "calc(100% + 4px)" : "calc(100% + 8px)",
+    left: 0,
+    right: mobile ? 0 : "auto",
+    minWidth: mobile ? undefined : "360px",
+    background: "#fff",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+    borderRadius: "8px",
+    overflow: "hidden",
+    zIndex: 300,
+    borderTop: "3px solid #c0392b",
+  };
+
+  return (
+    <div style={dropdownStyle}>
+      {isLoading ? (
+        <div style={{ padding: "14px 16px", fontSize: "13px", color: "#888", fontFamily: "sans-serif" }}>
+          Buscando…
+        </div>
+      ) : articles.length === 0 ? (
+        <div style={{ padding: "14px 16px", fontSize: "13px", color: "#888", fontFamily: "sans-serif" }}>
+          Sin resultados para "<strong>{query}</strong>"
+        </div>
+      ) : (
+        <>
+          {articles.map((article: any) => {
+            const date = article.publishedAt
+              ? new Date(article.publishedAt)
+              : new Date(article.createdAt);
+            return (
+              <Link
+                key={article.id}
+                href={`/articulo/${article.slug}`}
+                onClick={onClose}
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "flex-start",
+                  padding: "10px 14px",
+                  textDecoration: "none",
+                  borderBottom: "1px solid #f0f0f0",
+                  transition: "background 0.1s",
+                }}
+                className="hover:bg-red-50"
+              >
+                {article.coverImageUrl && (
+                  <img
+                    src={article.coverImageUrl}
+                    alt={article.title}
+                    style={{ width: 52, height: 39, objectFit: "cover", borderRadius: "3px", flexShrink: 0 }}
+                  />
+                )}
+                <div style={{ minWidth: 0 }}>
+                  <span style={{
+                    fontSize: "10px",
+                    fontFamily: "sans-serif",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.07em",
+                    color: article.category?.color ?? "#c0392b",
+                  }}>
+                    {article.category?.name}
+                  </span>
+                  <p style={{ margin: "2px 0 2px", fontSize: "13px", fontFamily: "sans-serif", fontWeight: 600, color: "#111", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                    {article.title}
+                  </p>
+                  <span style={{ fontSize: "10px", fontFamily: "sans-serif", color: "#aaa" }}>
+                    {format(date, "d MMM yyyy", { locale: es })}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+          <Link
+            href={`/buscar?q=${encodeURIComponent(query)}`}
+            onClick={onClose}
+            style={{
+              display: "block",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontFamily: "sans-serif",
+              color: "#c0392b",
+              fontWeight: 600,
+              textDecoration: "none",
+              background: "#fef2f2",
+            }}
+            className="hover:bg-red-100"
+          >
+            Ver todos los resultados para "{query}" →
+          </Link>
+        </>
+      )}
+    </div>
   );
 }

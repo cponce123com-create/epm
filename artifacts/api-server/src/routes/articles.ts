@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
-import { eq, desc, ilike, and, ne, count, sql } from "drizzle-orm";
+import { eq, desc, ilike, and, or, ne, count, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import {
@@ -100,7 +100,13 @@ router.get("/articles", async (req, res): Promise<void> => {
 
   if (categorySlug) {
     const [cat] = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.slug, categorySlug));
-    if (cat) conditions.push(eq(articlesTable.categoryId, cat.id));
+    if (cat) {
+      const catFilter = or(
+        eq(articlesTable.categoryId, cat.id),
+        eq(articlesTable.secondaryCategoryId, cat.id)
+      );
+      if (catFilter) conditions.push(catFilter);
+    }
   }
 
   const whereClause = search
