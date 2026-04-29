@@ -85,9 +85,6 @@ export default function Header() {
             {((siteSettings as any)?.headerTopText || "San Ramón, Chanchamayo · Comunicador ciudadano independiente")}
           </span>
           <div className="flex items-center gap-4">
-            <Link href="/buscar" style={{ fontSize: "11px", color: "rgba(255,200,200,0.6)", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "4px" }} className="hover:text-white transition-colors">
-              <Search size={11} /> Buscar
-            </Link>
             <Link href="/admin/login" style={{ fontSize: "11px", color: "rgba(255,200,200,0.6)", fontFamily: "sans-serif" }} className="hover:text-white transition-colors hidden sm:block">
               Admin
             </Link>
