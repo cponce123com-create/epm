@@ -53,3 +53,7 @@ scripts/.env
 artifacts/*.js
 artifacts/*.d.ts
 uploads/
+.env
+artifacts/api-server/.env
+.env
+artifacts/api-server/.env
