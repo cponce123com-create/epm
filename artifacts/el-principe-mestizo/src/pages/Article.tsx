@@ -474,6 +474,7 @@ export default function Article() {
   // Orden importa: grid primero (reordena nodos), luego mejoras de img, luego lightbox
   useArticleImageGrid(contentRef, contentReady);
   useArticleImageLoading(contentRef, contentReady);
+  useArticleBodyImages(contentRef, contentReady);
   const { lightbox, closeLightbox, openLightbox } = useArticleLightbox(contentRef);
 
   // ── Inyectar Open Graph meta tags para que la miniatura aparezca al compartir ──

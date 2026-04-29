@@ -76,10 +76,11 @@ export default function CommentSection({ articleId }: Props) {
           <h3 className="font-display font-semibold text-base mb-5">Dejar un comentario</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
+              <label htmlFor="comment-name" className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
                 Nombre *
               </label>
               <input
+                id="comment-name"
                 type="text"
                 value={form.authorName}
                 onChange={e => setForm(f => ({ ...f, authorName: e.target.value }))}
@@ -89,10 +90,11 @@ export default function CommentSection({ articleId }: Props) {
               />
             </div>
             <div>
-              <label className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
+              <label htmlFor="comment-email" className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
                 Email * (no se publicará)
               </label>
               <input
+                id="comment-email"
                 type="email"
                 value={form.authorEmail}
                 onChange={e => setForm(f => ({ ...f, authorEmail: e.target.value }))}
@@ -103,10 +105,11 @@ export default function CommentSection({ articleId }: Props) {
             </div>
           </div>
           <div className="mb-5">
-            <label className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
+            <label htmlFor="comment-content" className="block text-xs font-sans-ui font-medium mb-1.5 uppercase tracking-wide text-muted-foreground">
               Comentario *
             </label>
             <textarea
+              id="comment-content"
               value={form.content}
               onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
               rows={5}

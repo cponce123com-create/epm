@@ -57,7 +57,8 @@ async function initDb() {
       reading_time INTEGER NOT NULL DEFAULT 1,
       published_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      secondary_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL
     );
     CREATE TABLE IF NOT EXISTS comments (
       id SERIAL PRIMARY KEY,
@@ -75,6 +76,10 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+  // Ensure secondary_category_id exists on already-deployed databases
+  await db.execute(sql`
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS secondary_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
   `);
   logger.info("Database schema ready.");
 }

@@ -202,7 +202,11 @@ export default function Header() {
           </div>
 
           {/* Mobile search */}
-          <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden text-white p-1.5 -mr-1.5">
+          <button
+            onClick={() => setSearchOpen(!searchOpen)}
+            className="lg:hidden text-white p-1.5 -mr-1.5"
+            aria-label={searchOpen ? "Cerrar búsqueda" : "Abrir búsqueda"}
+          >
             <Search size={20} />
           </button>
         </div>

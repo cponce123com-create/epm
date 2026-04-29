@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
 import { eq, desc, ilike, and, or, ne, count, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import {
   AdminCreateArticleBody,
@@ -9,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+const secondaryCategoriesTable = alias(categoriesTable, "secondary_categories");
 
 type ArticleRow = {
   id: number;
@@ -19,6 +22,7 @@ type ArticleRow = {
   coverImageAlt: string | null;
   content: string;
   categoryId: number;
+  secondaryCategoryId: number | null;
   authorId: number;
   status: "draft" | "published";
   featured: boolean;
@@ -31,6 +35,9 @@ type ArticleRow = {
   categorySlug: string | null;
   categoryColor: string | null;
   categoryDescription: string | null;
+  secondaryCategoryName: string | null;
+  secondaryCategorySlug: string | null;
+  secondaryCategoryColor: string | null;
   authorName: string | null;
 };
 
@@ -44,6 +51,7 @@ function formatArticle(a: ArticleRow) {
     coverImageAlt: a.coverImageAlt ?? null,
     content: a.content,
     categoryId: a.categoryId,
+    secondaryCategoryId: a.secondaryCategoryId ?? null,
     authorId: a.authorId,
     status: a.status,
     featured: a.featured,
@@ -60,6 +68,14 @@ function formatArticle(a: ArticleRow) {
       description: a.categoryDescription ?? null,
       articleCount: 0,
     },
+    secondaryCategory: a.secondaryCategoryId
+      ? {
+          id: a.secondaryCategoryId,
+          name: a.secondaryCategoryName ?? "",
+          slug: a.secondaryCategorySlug ?? "",
+          color: a.secondaryCategoryColor ?? "#555555",
+        }
+      : null,
     authorName: a.authorName ?? "El Príncipe Mestizo",
   };
 }
@@ -73,6 +89,7 @@ const articleSelect = {
   coverImageAlt: articlesTable.coverImageAlt,
   content: articlesTable.content,
   categoryId: articlesTable.categoryId,
+  secondaryCategoryId: articlesTable.secondaryCategoryId,
   authorId: articlesTable.authorId,
   status: articlesTable.status,
   featured: articlesTable.featured,
@@ -85,6 +102,9 @@ const articleSelect = {
   categorySlug: categoriesTable.slug,
   categoryColor: categoriesTable.color,
   categoryDescription: categoriesTable.description,
+  secondaryCategoryName: secondaryCategoriesTable.name,
+  secondaryCategorySlug: secondaryCategoriesTable.slug,
+  secondaryCategoryColor: secondaryCategoriesTable.color,
   authorName: usersTable.displayName,
 } as const;
 
@@ -123,6 +143,7 @@ router.get("/articles", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(whereClause)
     .orderBy(desc(articlesTable.publishedAt))
@@ -144,6 +165,7 @@ router.get("/articles/featured", async (_req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(eq(articlesTable.featured, true), eq(articlesTable.status, "published")))
     .orderBy(desc(articlesTable.publishedAt))
@@ -158,6 +180,7 @@ router.get("/admin/most-read", async (_req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.status, "published"))
     .orderBy(desc(articlesTable.views))
@@ -174,6 +197,7 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(eq(articlesTable.slug, slug), eq(articlesTable.status, "published")));
 
@@ -206,6 +230,7 @@ router.get("/articles/:slug/related", async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(and(
       eq(articlesTable.categoryId, article.categoryId),
@@ -241,6 +266,7 @@ router.get("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(whereClause)
     .orderBy(desc(articlesTable.createdAt));
@@ -282,6 +308,7 @@ router.post("/admin/articles", requireAuth, async (req, res): Promise<void> => {
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, article.id));
 
@@ -340,6 +367,7 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 
@@ -347,7 +375,7 @@ router.put("/admin/articles/:id", requireAuth, async (req, res): Promise<void> =
 });
 
 // Admin: delete article
-router.delete("/admin/articles/purge", requireAuth, async (_req, res): Promise<void> => {
+router.delete("/admin/articles/purge", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
   const rows = await db.select({ id: articlesTable.id }).from(articlesTable);
   await db.delete(articlesTable);
   res.json({ ok: true, deleted: rows.length });
@@ -395,6 +423,7 @@ router.patch("/admin/articles/:id/publish", requireAuth, async (req, res): Promi
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 
@@ -425,6 +454,7 @@ router.patch("/admin/articles/:id/feature", requireAuth, async (req, res): Promi
     .select(articleSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
     .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.id, id));
 

@@ -10,7 +10,7 @@ export default function Footer() {
   const footerText       = (settings as any)?.footerText        ?? "Periodismo ciudadano, opinión y denuncia desde la selva central peruana.";
   const footerLocation   = (settings as any)?.footerLocation    ?? "San Ramón, Chanchamayo — Junín, Perú";
   const footerCopyright  = (settings as any)?.footerCopyright   ?? `© ${year} El Príncipe Mestizo. Todos los derechos reservados.`;
-  const contactEmail     = (settings as any)?.footerContactEmail || (settings as any)?.contactEmail || "contacto@elprincinemestizo.com";
+  const contactEmail     = (settings as any)?.footerContactEmail || (settings as any)?.contactEmail || "contacto@elprincipemestizo.com";
   const showSections     = (settings as any)?.footerShowSections !== "false";
 
   const twitterUrl   = (settings as any)?.twitterUrl   ?? "";

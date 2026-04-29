@@ -152,7 +152,7 @@ export default function ArticleEditor() {
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
       } else {
-        const created = await createArticle.mutateAsync({ data: payload });
+        await createArticle.mutateAsync({ data: payload });
         toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");

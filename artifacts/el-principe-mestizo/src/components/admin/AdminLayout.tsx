@@ -20,7 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [location] = useLocation();
   const { logout, user } = useAuth();
 
-  const isSuperAdmin = (user as any)?.role === "superadmin";
+  const isSuperAdmin = user?.role === "superadmin";
 
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
