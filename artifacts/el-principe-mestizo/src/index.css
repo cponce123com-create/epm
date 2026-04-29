@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -738,6 +737,22 @@
 .pagination-btn:disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+/* ── Masthead EPM: padding responsivo ───────────────────────── */
+.epm-masthead {
+  padding: 14px 16px 0;
+}
+@media (min-width: 640px) {
+  .epm-masthead { padding: 28px 36px 0; }
+}
+
+/* ── Columnas laterales del masthead ───────────────────────── */
+.epm-masthead-col {
+  min-width: 44px;
+}
+@media (min-width: 640px) {
+  .epm-masthead-col { min-width: 180px; }
 }
 
 /* ═══════════════════════════════════════════════════════════

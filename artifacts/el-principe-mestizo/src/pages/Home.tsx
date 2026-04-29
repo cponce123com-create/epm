@@ -198,17 +198,15 @@ export default function Home() {
 
         {/* ── Skeleton hero ── */}
         {loadingFeatured && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", height: 680, borderBottom: "1px solid #D6CFBF" }}>
-            <div className="skeleton-shimmer" style={{ height: "100%" }} />
-            <div style={{ background: "#3D1010" }} />
+          <div className="grid lg:grid-cols-[1fr_360px]" style={{ borderBottom: "1px solid #D6CFBF" }}>
+            <div className="skeleton-shimmer" style={{ height: 340 }} />
+            <div className="hidden lg:block" style={{ background: "#3D1010", height: 680 }} />
           </div>
         )}
 
         {/* ══ SUB-FEATURED: 2 artículos solo texto ════════════════ */}
         {subFeatured && subFeatured.length > 0 && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{
             gap: 0,
             padding: "32px 0",
             borderBottom: "1px solid #D6CFBF",
@@ -218,11 +216,11 @@ export default function Home() {
               const date = art.publishedAt ? new Date(art.publishedAt) : new Date(art.createdAt);
               const catColor = art.category?.color ?? "#7A1F1F";
               return (
-                <article key={art.id} style={{
-                  paddingLeft: idx === 1 ? 32 : 0,
-                  paddingRight: idx === 0 ? 32 : 0,
-                  borderRight: idx === 0 ? "1px solid #D6CFBF" : "none",
-                }}>
+                <article key={art.id}
+                  className={idx === 0
+                    ? "pb-8 border-b sm:pb-0 sm:border-b-0 sm:pr-8 sm:border-r"
+                    : "pt-8 sm:pt-0 sm:pl-8"}
+                  style={{ borderColor: "#D6CFBF" }}>
                   <div className="epm-mono" style={{
                     fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase",
                     color: catColor, marginBottom: 12, fontWeight: 600,

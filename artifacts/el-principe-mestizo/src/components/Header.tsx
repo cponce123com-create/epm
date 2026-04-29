@@ -65,6 +65,14 @@ export default function Header() {
   const [logoErr, setLogoErr] = useState(false);
   useEffect(() => { setLogoErr(false); }, [logoUrl]);
 
+  const [exchangeRate, setExchangeRate] = useState<string>("");
+  useEffect(() => {
+    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
+      .then(r => r.json())
+      .then(d => { const pen = d?.usd?.pen; if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); })
+      .catch(() => {});
+  }, []);
+
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
 
   /* ── Datos del strip superior ── */
@@ -82,7 +90,7 @@ export default function Header() {
     { label: "Opinión",       href: "/categoria/opinion" },
     { label: "Ciudad",        href: "/categoria/ciudad" },
     { label: "Política",      href: "/categoria/politica" },
-    { label: "Pódcast",       href: "/categoria/podcast" },
+    { label: "Políticos",     href: "/categoria/politicos" },
     { label: "Acerca de",     href: "/acerca-de" },
   ];
 
@@ -114,21 +122,22 @@ export default function Header() {
         background: "#15140F",
         borderBottom: "1px solid #7A1F1F",
       }}>
-        <div className="max-w-7xl mx-auto" style={{ padding: "9px 36px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {/* Izquierda: fecha + edición */}
-          <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.65)", letterSpacing: "0.12em" }}>
-            {today} {edicion}
+        <div className="max-w-7xl mx-auto" style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Izquierda: fecha completa (sm+) / abreviada (móvil) */}
+          <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.65)", letterSpacing: "0.1em" }}>
+            <span className="hidden sm:inline">{today} {edicion}</span>
+            <span className="sm:hidden">{format(new Date(), "EEE d MMM yyyy", { locale: es }).toUpperCase()}</span>
           </span>
-          {/* Derecha: clima + tipo de cambio + EN VIVO */}
-          <span style={{ display: "flex", gap: 22, alignItems: "center" }}>
+          {/* Derecha: clima (md+) · tipo de cambio (sm+) · EN VIVO siempre */}
+          <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
             {clima && (
-              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
+              <span className="epm-mono hidden md:inline" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
                 {clima}{tipo ? ` · ${tipo}` : ""}
               </span>
             )}
-            {tipoCambio && (
-              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-                {tipoCambio}
+            {(exchangeRate || tipoCambio) && (
+              <span className="epm-mono hidden sm:inline" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
+                {exchangeRate || tipoCambio}
               </span>
             )}
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
@@ -140,31 +149,22 @@ export default function Header() {
       </div>
 
       {/* ══ MASTHEAD ════════════════════════════════════════════ */}
-      <header style={{
+      <header className="epm-masthead" style={{
         background: "#15140F",
-        padding: "28px 36px 0",
         borderBottom: "4px double #7A1F1F",
       }}>
         {/* ── 3 columnas: izquierda · centro · derecha ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, maxWidth: 1280, margin: "0 auto" }}>
 
           {/* IZQUIERDA: Secciones + búsqueda */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto", minWidth: 200 }}>
-            {/* Mobile hamburger */}
+          <div className="epm-masthead-col" style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
+            {/* Botón Secciones (mobile: solo ícono; desktop: ícono + texto) */}
             <button onClick={() => setMenuOpen(!menuOpen)}
-              className="lg:hidden epm-mono"
+              className="epm-mono"
               style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
-              aria-label="Menú">
+              aria-label="Secciones">
               {menuOpen ? <X size={16} /> : <Menu size={16} />}
-              <span style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Secciones</span>
-            </button>
-
-            {/* Desktop: botón SECCIONES + icono búsqueda */}
-            <button onClick={() => setMenuOpen(!menuOpen)}
-              className="hidden lg:flex epm-mono items-center gap-2"
-              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer" }}>
-              <Menu size={16} />
-              <span style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Secciones</span>
+              <span className="hidden lg:inline" style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Secciones</span>
             </button>
 
             <div className="hidden lg:block" ref={searchRef} style={{ position: "relative" }}>
@@ -194,38 +194,41 @@ export default function Header() {
             </div>
           </div>
 
-          {/* CENTRO: Crest · Título · Crest */}
-          <div style={{ textAlign: "center", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
-            <Crest size={54} color="#7A1F1F" />
-            <div>
-              {logoUrl && !logoErr ? (
-                <img src={logoUrl} alt={siteName} style={{ height: 60, width: "auto", objectFit: "contain" }} onError={() => setLogoErr(true)} />
-              ) : (
-                <Link href="/" style={{ textDecoration: "none" }}>
-                  <div style={{
-                    fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
-                    fontWeight: 400,
-                    fontSize: "clamp(2.2rem, 5vw, 4.5rem)",
-                    lineHeight: 0.95,
-                    letterSpacing: "-0.012em",
-                    color: "#F4F0E7",
-                  }}>
-                    {siteName}
-                  </div>
-                  <div className="epm-mono" style={{
-                    fontSize: 10, letterSpacing: "0.36em", textTransform: "uppercase",
-                    marginTop: 10, color: "rgba(244,240,231,0.55)",
-                  }}>
-                    Periodismo ciudadano · San Ramón · Chanchamayo · Perú
-                  </div>
-                </Link>
+          {/* CENTRO: Crest · Logo + Título · Crest */}
+          <div style={{ textAlign: "center", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
+            <span className="hidden sm:block"><Crest size={48} color="#7A1F1F" /></span>
+            <Link href="/" style={{ textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {logoUrl && !logoErr && (
+                <img
+                  src={logoUrl}
+                  alt={siteName}
+                  fetchPriority="high"
+                  style={{ height: 52, width: "auto", objectFit: "contain", marginBottom: 8 }}
+                  onError={() => setLogoErr(true)}
+                />
               )}
-            </div>
-            <Crest size={54} color="#7A1F1F" />
+              <div style={{
+                fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+                fontWeight: 400,
+                fontSize: "clamp(1.6rem, 5vw, 4rem)",
+                lineHeight: 0.95,
+                letterSpacing: "-0.012em",
+                color: "#F4F0E7",
+              }}>
+                {siteName}
+              </div>
+              <div className="epm-mono hidden sm:block" style={{
+                fontSize: 10, letterSpacing: "0.36em", textTransform: "uppercase",
+                marginTop: 10, color: "rgba(244,240,231,0.55)",
+              }}>
+                Periodismo ciudadano · San Ramón · Chanchamayo · Perú
+              </div>
+            </Link>
+            <span className="hidden sm:block"><Crest size={48} color="#7A1F1F" /></span>
           </div>
 
           {/* DERECHA: Iniciar sesión + Apoyar */}
-          <div style={{ display: "flex", gap: 10, flex: "0 0 auto", minWidth: 200, justifyContent: "flex-end" }}>
+          <div className="epm-masthead-col" style={{ display: "flex", gap: 10, flex: "0 0 auto", justifyContent: "flex-end" }}>
             {/* Mobile search */}
             <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden"
               style={{ background: "transparent", border: "none", color: "rgba(244,240,231,0.7)", cursor: "pointer", padding: 8 }}
@@ -243,9 +246,9 @@ export default function Header() {
         </div>
 
         {/* ── NAV DESKTOP (dentro del masthead, debajo del título) ── */}
-        <nav className="hidden lg:block" style={{
-          display: "flex", justifyContent: "center", gap: 36,
-          marginTop: 24, paddingTop: 20,
+        <nav className="hidden lg:flex" style={{
+          justifyContent: "center", gap: 36,
+          paddingTop: 20,
           borderTop: "1px solid rgba(244,240,231,0.1)",
           maxWidth: 1280, margin: "24px auto 0", paddingBottom: 0,
         }}>
