@@ -193,17 +193,17 @@ export default function Header() {
                   <div>
                     <div style={{
                       fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
-                      fontSize: "clamp(1.8rem, 4vw, 3.2rem)",
+                      fontSize: "clamp(2.4rem, 5.6vw, 4.5rem)",
                       fontWeight: 400,
                       color: "#F4F0E7",
                       lineHeight: 0.95,
-                      letterSpacing: "-0.01em",
+                      letterSpacing: "-0.012em",
                     }}>
                       {siteName}
                     </div>
                     <div className="epm-mono" style={{
                       fontSize: 9, letterSpacing: "0.36em", textTransform: "uppercase",
-                      marginTop: 8, color: "rgba(244,240,231,0.55)",
+                      marginTop: 10, color: "rgba(244,240,231,0.55)",
                     }}>
                       Periodismo ciudadano · San Ramón · Perú
                     </div>

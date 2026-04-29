@@ -1,29 +1,64 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import ArticleCardFeatured from "@/components/ArticleCardFeatured";
 import Sidebar from "@/components/Sidebar";
+import OptimizedImage from "@/components/OptimizedImage";
 import { useGetFeaturedArticles, useGetArticles, useGetCategories } from "@workspace/api-client-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-function SkeletonHero() {
+/* ── Encabezado de sección estilo impreso ─────────────────── */
+function SectionHeading({ title, link, linkLabel }: { title: string; link?: string; linkLabel?: string }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", height: 580, border: "1px solid #D6CFBF" }}>
-      <div className="skeleton-shimmer" style={{ height: "100%" }} />
-      <div style={{ background: "#15140F", padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-        {[1, 2, 3].map(i => (
-          <div key={i} style={{ display: "flex", gap: 12, padding: "16px 0", borderBottom: "1px solid rgba(244,240,231,0.08)" }}>
-            <div className="skeleton-shimmer" style={{ width: 80, height: 60, flexShrink: 0, opacity: 0.3 }} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div className="skeleton-shimmer" style={{ height: 8, width: "40%", opacity: 0.2 }} />
-              <div className="skeleton-shimmer" style={{ height: 12, width: "90%", opacity: 0.2 }} />
-              <div className="skeleton-shimmer" style={{ height: 12, width: "70%", opacity: 0.2 }} />
-            </div>
-          </div>
-        ))}
-      </div>
+    <div style={{
+      display: "flex", alignItems: "baseline", justifyContent: "space-between",
+      marginBottom: 24, paddingBottom: 12,
+      borderBottom: "2px solid #15140F",
+    }}>
+      <h3 style={{
+        fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+        fontWeight: 400, fontSize: "clamp(1.4rem, 2.5vw, 1.9rem)",
+        margin: 0, color: "#15140F", letterSpacing: "-0.01em",
+      }}>
+        {title}
+      </h3>
+      {link && (
+        <Link href={link} className="epm-mono"
+          style={{ fontSize: 11, color: "#7A1F1F", letterSpacing: "0.14em", textTransform: "uppercase", textDecoration: "none", fontWeight: 600 }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = "0.7")}
+          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}>
+          {linkLabel ?? "Ver todas →"}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/* ── Encabezado de sección con color ─────────────────────── */
+function SectionHeadingColored({ title, color, href }: { title: string; color: string; href: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "baseline", justifyContent: "space-between",
+      marginBottom: 20, paddingBottom: 10,
+      borderBottom: `2px solid ${color}`,
+    }}>
+      <Link href={href} style={{ textDecoration: "none" }}>
+        <h3 style={{
+          fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+          fontWeight: 400, fontSize: "clamp(1.3rem, 2.2vw, 1.7rem)",
+          margin: 0, color: color, letterSpacing: "-0.01em",
+        }}>
+          {title}
+        </h3>
+      </Link>
+      <Link href={href} className="epm-mono"
+        style={{ fontSize: 11, color: "#7A1F1F", letterSpacing: "0.14em", textTransform: "uppercase", textDecoration: "none", fontWeight: 600 }}>
+        Ver todas →
+      </Link>
     </div>
   );
 }
@@ -46,9 +81,10 @@ export default function Home() {
   const { data: articlesPage, isLoading: loadingArticles } = useGetArticles({ page, limit: 12 });
   const { data: categories }                               = useGetCategories();
 
-  const hero      = featured?.[0];
-  const secondary = featured?.slice(1, 4);  // 3 en panel oscuro
-  const tertiary  = featured?.slice(4, 8);  // hasta 4 terciarios
+  const hero        = featured?.[0];
+  const panelArts   = featured?.slice(1, 4);   // 3 en el panel oscuro
+  const subFeatured = featured?.slice(4, 6);    // 2 artículos texto-only
+  const tertiary    = featured?.slice(6, 10);   // hasta 4 terciarios
 
   return (
     <div className="min-h-screen" style={{ background: "var(--epm-paper)" }}>
@@ -56,77 +92,190 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-4 pb-12">
 
-        {/* ══ HERO SPLIT: foto grande izquierda + panel recomendados ══ */}
-        <div style={{ margin: "0 -16px", marginBottom: 0 }} className="md:mx-0">
-          {loadingFeatured ? (
-            <SkeletonHero />
-          ) : hero ? (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              borderBottom: "1px solid #D6CFBF",
-            }}
-              className="lg:grid-cols-[1fr_300px]">
+        {/* ══ HERO SPLIT ══════════════════════════════════════════ */}
+        {!loadingFeatured && hero && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            height: "auto",
+            borderBottom: "1px solid #D6CFBF",
+            marginBottom: 0,
+          }}
+            className="lg:grid-cols-[1fr_360px] lg:h-[680px]">
 
-              {/* Hero principal */}
-              <div style={{ minHeight: 400, height: "100%" }}
-                className="lg:min-h-[560px]">
-                <ArticleCardFeatured article={hero} large />
+            {/* ── Foto hero ── */}
+            <div style={{ minHeight: 340, position: "relative" }} className="lg:min-h-0">
+              <ArticleCardFeatured article={hero} large />
+            </div>
+
+            {/* ── Panel oscuro de recomendados ── */}
+            <aside style={{
+              background: "#3D1010",
+              display: "flex", flexDirection: "column",
+            }}>
+              {/* Cabecera */}
+              <div className="epm-mono" style={{
+                padding: "20px 28px 14px",
+                borderBottom: "1px solid rgba(255,255,255,0.1)",
+                display: "flex", alignItems: "baseline", justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: 10, letterSpacing: "0.24em", fontWeight: 600, color: "#7A1F1F", textTransform: "uppercase" }}>
+                  Recomendados
+                </span>
+                <span style={{ fontSize: 9, letterSpacing: "0.16em", color: "rgba(244,240,231,0.35)", textTransform: "uppercase" }}>
+                  Selección del editor
+                </span>
               </div>
 
-              {/* Panel oscuro de recomendados */}
-              <aside style={{
-                background: "#15140F",
-                display: "flex", flexDirection: "column",
-              }}>
-                {/* Cabecera del panel */}
-                <div className="epm-mono" style={{
-                  padding: "18px 24px 14px",
-                  borderBottom: "1px solid rgba(244,240,231,0.1)",
-                  display: "flex", alignItems: "baseline", justifyContent: "space-between",
-                }}>
-                  <span style={{ fontSize: 10, letterSpacing: "0.24em", fontWeight: 600, color: "#7A1F1F", textTransform: "uppercase" }}>
-                    Recomendados
-                  </span>
-                  <span style={{ fontSize: 9, letterSpacing: "0.14em", color: "rgba(244,240,231,0.35)", textTransform: "uppercase" }}>
-                    Selección del editor
-                  </span>
-                </div>
-
-                {/* Artículos secundarios */}
-                {secondary?.map((art, idx) => (
-                  <div key={art.id} style={{
-                    flex: 1,
-                    borderBottom: idx < (secondary.length - 1) ? "1px solid rgba(244,240,231,0.08)" : "none",
-                    transition: "background 0.2s ease",
-                  }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+              {/* Artículos 01, 02, 03 */}
+              {panelArts?.map((art, idx) => {
+                const date = art.publishedAt ? new Date(art.publishedAt) : new Date(art.createdAt);
+                const catColor = art.category?.color ?? "#7A1F1F";
+                return (
+                  <a key={art.id}
+                    href={`/articulo/${art.slug}`}
+                    style={{
+                      flex: 1,
+                      display: "grid",
+                      gridTemplateColumns: "1fr 88px",
+                      gap: 16,
+                      padding: "20px 28px",
+                      borderBottom: idx < 2 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                      color: "#F4F0E7", textDecoration: "none",
+                      alignItems: "center",
+                      transition: "background 0.2s ease",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                    <ArticleCardFeatured article={art} large={false} />
-                  </div>
-                ))}
-              </aside>
-            </div>
-          ) : null}
-        </div>
 
-        {/* ══ PUBLICIDAD LEADERBOARD ══════════════════════════════ */}
-        <div className="my-6">
+                    {/* Texto */}
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <span className="epm-mono" style={{ fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, color: "#7A1F1F" }}>
+                          0{idx + 1}
+                        </span>
+                        <span className="epm-mono" style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: catColor, opacity: 0.9 }}>
+                          {art.category?.name}
+                        </span>
+                      </div>
+                      <h3 style={{
+                        fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+                        fontWeight: 400, fontSize: 17,
+                        lineHeight: 1.2, margin: "0 0 10px", color: "#F4F0E7",
+                        display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                      }}>
+                        {art.title}
+                      </h3>
+                      <div className="epm-mono" style={{ fontSize: 9, letterSpacing: "0.08em", opacity: 0.5, display: "flex", gap: 8 }}>
+                        <span>{format(date, "d MMM yyyy", { locale: es })}</span>
+                        <span>·</span>
+                        <span>{art.readingTime} min</span>
+                      </div>
+                    </div>
+
+                    {/* Thumbnail 88×88 */}
+                    {art.coverImageUrl ? (
+                      <div style={{ width: 88, height: 88, flexShrink: 0, overflow: "hidden" }}>
+                        <OptimizedImage
+                          src={art.coverImageUrl}
+                          alt={art.coverImageAlt ?? art.title}
+                          className="w-full h-full object-cover"
+                          optimizeWidth={200}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{
+                        width: 88, height: 88, flexShrink: 0,
+                        background: "repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 12px, rgba(255,255,255,0.02) 12px 13px)",
+                      }} />
+                    )}
+                  </a>
+                );
+              })}
+            </aside>
+          </div>
+        )}
+
+        {/* ── Skeleton hero ── */}
+        {loadingFeatured && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", height: 680, borderBottom: "1px solid #D6CFBF" }}>
+            <div className="skeleton-shimmer" style={{ height: "100%" }} />
+            <div style={{ background: "#3D1010" }} />
+          </div>
+        )}
+
+        {/* ══ SUB-FEATURED: 2 artículos solo texto ════════════════ */}
+        {subFeatured && subFeatured.length > 0 && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 0,
+            padding: "32px 0",
+            borderBottom: "1px solid #D6CFBF",
+            marginBottom: 40,
+          }}>
+            {subFeatured.map((art, idx) => {
+              const date = art.publishedAt ? new Date(art.publishedAt) : new Date(art.createdAt);
+              const catColor = art.category?.color ?? "#7A1F1F";
+              return (
+                <article key={art.id} style={{
+                  paddingLeft: idx === 1 ? 32 : 0,
+                  paddingRight: idx === 0 ? 32 : 0,
+                  borderRight: idx === 0 ? "1px solid #D6CFBF" : "none",
+                }}>
+                  <div className="epm-mono" style={{
+                    fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase",
+                    color: catColor, marginBottom: 12, fontWeight: 600,
+                  }}>
+                    ▌ {art.category?.name}
+                  </div>
+                  <Link href={`/articulo/${art.slug}`} style={{ textDecoration: "none" }}>
+                    <h2 style={{
+                      fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+                      fontWeight: 400, fontSize: "clamp(1.3rem, 2vw, 1.75rem)",
+                      lineHeight: 1.15, margin: "0 0 12px", color: "#15140F", letterSpacing: "-0.005em",
+                      transition: "color 0.15s",
+                    }}
+                      onMouseEnter={e => ((e.target as HTMLElement).style.color = "#7A1F1F")}
+                      onMouseLeave={e => ((e.target as HTMLElement).style.color = "#15140F")}>
+                      {art.title}
+                    </h2>
+                  </Link>
+                  {art.summary && (
+                    <p style={{
+                      fontSize: 14.5, lineHeight: 1.6, color: "#5A564E",
+                      margin: "0 0 14px",
+                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}>
+                      {art.summary}
+                    </p>
+                  )}
+                  <div className="epm-mono" style={{ fontSize: 10, color: "#8A857C", letterSpacing: "0.06em", display: "flex", gap: 10 }}>
+                    <span>{format(date, "d MMM yyyy", { locale: es })}</span>
+                    <span>·</span>
+                    <span>{art.readingTime} min de lectura</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ══ PUBLICIDAD ══════════════════════════════════════════ */}
+        <div className="mb-8">
           <div className="ad-slot ad-slot--leaderboard" />
         </div>
 
         {/* ══ GRID PRINCIPAL: artículos + sidebar ══════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10">
 
           {/* ── Columna izquierda ── */}
           <div>
             {/* Terciarios destacados */}
             {tertiary && tertiary.length > 0 && (
-              <div className="mb-8">
-                <div className="section-heading">
-                  <span>Destacados</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-0">
+              <div className="mb-10">
+                <SectionHeading title="Destacados" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-5">
                   {tertiary.map((art, i) => (
                     <ArticleCard key={art.id} article={art} size="sm" index={i} />
                   ))}
@@ -134,16 +283,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* Categorías en secciones */}
+            {/* Secciones por categoría */}
             {categories?.filter(c => c.articleCount > 0).map(cat => (
               <CategorySection key={cat.id} catSlug={cat.slug} catName={cat.name} catColor={cat.color} />
             ))}
 
             {/* ── Últimas entregas paginadas ── */}
-            <div className="mt-8">
-              <div className="section-heading">
-                <span>Últimas entregas</span>
-              </div>
+            <div className="mt-10">
+              <SectionHeading title="Últimas entregas" />
 
               {loadingArticles ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
@@ -159,7 +306,7 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
                     {articlesPage?.articles.map((article, i) => (
                       <ArticleCard key={article.id} article={article} index={i} />
                     ))}
@@ -167,21 +314,22 @@ export default function Home() {
 
                   {/* Paginación */}
                   {articlesPage && articlesPage.totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-8 pt-6" style={{ borderTop: "1px solid #D6CFBF" }}>
+                    <div className="flex items-center justify-center gap-2 mt-8 pt-6"
+                      style={{ borderTop: "1px solid #D6CFBF" }}>
                       <button
                         onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                         disabled={page === 1}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ border: "1px solid #D6CFBF", background: "transparent", color: "#15140F", cursor: "pointer" }}>
                         <ChevronLeft size={14} /> Anterior
                       </button>
-                      <span className="epm-mono text-stone-400 px-3" style={{ fontSize: 11 }}>
+                      <span className="epm-mono px-3" style={{ fontSize: 11, color: "#8A857C" }}>
                         {page} / {articlesPage.totalPages}
                       </span>
                       <button
                         onClick={() => { setPage(p => Math.min(articlesPage.totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                         disabled={page >= articlesPage.totalPages}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ border: "1px solid #D6CFBF", background: "transparent", color: "#15140F", cursor: "pointer" }}>
                         Siguiente <ChevronRight size={14} />
                       </button>
@@ -202,7 +350,7 @@ export default function Home() {
   );
 }
 
-/* ── Mini sección por categoría ── */
+/* ── Sección por categoría ── */
 function CategorySection({ catSlug, catName, catColor }: { catSlug: string; catName: string; catColor: string }) {
   const { data } = useGetArticles({ page: 1, limit: 4, category: catSlug });
   const articles = data?.articles ?? [];
@@ -211,21 +359,11 @@ function CategorySection({ catSlug, catName, catColor }: { catSlug: string; catN
   const [main, ...rest] = articles;
 
   return (
-    <div className="mb-8">
-      <div className="section-heading section-heading--colored" style={{ color: catColor }}>
-        <Link href={`/categoria/${catSlug}`} className="hover:opacity-80 transition-opacity"
-          style={{ color: catColor, textDecoration: "none", fontFamily: "var(--app-font-mono)", fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.24em", textTransform: "uppercase" }}>
-          {catName}
-        </Link>
-        <Link href={`/categoria/${catSlug}`}
-          style={{ fontSize: "0.6rem", fontFamily: "var(--app-font-mono)", letterSpacing: "0.14em", textTransform: "uppercase", color: "#7A1F1F", textDecoration: "none" }}
-          className="hover:opacity-75 transition-opacity">
-          Ver todas →
-        </Link>
-      </div>
+    <div className="mb-10">
+      <SectionHeadingColored title={catName} color={catColor} href={`/categoria/${catSlug}`} />
 
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-5">
-        <div style={{ paddingRight: 0, borderRight: "none" }} className="md:pr-5 md:border-r md:border-stone-200">
+        <div className="md:pr-5 md:border-r" style={{ borderColor: "#D6CFBF" }}>
           <ArticleCard article={main} size="lg" showSummary />
         </div>
         <div>
