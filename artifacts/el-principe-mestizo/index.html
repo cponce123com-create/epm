@@ -81,11 +81,12 @@
         fetch("/api/settings/public")
           .then(function (r) { return r.json(); })
           .then(function (s) {
-            // Favicon dinámico
-            if (s.faviconUrl) {
+            // Favicon dinámico — usa faviconUrl; si no hay, usa logoUrl como fallback
+            var faviconSrc = s.faviconUrl || s.logoUrl;
+            if (faviconSrc) {
               var link = document.getElementById("favicon-link");
               if (link) {
-                link.setAttribute("href", s.faviconUrl);
+                link.setAttribute("href", faviconSrc);
                 link.setAttribute("type", "image/png");
               }
             }
