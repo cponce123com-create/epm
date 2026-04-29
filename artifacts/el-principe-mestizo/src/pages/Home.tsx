@@ -275,7 +275,7 @@ export default function Home() {
             {tertiary && tertiary.length > 0 && (
               <div className="mb-10">
                 <SectionHeading title="Destacados" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-6">
                   {tertiary.map((art, i) => (
                     <ArticleCard key={art.id} article={art} size="sm" index={i} />
                   ))}
@@ -306,7 +306,7 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6">
                     {articlesPage?.articles.map((article, i) => (
                       <ArticleCard key={article.id} article={article} index={i} />
                     ))}

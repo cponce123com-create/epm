@@ -7,33 +7,10 @@ import OptimizedImage from "@/components/OptimizedImage";
 
 interface Props {
   article: Article;
-  /** Variante de tamaño */
   size?: "sm" | "md" | "lg";
-  /** Layout horizontal (thumbnail a la derecha) */
   horizontal?: boolean;
-  /** Índice para animación en cascada */
   index?: number;
-  /** Mostrar resumen */
   showSummary?: boolean;
-}
-
-// Fallback reutilizable para imágenes rotas
-function ImgWithFallback({ src, alt, className, style, loading }: {
-  src: string; alt: string; className?: string; style?: React.CSSProperties; loading?: "lazy" | "eager";
-}) {
-  const [broken, setBroken] = useState(false);
-  if (broken) return <div className={`bg-muted flex items-center justify-center ${className ?? ""}`} style={style} />;
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      style={style}
-      loading={loading ?? "lazy"}
-      referrerPolicy="no-referrer"
-      onError={() => setBroken(true)}
-    />
-  );
 }
 
 export default function ArticleCard({
@@ -43,35 +20,31 @@ export default function ArticleCard({
   index = 0,
   showSummary = false,
 }: Props) {
-  const date = article.publishedAt
-    ? new Date(article.publishedAt)
-    : new Date(article.createdAt);
+  const [imgErr, setImgErr] = useState(false);
+  const date     = article.publishedAt ? new Date(article.publishedAt) : new Date(article.createdAt);
+  const stagger  = `stagger-${Math.min(index + 1, 6)}`;
+  const catColor = article.category?.color ?? "#7A1F1F";
 
-  const stagger = `stagger-${Math.min(index + 1, 6)}`;
-  const catColor = article.category?.color ?? "#C0392B";
-
-  /* ── Horizontal (thumbnail a la derecha) ── */
+  /* ── Variante horizontal ── */
   if (horizontal) {
     return (
-      <div className={`news-card animate-fade-in-up ${stagger} flex gap-3 items-start`}
+      <div className={`news-card--horizontal animate-fade-in-up ${stagger}`}
         style={{ borderTopColor: catColor }}>
-        <div className="flex-1 min-w-0">
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="news-card__section" style={{ color: catColor }}>
             {article.category?.name}
           </div>
-          <Link href={`/articulo/${article.slug}`}>
+          <Link href={`/articulo/${article.slug}`} style={{ textDecoration: "none" }}>
             <h3 className={`news-card__title ${size === "sm" ? "text-[0.88rem]" : ""}`}>
               {article.title}
             </h3>
           </Link>
-          <div className="news-card__meta">
-            {article.authorName && (
-              <span className="news-card__author">{article.authorName}</span>
-            )}
+          <div className="news-card__meta" style={{ border: "none", padding: 0, margin: 0 }}>
+            {article.authorName && <span className="news-card__author">{article.authorName}</span>}
             <span>{format(date, "d MMM yyyy", { locale: es })}</span>
           </div>
         </div>
-        {article.coverImageUrl && (
+        {article.coverImageUrl && !imgErr && (
           <Link href={`/articulo/${article.slug}`} className="news-card__thumb">
             <OptimizedImage
               src={article.coverImageUrl}
@@ -85,71 +58,68 @@ export default function ArticleCard({
     );
   }
 
-  /* ── Vertical (imagen arriba) ── */
+  /* ── Variante vertical ── */
   const titleClass =
-    size === "lg"
-      ? "news-card__title news-card__title--lg"
-      : size === "sm"
-      ? "news-card__title text-[0.88rem]"
-      : "news-card__title";
+    size === "lg" ? "news-card__title news-card__title--lg" :
+    size === "sm" ? "news-card__title" :
+    "news-card__title";
 
   return (
     <div className={`news-card animate-fade-in-up ${stagger}`}
       style={{ borderTopColor: catColor }}>
 
       {/* Imagen */}
-      {article.coverImageUrl ? (
+      {article.coverImageUrl && !imgErr ? (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
           <OptimizedImage
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
-            optimizeWidth={960}
-            className="w-full object-cover hover:scale-105 transition-transform duration-300"
+            optimizeWidth={size === "lg" ? 960 : 600}
+            className="w-full object-cover"
             style={{ aspectRatio: "16/9" }}
+            onError={() => setImgErr(true)}
           />
         </Link>
-      ) : (
+      ) : !imgErr ? (
         <Link href={`/articulo/${article.slug}`} className="news-card__img">
-          <div
-            className="w-full flex items-center justify-center"
-            style={{ aspectRatio: "16/9", background: "repeating-linear-gradient(135deg, #e8e1d4 0 12px, #ddd3c0 12px 13px)" }}
-          >
-            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "rgba(90,86,78,0.3)", fontWeight: 400 }}>EPM</span>
+          <div style={{
+            width: "100%", aspectRatio: "16/9",
+            background: "repeating-linear-gradient(135deg, #e8e1d4 0 12px, #ddd3c0 12px 13px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "rgba(90,86,78,0.25)", fontWeight: 400 }}>EPM</span>
           </div>
         </Link>
-      )}
+      ) : null}
 
-      {/* Categoría */}
-      <div className="news-card__section" style={{ color: catColor }}>
-        <Link href={`/categoria/${article.category?.slug ?? ""}`} style={{ color: catColor, textDecoration: "none" }}
-          className="hover:underline">
-          {article.category?.name}
+      {/* Contenido con padding interno */}
+      <div className="news-card__body">
+        {/* Categoría */}
+        <div className="news-card__section" style={{ color: catColor }}>
+          <Link href={`/categoria/${article.category?.slug ?? ""}`}
+            style={{ color: catColor, textDecoration: "none" }}
+            className="hover:underline">
+            {article.category?.name}
+          </Link>
+        </div>
+
+        {/* Título */}
+        <Link href={`/articulo/${article.slug}`} style={{ textDecoration: "none" }}>
+          <h3 className={titleClass}>{article.title}</h3>
         </Link>
-      </div>
 
-      {/* Título */}
-      <Link href={`/articulo/${article.slug}`} style={{ textDecoration: "none" }}>
-        <h3 className={titleClass}>{article.title}</h3>
-      </Link>
-
-      {/* Resumen opcional */}
-      {showSummary && article.summary && (
-        <p className="news-card__summary line-clamp-2">{article.summary}</p>
-      )}
-
-      {/* Meta */}
-      <div className="news-card__meta">
-        {article.authorName && (
-          <span className="news-card__author">{article.authorName}</span>
+        {/* Resumen */}
+        {showSummary && article.summary && (
+          <p className="news-card__summary line-clamp-2">{article.summary}</p>
         )}
-        <span>{format(date, "d MMM yyyy", { locale: es })}</span>
-        <span>{article.readingTime} min</span>
+
+        {/* Meta */}
+        <div className="news-card__meta">
+          {article.authorName && <span className="news-card__author">{article.authorName}</span>}
+          <span>{format(date, "d MMM yyyy", { locale: es })}</span>
+          <span>{article.readingTime} min</span>
+        </div>
       </div>
     </div>
   );
-}
-
-// Separador de metadatos reutilizable
-function MetaSep() {
-  return <span className="text-gray-300 select-none">·</span>;
 }
