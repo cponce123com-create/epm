@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ExternalLink,
   Upload,
+  Flag,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -25,6 +26,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
     { label: "Artículos", icon: FileText, href: "/admin/articles" },
+    { label: "Nacional", icon: Flag, href: "/admin/nacional" },
     { label: "Categorías", icon: FolderOpen, href: "/admin/categories" },
     { label: "Comentarios", icon: MessageSquare, href: "/admin/comments" },
     { label: "Importar Medium", icon: Upload, href: "/admin/import-medium" },

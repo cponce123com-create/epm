@@ -17,6 +17,7 @@ import Comments from "@/pages/admin/Comments";
 import Categories from "@/pages/admin/Categories";
 import Settings from "@/pages/admin/Settings";
 import MediumImport from "@/pages/admin/MediumImport";
+import Nacional from "@/pages/admin/Nacional";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -63,6 +64,9 @@ function Router() {
       </Route>
       <Route path="/admin/settings">
         {() => <ProtectedRoute component={Settings} />}
+      </Route>
+      <Route path="/admin/nacional">
+        {() => <ProtectedRoute component={Nacional} />}
       </Route>
       <Route path="/admin/import-medium">
         {() => <ProtectedRoute component={MediumImport} />}
