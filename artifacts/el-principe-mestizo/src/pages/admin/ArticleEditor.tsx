@@ -21,6 +21,7 @@ interface FormState {
   summary: string;
   content: string;
   categoryId: number;
+  secondaryCategoryId: number | null;
   status: "draft" | "published";
   featured: boolean;
   coverImageUrl: string;
@@ -42,6 +43,7 @@ export default function ArticleEditor() {
     summary: "",
     content: "",
     categoryId: 0,
+    secondaryCategoryId: null,
     status: "draft",
     featured: false,
     coverImageUrl: "",
@@ -67,6 +69,7 @@ export default function ArticleEditor() {
         summary: articleFromList.summary,
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
+        secondaryCategoryId: (articleFromList as any).secondaryCategoryId ?? null,
         status: articleFromList.status as "draft" | "published",
         featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
@@ -139,6 +142,7 @@ export default function ArticleEditor() {
       summary: form.summary,
       content: form.content,
       categoryId: form.categoryId,
+      secondaryCategoryId: form.secondaryCategoryId || null,
       status,
       featured: form.featured,
       coverImageUrl: form.coverImageUrl || null,
@@ -264,17 +268,58 @@ export default function ArticleEditor() {
             {/* Category */}
             <div className="bg-card border border-card-border rounded-lg p-4">
               <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Categoría
+                Categoría principal
               </h3>
               <select
                 value={form.categoryId}
                 onChange={e => setForm(f => ({ ...f, categoryId: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                {categories?.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
+                {categories
+                  ?.filter(c => !(c as any).parentId)
+                  .flatMap(parent => {
+                    const subs = categories.filter(c => (c as any).parentId === parent.id);
+                    return [
+                      <option key={parent.id} value={parent.id}>{parent.name}</option>,
+                      ...subs.map(sub => (
+                        <option key={sub.id} value={sub.id}>　↳ {sub.name}</option>
+                      )),
+                    ];
+                  })}
               </select>
+            </div>
+
+            {/* Secondary Category */}
+            <div className="bg-card border border-card-border rounded-lg p-4">
+              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Categoría secundaria
+              </h3>
+              <select
+                value={form.secondaryCategoryId ?? ""}
+                onChange={e => setForm(f => ({
+                  ...f,
+                  secondaryCategoryId: e.target.value ? Number(e.target.value) : null,
+                }))}
+                className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">— Ninguna —</option>
+                {categories
+                  ?.filter(c => c.id !== form.categoryId && !(c as any).parentId)
+                  .flatMap(parent => {
+                    const subs = categories.filter(
+                      c => (c as any).parentId === parent.id && c.id !== form.categoryId,
+                    );
+                    return [
+                      <option key={parent.id} value={parent.id}>{parent.name}</option>,
+                      ...subs.map(sub => (
+                        <option key={sub.id} value={sub.id}>　↳ {sub.name}</option>
+                      )),
+                    ];
+                  })}
+              </select>
+              <p className="text-xs font-sans-ui text-muted-foreground mt-1.5">
+                Etiqueta adicional visible en el artículo
+              </p>
             </div>
 
             {/* Featured */}
