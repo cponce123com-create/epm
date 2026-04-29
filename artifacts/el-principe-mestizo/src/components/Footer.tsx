@@ -40,19 +40,17 @@ export default function Footer() {
       {/* Banda granate superior */}
       <div style={{ height: 4, background: GRANATE }} />
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-8" style={{ padding: "48px 32px 28px" }}>
+      <div className="max-w-7xl mx-auto" style={{ padding: "48px 24px 28px" }}>
 
-        {/* Grid 4 columnas */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(1, 1fr)",
+        {/* Grid: 1 col móvil → 2 col tablet → 4 col desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style={{
           gap: 36,
           paddingBottom: 32,
           borderBottom: "1px solid rgba(244,240,231,0.1)",
-        }} className="md:grid-cols-4">
+        }}>
 
-          {/* Marca */}
-          <div>
+          {/* Marca — span completo en móvil, normal en tablet+ */}
+          <div className="sm:col-span-2 lg:col-span-1">
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <Crest size={38} color={GRANATE} />
               <Link href="/" style={{ textDecoration: "none" }}>
@@ -174,7 +172,7 @@ export default function Footer() {
         </div>
 
         {/* Copyright + frase */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 24, flexWrap: "wrap", gap: 12 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: 24, gap: 10 }}>
           <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.38)", letterSpacing: "0.06em" }}>
             {footerCopyright}
           </span>

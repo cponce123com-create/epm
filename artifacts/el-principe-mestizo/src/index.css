@@ -739,6 +739,20 @@
   cursor: not-allowed;
 }
 
+/* ── Panel oscuro "Recomendados" — artículos responsivos ─────── */
+.epm-panel-article {
+  padding: 20px 28px;
+}
+@media (max-width: 639px) {
+  .epm-panel-article {
+    padding: 14px 16px;
+    gap: 12px !important;
+  }
+  .epm-panel-article h3 {
+    font-size: 15px !important;
+  }
+}
+
 /* ── Masthead EPM: padding responsivo ───────────────────────── */
 .epm-masthead {
   padding: 14px 16px 0;
@@ -759,26 +773,10 @@
    MOBILE OPTIMIZATIONS
    ═══════════════════════════════════════════════════════════ */
 
-/* ── Touch targets: mínimo 44px (WCAG 2.5.8) ──────────────── */
+/* ── Touch targets: solo botones (44px WCAG 2.5.8) ─────────── */
 @media (max-width: 768px) {
-  a, button, [role="button"] {
+  button, [role="button"] {
     min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-  }
-  /* Excepciones: inline text links y wrappers de imagen no necesitan 44px */
-  p a, li a, .article-body a, .news-card__title a, .sidebar-item__title {
-    min-height: unset;
-    display: inline;
-  }
-  .news-card__section a {
-    min-height: unset;
-    display: inline;
-  }
-  /* Wrappers de imagen deben mantener display: block */
-  .news-card__img, .news-card__thumb a {
-    min-height: unset;
-    display: block;
   }
 }
 

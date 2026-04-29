@@ -114,8 +114,8 @@ export default function Home() {
               display: "flex", flexDirection: "column",
             }}>
               {/* Cabecera */}
-              <div className="epm-mono" style={{
-                padding: "20px 28px 14px",
+              <div className="epm-mono epm-panel-article" style={{
+                paddingBottom: 14,
                 borderBottom: "1px solid rgba(255,255,255,0.1)",
                 display: "flex", alignItems: "baseline", justifyContent: "space-between",
               }}>
@@ -134,12 +134,12 @@ export default function Home() {
                 return (
                   <a key={art.id}
                     href={`/articulo/${art.slug}`}
+                    className="epm-panel-article"
                     style={{
                       flex: 1,
                       display: "grid",
                       gridTemplateColumns: "1fr 88px",
                       gap: 16,
-                      padding: "20px 28px",
                       borderBottom: idx < 2 ? "1px solid rgba(255,255,255,0.1)" : "none",
                       color: "#F4F0E7", textDecoration: "none",
                       alignItems: "center",
