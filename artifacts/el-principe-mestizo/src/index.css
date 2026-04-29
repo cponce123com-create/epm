@@ -223,11 +223,11 @@
 }
 .news-card__title:hover { color: hsl(var(--primary)); }
 .news-card__title--lg {
-  font-size: 1.65rem;
+  font-size: clamp(1.2rem, 3.5vw + 0.4rem, 1.65rem);
   line-height: 1.18;
 }
 .news-card__title--xl {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw + 0.5rem, 2rem);
   line-height: 1.14;
 }
 .news-card__summary {
@@ -253,6 +253,20 @@
   color: hsl(0 0% 72%);
 }
 .news-card__author { color: hsl(0 0% 32%); font-weight: 600; }
+
+/* Thumbnail en variante horizontal — responde al ancho del viewport */
+.news-card__thumb {
+  flex-shrink: 0;
+  width: 88px;
+  height: 66px;
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  .news-card__thumb {
+    width: 76px;
+    height: 57px;
+  }
+}
 
 /* ── Hero card con imagen de fondo ───────────────────────── */
 .hero-card {
@@ -625,8 +639,16 @@
 
 /* ── Mejorar responsividad de tarjetas en grid ────────────── */
 @media (max-width: 639px) {
-  .news-card__title--lg { font-size: 1.3rem; }
+  /* news-card__title--lg usa clamp() — no necesita override aquí */
   .hero-card__body { padding: 16px 18px; }
+  .news-card {
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+  .news-card__summary {
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
 }
 
 /* ── Hover en card completa (link wrapper) ────────────────── */
@@ -671,7 +693,7 @@
     display: inline-flex;
     align-items: center;
   }
-  /* Excepciones: inline text links no necesitan 44px de bloque */
+  /* Excepciones: inline text links y wrappers de imagen no necesitan 44px */
   p a, li a, .article-body a, .news-card__title a, .sidebar-item__title {
     min-height: unset;
     display: inline;
@@ -679,6 +701,11 @@
   .news-card__section a {
     min-height: unset;
     display: inline;
+  }
+  /* Wrappers de imagen deben mantener display: block */
+  .news-card__img, .news-card__thumb a {
+    min-height: unset;
+    display: block;
   }
 }
 

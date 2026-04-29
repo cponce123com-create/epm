@@ -93,7 +93,7 @@ export default function Home() {
                 <div className="section-heading section-heading--colored">
                   <span>Destacados</span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-0">
                   {tertiary.map((art, i) => (
                     <ArticleCard key={art.id} article={art} size="sm" index={i} />
                   ))}

@@ -71,15 +71,13 @@ export default function ArticleCard({
           </div>
         </div>
         {article.coverImageUrl && (
-          <Link href={`/articulo/${article.slug}`} className="shrink-0">
-            <div className="overflow-hidden" style={{ width: 96, height: 72 }}>
-              <OptimizedImage
-                src={article.coverImageUrl}
-                alt={article.coverImageAlt ?? article.title}
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                optimizeWidth={320}
-              />
-            </div>
+          <Link href={`/articulo/${article.slug}`} className="news-card__thumb">
+            <OptimizedImage
+              src={article.coverImageUrl}
+              alt={article.coverImageAlt ?? article.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              optimizeWidth={320}
+            />
           </Link>
         )}
       </div>
