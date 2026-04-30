@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, categoriesTable, usersTable, commentsTable } from "@workspace/db";
-import { eq, desc, ilike, and, or, ne, count, sql } from "drizzle-orm";
+import { eq, desc, ilike, and, or, ne, count, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
@@ -119,11 +119,20 @@ router.get("/articles", async (req, res): Promise<void> => {
   const conditions = [eq(articlesTable.status, "published")];
 
   if (categorySlug) {
-    const [cat] = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.slug, categorySlug));
+    const [cat] = await db
+      .select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(eq(categoriesTable.slug, categorySlug));
     if (cat) {
+      // Include articles from child categories too
+      const children = await db
+        .select({ id: categoriesTable.id })
+        .from(categoriesTable)
+        .where(eq(categoriesTable.parentId, cat.id));
+      const allIds = [cat.id, ...children.map(c => c.id)];
       const catFilter = or(
-        eq(articlesTable.categoryId, cat.id),
-        eq(articlesTable.secondaryCategoryId, cat.id)
+        inArray(articlesTable.categoryId, allIds),
+        inArray(articlesTable.secondaryCategoryId, allIds),
       );
       if (catFilter) conditions.push(catFilter);
     }
