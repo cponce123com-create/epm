@@ -154,14 +154,14 @@ export default function Header() {
         borderBottom: "4px double #7A1F1F",
       }}>
         {/* ── 3 columnas: izquierda · centro · derecha ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, maxWidth: 1280, margin: "0 auto", padding: "0 8px" }}>
 
           {/* IZQUIERDA: Secciones + búsqueda */}
-          <div className="epm-masthead-col" style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
+          <div className="epm-masthead-col" style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}>
             {/* Botón Secciones (mobile: solo ícono; desktop: ícono + texto) */}
             <button onClick={() => setMenuOpen(!menuOpen)}
               className="epm-mono"
-              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
               aria-label="Secciones">
               {menuOpen ? <X size={16} /> : <Menu size={16} />}
               <span className="hidden lg:inline" style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" }}>Secciones</span>
@@ -203,7 +203,7 @@ export default function Header() {
                   src={logoUrl}
                   alt={siteName}
                   fetchPriority="high"
-                  style={{ height: 52, width: "auto", objectFit: "contain", marginBottom: 8 }}
+                  style={{ height: "clamp(32px, 8vw, 52px)", width: "auto", objectFit: "contain", marginBottom: 8 }}
                   onError={() => setLogoErr(true)}
                 />
               )}
@@ -228,19 +228,29 @@ export default function Header() {
           </div>
 
           {/* DERECHA: Iniciar sesión + Apoyar */}
-          <div className="epm-masthead-col" style={{ display: "flex", gap: 10, flex: "0 0 auto", justifyContent: "flex-end" }}>
+          <div className="epm-masthead-col" style={{ display: "flex", gap: 6, flex: "0 0 auto", justifyContent: "flex-end", alignItems: "center" }}>
             {/* Mobile search */}
             <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden"
-              style={{ background: "transparent", border: "none", color: "rgba(244,240,231,0.7)", cursor: "pointer", padding: 8 }}
+              style={{ background: "transparent", border: "none", color: "rgba(244,240,231,0.7)", cursor: "pointer", padding: 6 }}
               aria-label="Buscar"><Search size={18} /></button>
 
-            <Link href="/admin/login" className="hidden lg:block epm-mono"
-              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer", fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center" }}>
+            <Link href="/admin/login" className="hidden lg:flex epm-mono"
+              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer", fontSize: 12, textDecoration: "none", alignItems: "center" }}>
               Iniciar sesión
             </Link>
-            <Link href="/acerca-de" className="hidden lg:block"
-              style={{ background: "#7A1F1F", border: "none", color: "#fff", padding: "10px 16px", cursor: "pointer", fontSize: 12, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", fontFamily: "var(--app-font-sans)" }}>
-              Apoyar →
+            
+            {/* Apoyar Button: Hidden on very small screens, shown as icon on small, full on large */}
+            <Link href="/acerca-de" 
+              className="epm-mono"
+              style={{ 
+                background: "#7A1F1F", border: "none", color: "#fff", 
+                padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 600, 
+                textDecoration: "none", display: "flex", alignItems: "center", 
+                fontFamily: "var(--app-font-sans)",
+                borderRadius: "2px"
+              }}>
+              <span className="hidden sm:inline">Apoyar →</span>
+              <span className="sm:hidden">Apoyar</span>
             </Link>
           </div>
         </div>
