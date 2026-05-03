@@ -136,8 +136,9 @@ export default function Header() {
               </span>
             )}
             {(exchangeRate || tipoCambio) && (
-              <span className="epm-mono hidden sm:inline" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-                {exchangeRate || tipoCambio}
+              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
+                <span className="hidden sm:inline">{exchangeRate || tipoCambio}</span>
+                <span className="sm:hidden">{exchangeRate ? exchangeRate.split(' · ')[0] : tipoCambio}</span>
               </span>
             )}
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
