@@ -127,7 +127,7 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
         ? rawImage
         : rawImage
           ? `${frontendUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
-          : "",
+          : `${frontendUrl}/opengraph.jpg`,
     );
 
     const publishedAt = article.publishedAt
