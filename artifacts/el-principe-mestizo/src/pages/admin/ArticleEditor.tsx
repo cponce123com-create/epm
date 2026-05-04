@@ -340,9 +340,14 @@ export default function ArticleEditor() {
 
             {/* Cover image */}
             <div className="bg-card border border-card-border rounded-lg p-4">
-              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Imagen de portada
-              </h3>
+              <div className="mb-3">
+                <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Imagen de portada
+                </h3>
+                <p className="text-[11px] font-sans-ui text-muted-foreground/70 mt-0.5">
+                  Se muestra al compartir en WhatsApp, Facebook y Twitter
+                </p>
+              </div>
               {form.coverImageUrl ? (
                 <div className="relative">
                   <img
@@ -354,6 +359,7 @@ export default function ArticleEditor() {
                     type="button"
                     onClick={() => setForm(f => ({ ...f, coverImageUrl: "", coverImageAlt: "" }))}
                     className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+                    title="Quitar imagen"
                   >
                     <X size={14} />
                   </button>
@@ -366,17 +372,33 @@ export default function ArticleEditor() {
                   />
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full py-6 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-60"
-                >
-                  <Upload size={20} className="text-muted-foreground" />
-                  <span className="text-xs font-sans-ui text-muted-foreground">
-                    {uploading ? "Cargando..." : "Subir imagen"}
-                  </span>
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full py-5 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-60"
+                  >
+                    <Upload size={18} className="text-muted-foreground" />
+                    <span className="text-xs font-sans-ui text-muted-foreground">
+                      {uploading ? "Subiendo..." : "Subir imagen"}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[10px] font-sans-ui text-muted-foreground">o pega una URL</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    onBlur={e => {
+                      const v = e.target.value.trim();
+                      if (v) setForm(f => ({ ...f, coverImageUrl: v }));
+                    }}
+                    className="w-full px-2.5 py-1.5 text-xs font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
+                  />
+                </div>
               )}
               <input
                 ref={fileInputRef}

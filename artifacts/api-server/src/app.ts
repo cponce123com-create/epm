@@ -120,13 +120,14 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
     const siteName    = escHtml(settings.siteName);
 
     // Garantizar URL absoluta para og:image — requerido por WhatsApp/Facebook
-    const rawImage = article.coverImageUrl ?? settings.ogImage ?? "";
+    // Usa || en lugar de ?? para que strings vacíos también caigan al fallback
+    const rawImage = article.coverImageUrl || settings.ogImage || "";
     const image    = escHtml(
       rawImage.startsWith("http")
         ? rawImage
         : rawImage
           ? `${frontendUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
-          : `${frontendUrl}/opengraph.jpg`,
+          : "",
     );
 
     const publishedAt = article.publishedAt

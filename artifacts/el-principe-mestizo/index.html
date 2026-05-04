@@ -14,16 +14,12 @@
     <meta property="og:site_name"   content="El Príncipe Mestizo" />
     <meta property="og:title"       content="El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo" />
     <meta property="og:description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
-    <meta property="og:image"       content="/opengraph.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
     <meta property="og:locale"      content="es_PE" />
 
     <!-- Twitter Card base -->
-    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:card"        content="summary" />
     <meta name="twitter:title"       content="El Príncipe Mestizo — Periodismo ciudadano desde Chanchamayo" />
     <meta name="twitter:description" content="Blog de periodismo ciudadano, opinión y denuncia desde San Ramón, Chanchamayo (Perú)." />
-    <meta name="twitter:image"       content="/opengraph.jpg" />
 
     <!-- ═══════════════════════════════════════════════════════════
          PWA — Progressive Web App
@@ -101,12 +97,39 @@
               var ogSite = document.querySelector('meta[property="og:site_name"]');
               if (ogSite) ogSite.setAttribute("content", s.siteName);
             }
-            // Imagen OG base
+            // Imagen OG base — crea los tags si no existen (fueron removidos del HTML estático
+            // para evitar que el archivo de fallback por defecto aparezca en redes sociales)
             if (s.ogImage) {
               var ogImg = document.querySelector('meta[property="og:image"]');
-              if (ogImg) ogImg.setAttribute("content", s.ogImage);
+              if (!ogImg) {
+                ogImg = document.createElement('meta');
+                ogImg.setAttribute('property', 'og:image');
+                document.head.appendChild(ogImg);
+              }
+              ogImg.setAttribute("content", s.ogImage);
+              var ogImgW = document.querySelector('meta[property="og:image:width"]');
+              if (!ogImgW) {
+                ogImgW = document.createElement('meta');
+                ogImgW.setAttribute('property', 'og:image:width');
+                document.head.appendChild(ogImgW);
+              }
+              ogImgW.setAttribute("content", "1200");
+              var ogImgH = document.querySelector('meta[property="og:image:height"]');
+              if (!ogImgH) {
+                ogImgH = document.createElement('meta');
+                ogImgH.setAttribute('property', 'og:image:height');
+                document.head.appendChild(ogImgH);
+              }
+              ogImgH.setAttribute("content", "630");
+              var twCard = document.querySelector('meta[name="twitter:card"]');
+              if (twCard) twCard.setAttribute("content", "summary_large_image");
               var twImg = document.querySelector('meta[name="twitter:image"]');
-              if (twImg) twImg.setAttribute("content", s.ogImage);
+              if (!twImg) {
+                twImg = document.createElement('meta');
+                twImg.setAttribute('name', 'twitter:image');
+                document.head.appendChild(twImg);
+              }
+              twImg.setAttribute("content", s.ogImage);
             }
             // Descripción base
             if (s.siteDescription) {
