@@ -67,39 +67,66 @@ export default function Header() {
 
   const [exchangeRate, setExchangeRate] = useState<string>("");
   useEffect(() => {
+    const SUNAT_URL = "https://www.sunat.gob.pe/a/txt/tipoCambio.txt";
+
+    // Parsea el texto de SUNAT: "DD/MM/YYYY|compra|venta"
+    const parseSunat = (text: string): string | null => {
+      if (!text || !text.includes("|")) return null;
+      const parts = text.trim().split("|");
+      if (parts.length < 3) return null;
+      const venta = parseFloat(parts[2].trim());
+      if (isNaN(venta)) return null;
+      return `USD/PEN · ${venta.toFixed(2)}`;
+    };
+
+    // Proxy 1: allorigins.win
+    const tryAllOrigins = async (): Promise<string | null> => {
+      const url = `https://api.allorigins.win/get?url=${encodeURIComponent(SUNAT_URL)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error("allorigins failed");
+      const data = await res.json();
+      return parseSunat(data.contents ?? "");
+    };
+
+    // Proxy 2: corsproxy.io
+    const tryCorsproxy = async (): Promise<string | null> => {
+      const url = `https://corsproxy.io/?url=${encodeURIComponent(SUNAT_URL)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error("corsproxy failed");
+      const text = await res.text();
+      return parseSunat(text);
+    };
+
+    // Fallback: API de tipo de cambio libre (no SUNAT)
+    const tryFallback = async (): Promise<string | null> => {
+      const res = await fetch(
+        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (!res.ok) throw new Error("fallback failed");
+      const data = await res.json();
+      const pen = data?.usd?.pen;
+      if (!pen) return null;
+      return `USD/PEN · ${Number(pen).toFixed(2)}`;
+    };
+
     const fetchSunat = async () => {
       try {
-        // Intentamos usar un proxy público para evitar problemas de CORS con SUNAT
-        const proxyUrl = "https://api.allorigins.win/get?url=";
-        const targetUrl = encodeURIComponent("https://www.sunat.gob.pe/a/txt/tipoCambio.txt");
-        
-        const response = await fetch(`${proxyUrl}${targetUrl}`);
-        const data = await response.json();
-        const text = data.contents;
-        
-        if (text && text.includes('|')) {
-          const parts = text.split('|');
-          if (parts.length >= 3) {
-            const compra = parts[1].trim();
-            const venta = parts[2].trim();
-            if (compra && venta) {
-              setExchangeRate(`USD/PEN · Compra: ${compra} Venta: ${venta}`);
-              return;
-            }
-          }
-        }
-        throw new Error("Invalid SUNAT format");
-      } catch (err) {
-        // Fallback a la API de respaldo si falla el proxy o la SUNAT
-        fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
-          .then(r => r.json())
-          .then(d => { 
-            const pen = d?.usd?.pen; 
-            if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); 
-          })
-          .catch(() => {});
-      }
+        const r1 = await tryAllOrigins();
+        if (r1) { setExchangeRate(r1); return; }
+      } catch (_) { /* continúa */ }
+
+      try {
+        const r2 = await tryCorsproxy();
+        if (r2) { setExchangeRate(r2); return; }
+      } catch (_) { /* continúa */ }
+
+      try {
+        const r3 = await tryFallback();
+        if (r3) { setExchangeRate(r3); return; }
+      } catch (_) { /* sin tipo de cambio */ }
     };
+
     fetchSunat();
   }, []);
 
@@ -163,10 +190,7 @@ export default function Header() {
             <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
               {clima}
               {(exchangeRate || tipoCambio) && (
-                <>
-                  <span className="hidden sm:inline"> · {exchangeRate || tipoCambio}</span>
-                  <span className="sm:hidden"> · {exchangeRate ? (exchangeRate.includes('Compra') ? `USD/PEN: ${exchangeRate.split('Venta: ')[1]}` : exchangeRate.split(' · ')[0]) : tipoCambio}</span>
-                </>
+                <span> · {exchangeRate || tipoCambio}</span>
               )}
             </span>
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
