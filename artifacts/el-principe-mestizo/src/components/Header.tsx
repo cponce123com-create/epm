@@ -67,10 +67,26 @@ export default function Header() {
 
   const [exchangeRate, setExchangeRate] = useState<string>("");
   useEffect(() => {
-    fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
-      .then(r => r.json())
-      .then(d => { const pen = d?.usd?.pen; if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); })
-      .catch(() => {});
+    // Usamos el proxy de CORS o intentamos directamente si el entorno lo permite
+    // Dado que es un archivo .txt simple, podemos parsearlo fácilmente
+    fetch("https://www.sunat.gob.pe/a/txt/tipoCambio.txt")
+      .then(r => r.text())
+      .then(text => {
+        // Formato esperado: "04/05/2026|3.512|3.521|"
+        const parts = text.split('|');
+        if (parts.length >= 3) {
+          const compra = parts[1];
+          const venta = parts[2];
+          setExchangeRate(`USD/PEN · Compra: ${compra} Venta: ${venta}`);
+        }
+      })
+      .catch(() => {
+        // Fallback a la API anterior si falla SUNAT (por temas de CORS en el navegador)
+        fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
+          .then(r => r.json())
+          .then(d => { const pen = d?.usd?.pen; if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); })
+          .catch(() => {});
+      });
   }, []);
 
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
@@ -138,7 +154,7 @@ export default function Header() {
             {(exchangeRate || tipoCambio) && (
               <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
                 <span className="hidden sm:inline">{exchangeRate || tipoCambio}</span>
-                <span className="sm:hidden">{exchangeRate ? exchangeRate.split(' · ')[0] : tipoCambio}</span>
+                <span className="sm:hidden">{exchangeRate ? (exchangeRate.includes('Compra') ? `USD/PEN: ${exchangeRate.split('Venta: ')[1]}` : exchangeRate.split(' · ')[0]) : tipoCambio}</span>
               </span>
             )}
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
