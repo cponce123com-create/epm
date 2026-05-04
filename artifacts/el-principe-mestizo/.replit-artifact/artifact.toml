@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "El Príncipe Mestizo"
+version = "1.0.0"
+id = "artifacts/el-principe-mestizo"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23170
+
+[services.development]
+run = "pnpm --filter @workspace/el-principe-mestizo run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/el-principe-mestizo", "run", "build" ]
+publicDir = "artifacts/el-principe-mestizo/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23170"
+BASE_PATH = "/"

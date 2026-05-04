@@ -1,0 +1,428 @@
+Construye una plataforma web de periodismo ciudadano, opinión y denuncia llamada "El Príncipe Mestizo". 
+Es el blog personal de un columnista independiente de San Ramón, Chanchamayo (Perú), que expone 
+irregularidades en la gestión pública local. La estética debe ser editorial y periodística — 
+similar a Medium o El País, pero con identidad propia: sobria, inteligente, con un toque de 
+urgencia y denuncia.
+
+═══════════════════════════════════════
+  STACK TÉCNICO
+═══════════════════════════════════════
+
+Backend:
+- Node.js + Express
+- PostgreSQL (Neon) con Drizzle ORM
+- JWT + bcrypt para autenticación
+- Multer + Cloudinary SDK para subida de imágenes
+- Slugify para generar slugs automáticos desde el título
+
+Frontend:
+- React 18 + Vite
+- React Router v6
+- Tailwind CSS
+- TipTap (rich text editor con extensiones: Bold, Italic, Heading, BulletList, 
+  OrderedList, Blockquote, Link, Image, HorizontalRule, Underline, TextAlign)
+- Lucide React (íconos)
+- date-fns (formateo de fechas en español)
+
+Despliegue target: Render (monorepo)
+
+═══════════════════════════════════════
+  ESTRUCTURA DE CARPETAS
+═══════════════════════════════════════
+
+/
+├── client/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Home.jsx
+│   │   │   ├── Article.jsx
+│   │   │   ├── Category.jsx
+│   │   │   ├── Search.jsx
+│   │   │   ├── About.jsx
+│   │   │   └── admin/
+│   │   │       ├── Login.jsx
+│   │   │       ├── Dashboard.jsx
+│   │   │       ├── ArticleEditor.jsx
+│   │   │       ├── ArticleList.jsx
+│   │   │       ├── Comments.jsx
+│   │   │       └── Settings.jsx
+│   │   ├── components/
+│   │   │   ├── Header.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── ArticleCard.jsx
+│   │   │   ├── ArticleCardFeatured.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── AdSlot.jsx
+│   │   │   ├── CommentSection.jsx
+│   │   │   ├── CategoryBadge.jsx
+│   │   │   ├── ShareButtons.jsx
+│   │   │   ├── ReadingProgress.jsx
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx
+│   │   ├── hooks/
+│   │   │   ├── useArticles.js
+│   │   │   └── useAuth.js
+│   │   ├── lib/
+│   │   │   └── api.js         (funciones fetch centralizadas con base URL)
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── vite.config.js
+│   └── tailwind.config.js
+├── server/
+│   ├── db/
+│   │   ├── schema.js          (Drizzle schema)
+│   │   ├── index.js           (conexión Neon)
+│   │   └── migrate.js         (script para correr migraciones)
+│   ├── routes/
+│   │   ├── articles.js
+│   │   ├── auth.js
+│   │   ├── comments.js
+│   │   ├── categories.js
+│   │   ├── upload.js
+│   │   └── settings.js
+│   ├── middleware/
+│   │   ├── auth.js            (verificar JWT)
+│   │   └── errorHandler.js
+│   └── index.js
+├── package.json               (raíz, scripts para Render)
+├── .env.example
+└── README.md
+
+═══════════════════════════════════════
+  BASE DE DATOS (Drizzle ORM + Neon)
+═══════════════════════════════════════
+
+Tabla: users
+- id (serial PK)
+- email (varchar, unique)
+- password_hash (varchar)
+- display_name (varchar)  → "El Príncipe Mestizo"
+- avatar_url (varchar, nullable)
+- role (enum: 'admin' | 'author')
+- created_at (timestamp)
+
+Tabla: categories
+- id (serial PK)
+- name (varchar)           → Denuncia / Opinión / Investigación / Ciudad / Política
+- slug (varchar, unique)
+- color (varchar)          → color hex para badge (#C0392B, #2980B9, etc.)
+- description (text)
+
+Tabla: articles
+- id (serial PK)
+- title (varchar)
+- slug (varchar, unique)
+- summary (text)           → bajada del artículo, 2-3 oraciones
+- cover_image_url (varchar, nullable)
+- cover_image_alt (varchar, nullable)
+- content (text)           → HTML generado por TipTap
+- category_id (integer, FK → categories.id)
+- author_id (integer, FK → users.id)
+- status (enum: 'draft' | 'published')
+- featured (boolean, default false)  → para destacar en home
+- views (integer, default 0)
+- reading_time (integer)   → minutos estimados (calcular al guardar: palabras/200)
+- published_at (timestamp, nullable)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+Tabla: comments
+- id (serial PK)
+- article_id (integer, FK → articles.id)
+- author_name (varchar)
+- author_email (varchar)
+- content (text)
+- approved (boolean, default false)
+- created_at (timestamp)
+
+Tabla: site_settings
+- id (serial PK)
+- key (varchar, unique)    → 'about_text', 'adsense_client', 'site_description', etc.
+- value (text)
+
+Ejecutar migrate.js al iniciar el server si las tablas no existen.
+Insertar categorías por defecto y usuario admin por defecto en el primer arranque:
+- Admin: email desde env ADMIN_EMAIL, password desde env ADMIN_PASSWORD
+
+═══════════════════════════════════════
+  API ENDPOINTS (Express)
+═══════════════════════════════════════
+
+Públicos:
+GET    /api/articles              → lista paginada (?page=1&limit=10&category=slug&search=texto)
+GET    /api/articles/featured     → artículos con featured=true (máximo 3)
+GET    /api/articles/:slug        → artículo individual + incrementar views
+GET    /api/articles/:slug/related → 3 artículos de la misma categoría
+GET    /api/categories            → todas las categorías
+GET    /api/comments/:articleId   → comentarios aprobados de un artículo
+POST   /api/comments              → crear comentario (queda pendiente de aprobación)
+GET    /api/settings/public       → devuelve about_text, site_description, adsense_client
+
+Protegidos (requieren JWT en header Authorization: Bearer <token>):
+POST   /api/auth/login            → { email, password } → { token, user }
+POST   /api/auth/logout
+GET    /api/admin/articles        → todos los artículos (incluyendo borradores)
+POST   /api/admin/articles        → crear artículo
+PUT    /api/admin/articles/:id    → editar artículo
+DELETE /api/admin/articles/:id    → eliminar artículo
+PATCH  /api/admin/articles/:id/publish   → cambiar status a published
+PATCH  /api/admin/articles/:id/feature   → toggle featured
+GET    /api/admin/comments        → todos los comentarios (aprobados y pendientes)
+PATCH  /api/admin/comments/:id/approve  → aprobar comentario
+DELETE /api/admin/comments/:id    → eliminar comentario
+POST   /api/upload/image          → subir imagen a Cloudinary, devuelve { url }
+GET    /api/admin/settings        → todas las configuraciones
+PUT    /api/admin/settings        → actualizar configuraciones (body: { key, value })
+GET    /api/admin/stats           → { totalArticles, totalViews, pendingComments, totalComments }
+
+═══════════════════════════════════════
+  PÁGINAS PÚBLICAS
+═══════════════════════════════════════
+
+HOME (/):
+- Hero con el artículo featured más reciente: imagen grande, título en serif grande,
+  bajada, categoría, fecha y botón "Leer más"
+- Si hay más de 1 featured: grilla de 2-3 artículos destacados debajo del hero
+- Sección "Últimas entregas": grid de ArticleCards (3 columnas desktop, 1 móvil)
+  con paginación al fondo
+- Sidebar derecho (sticky): "Lo más leído" (top 5 por views), 
+  categorías con conteo, slot de publicidad rectangle
+- Entre cada 3 artículos del grid insertar un <AdSlot format="horizontal" />
+
+ARTÍCULO (/articulo/:slug):
+- Imagen de portada full-width con overlay degradado abajo
+- Encabezado: categoría (badge), título (H1 serif grande), bajada en cursiva,
+  fecha publicación, tiempo de lectura estimado
+- Barra de progreso de lectura en la parte superior (fija al hacer scroll)
+- Cuerpo del artículo con tipografía de lectura cómoda (line-height 1.8, max-width 720px)
+- Slot de publicidad inline: insertarlo después del 3er párrafo automáticamente
+- Bloque "Compartir en redes": botones para X/Twitter, Facebook y copiar enlace
+- Sección de artículos relacionados (misma categoría, máximo 3 cards horizontales)
+- Sección de comentarios al final:
+  - Mostrar comentarios aprobados con nombre y fecha
+  - Formulario: nombre, email (no se muestra públicamente), comentario
+  - Mensaje post-envío: "Tu comentario está pendiente de moderación"
+- Sidebar: slot publicidad, artículos más leídos
+
+CATEGORÍA (/categoria/:slug):
+- Banner con nombre de categoría y descripción
+- Grid de artículos filtrados por esa categoría con paginación
+
+BÚSQUEDA (/buscar?q=texto):
+- Input de búsqueda en la parte superior con el término actual
+- Resultados en lista: título, bajada, categoría, fecha
+- Mensaje "No se encontraron resultados" si aplica
+
+ACERCA DE (/acerca-de):
+- Texto editable desde el admin (guardado en site_settings con key='about_text')
+- Foto/avatar del autor
+- Links a redes sociales
+
+═══════════════════════════════════════
+  PANEL ADMIN (/admin/*)
+═══════════════════════════════════════
+
+Todas las rutas bajo /admin requieren estar autenticado.
+Usar ProtectedRoute que lee el AuthContext.
+Si no hay token válido, redirigir a /admin/login.
+
+LOGIN (/admin/login):
+- Formulario email + password
+- Guardar token en localStorage
+- Redirigir a /admin/dashboard tras login exitoso
+
+DASHBOARD (/admin/dashboard):
+- Tarjetas con métricas: Total artículos, Total vistas, Comentarios pendientes
+- Tabla de últimos 5 artículos con estado y acciones rápidas
+- Enlace rápido a "Nuevo artículo"
+
+LISTA DE ARTÍCULOS (/admin/articles):
+- Tabla con: portada (thumbnail), título, categoría, estado (badge), 
+  vistas, fecha, acciones (editar, publicar/despublicar, destacar, eliminar)
+- Filtros por estado (todos / publicados / borradores)
+- Buscador por título
+
+EDITOR DE ARTÍCULOS (/admin/articles/new y /admin/articles/:id/edit):
+- Campo: Título (input grande)
+- Campo: Bajada/Resumen (textarea)
+- Selector de categoría (dropdown)
+- Toggle: Destacado en home (featured)
+- Subida de imagen de portada: botón que llama a /api/upload/image,
+  previsualización inmediata de la imagen subida a Cloudinary
+- Alt text de la imagen de portada
+- Editor TipTap con toolbar completa:
+  H1, H2, H3 | Negrita, Cursiva, Subrayado | Lista, Lista numerada | 
+  Cita, Línea divisoria | Link | Insertar imagen (URL) | Alineación
+- Botones: "Guardar borrador" y "Publicar"
+- Auto-guardado cada 60 segundos si hay cambios (PATCH al backend)
+
+COMENTARIOS (/admin/comments):
+- Tabs: Pendientes / Aprobados / Todos
+- Cada comentario muestra: nombre, email, artículo al que pertenece, 
+  contenido, fecha, botones Aprobar y Eliminar
+
+CONFIGURACIÓN (/admin/settings):
+- Campo: Texto "Acerca de" (textarea con markdown básico)
+- Campo: AdSense Publisher ID (ca-pub-XXXXXXXX)
+- Campo: Descripción del sitio (para SEO)
+- Campo: URL de Twitter/X
+- Campo: URL de Facebook
+- Botón Guardar
+
+═══════════════════════════════════════
+  COMPONENTE AdSlot
+═══════════════════════════════════════
+
+Crear client/src/components/AdSlot.jsx:
+
+- Props: format ('horizontal' | 'vertical' | 'rectangle'), slotId (string)
+- Leer el publisher ID desde import.meta.env.VITE_ADSENSE_CLIENT
+- Si VITE_ADSENSE_CLIENT está vacío o es 'disabled', mostrar un div placeholder 
+  con borde punteado gris y texto "Espacio publicitario" (útil en desarrollo)
+- Si está configurado, renderizar el script de AdSense correctamente con useEffect
+- Envolver en un div con clase 'ad-slot' y data-format={format}
+- Posiciones de uso:
+  * Header banner (horizontal) → debajo del header en home
+  * Inline en artículo (rectangle) → después del 3er párrafo
+  * Sidebar (rectangle) → en el sidebar de home y artículos
+  * Entre cards (horizontal) → cada 3 artículos en el grid
+
+═══════════════════════════════════════
+  DISEÑO VISUAL
+═══════════════════════════════════════
+
+Identidad: Editorial periodístico, oscuro y serio. 
+Evoca el periodismo de investigación latinoamericano.
+
+Fuentes (importar desde Google Fonts):
+- Títulos y display: "Playfair Display" (serif, peso 700 y 900)
+- Subtítulos / UI: "Libre Baskerville" (serif más legible)
+- Cuerpo de texto: "Source Serif 4" (óptima para lectura larga)
+- UI utilitario (labels, badges, fechas): "DM Sans" (sans-serif limpia)
+
+Paleta de colores (CSS variables en :root):
+--color-bg: #F7F4EF          (papel envejecido, cálido)
+--color-bg-card: #FFFFFF
+--color-text: #1C1C1C
+--color-text-secondary: #5C5C5C
+--color-accent: #B22222       (rojo denuncia, tipo "tinta roja")
+--color-accent-hover: #8B0000
+--color-border: #D8D2C8
+--color-badge-bg: #FDF0EE
+--color-header-bg: #1C1C1C    (header oscuro como periódico)
+--color-header-text: #F7F4EF
+
+Header:
+- Fondo oscuro (#1C1C1C)
+- Logo: "El Príncipe Mestizo" en Playfair Display, blanco, con tagline pequeña 
+  debajo: "Periodismo ciudadano · San Ramón, Chanchamayo"
+- Navegación: Inicio / Categorías (dropdown) / Acerca de / Buscar (ícono lupa)
+- En mobile: menú hamburguesa
+- Línea roja fina de 3px debajo del header como acento
+
+Cards de artículos:
+- Imagen de portada (ratio 16:9, object-cover)
+- Badge de categoría (color configurado en la categoría)
+- Título en Playfair Display, hover color acento rojo
+- Bajada en 2 líneas (line-clamp-2)
+- Footer de card: fecha formateada en español + ícono reloj + tiempo de lectura
+
+Artículo individual:
+- Imagen de portada full-width máximo 900px, con border-radius sutil
+- Título H1: Playfair Display 42px desktop / 28px mobile
+- Bajada: Libre Baskerville italic, color secundario
+- Separador rojo de 2px de ancho 60px bajo el título
+- Contenido: Source Serif 4, 18px, line-height 1.85
+- Blockquotes: borde izquierdo rojo 4px, padding, background levemente distinto
+- Imágenes dentro del artículo: max-width 100%, con caption en italic pequeño
+
+Footer:
+- Fondo oscuro como el header
+- Columnas: Logo + descripción | Categorías | Redes sociales
+- Texto: "© El Príncipe Mestizo · San Ramón, Chanchamayo, Junín, Perú"
+- Frase al fondo: "La verdad no necesita permiso para existir."
+
+Transiciones y micro-interacciones:
+- Cards: leve sombra y translateY(-2px) en hover (transition 200ms)
+- Links de navegación: underline animado desde izquierda en hover
+- Botón "Leer más": estilo outlined rojo, fill en hover
+- Skeleton loading en ArticleCard mientras carga (animated pulse en Tailwind)
+- Scroll suave en toda la página
+
+═══════════════════════════════════════
+  SEO Y META TAGS
+═══════════════════════════════════════
+
+En cada página usar react-helmet-async para:
+- <title>: "Título del artículo | El Príncipe Mestizo" o "El Príncipe Mestizo | Periodismo ciudadano"
+- <meta name="description"> con la bajada del artículo o descripción del sitio
+- Open Graph: og:title, og:description, og:image (cover del artículo), og:type
+- Twitter card: summary_large_image
+Instalar: react-helmet-async
+
+═══════════════════════════════════════
+  VARIABLES DE ENTORNO
+═══════════════════════════════════════
+
+Archivo .env (server):
+DATABASE_URL=           → Neon connection string
+JWT_SECRET=             → string secreto para firmar tokens
+JWT_EXPIRES_IN=7d
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+ADMIN_EMAIL=            → email del admin inicial
+ADMIN_PASSWORD=         → password del admin inicial
+PORT=3000
+CLIENT_URL=             → URL del frontend (para CORS)
+
+Archivo .env (client):
+VITE_API_URL=           → URL base del backend
+VITE_ADSENSE_CLIENT=    → ca-pub-XXXXXXXX (dejar vacío en dev)
+
+Crear .env.example con todas las claves sin valores.
+
+═══════════════════════════════════════
+  SCRIPTS EN package.json RAÍZ
+═══════════════════════════════════════
+
+{
+  "scripts": {
+    "build": "cd client && npm install && npm run build && cd ../server && npm install",
+    "start": "node server/index.js",
+    "dev:server": "cd server && node --watch index.js",
+    "dev:client": "cd client && npm run dev"
+  }
+}
+
+En server/index.js: servir los estáticos de client/dist en producción 
+(cuando NODE_ENV === 'production'), y para cualquier ruta no-API 
+devolver el index.html del build de React.
+
+═══════════════════════════════════════
+  DATOS INICIALES (SEED)
+═══════════════════════════════════════
+
+Al iniciar el servidor por primera vez (si las tablas están vacías):
+1. Crear las categorías por defecto:
+   - Denuncia (#B22222)
+   - Opinión (#2471A3)
+   - Investigación (#1E8449)
+   - Ciudad (#7D3C98)
+   - Política (#CA6F1E)
+
+2. Crear usuario admin con las credenciales de ADMIN_EMAIL y ADMIN_PASSWORD
+
+3. Crear 2 artículos de ejemplo con status 'published' para que el home 
+   no aparezca vacío. Usar contenido ficticio breve sobre San Ramón, Chanchamayo.
+
+═══════════════════════════════════════
+  INSTRUCCIÓN FINAL
+═══════════════════════════════════════
+
+Entrega TODOS los archivos completos con sus rutas exactas.
+No uses fragmentos, no uses "// resto del código aquí", no dejes nada incompleto.
+Cada archivo debe estar listo para usarse sin modificaciones adicionales.
+Si un archivo requiere instalar una dependencia, inclúyela en el package.json correspondiente.

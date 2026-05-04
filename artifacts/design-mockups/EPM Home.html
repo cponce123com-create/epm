@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>El Príncipe Mestizo — Home</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --serif-display: 'Playfair Display', Georgia, serif;
+    --serif-body: 'Source Serif 4', Georgia, serif;
+    --serif-italic: 'Libre Baskerville', Georgia, serif;
+    --sans: 'DM Sans', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --paper: #F2EDE3;
+    --paper-2: #ECE5D6;
+    --paper-card: #FBF8F1;
+    --ink: #1A1714;
+    --ink-2: #4A453E;
+    --ink-3: #7A746B;
+    --rule: #C9C0AE;
+    --rule-2: #D8D2C2;
+    --red: #B22222;
+    --red-dark: #7A1414;
+    --red-tint: #FBEFEC;
+  }
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: var(--sans); color: var(--ink); }
+  body { overflow: hidden; }
+  * { box-sizing: border-box; }
+
+  /* prototype-scoped resets */
+  .epm a { color: inherit; text-decoration: none; }
+  .epm button { font-family: inherit; cursor: pointer; }
+  .epm img { display: block; max-width: 100%; }
+
+  /* placeholder image (subtle stripes, with caption) */
+  .ph {
+    position: relative;
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.04) 0 2px, transparent 2px 14px),
+      linear-gradient(180deg, #d6cfbe 0%, #b9b09a 100%);
+    color: rgba(0,0,0,0.55);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    overflow: hidden;
+  }
+  .ph::after {
+    content: attr(data-label);
+    position: absolute; left: 10px; bottom: 8px;
+    background: rgba(255,255,255,0.85);
+    padding: 3px 6px; border-radius: 2px;
+    color: var(--ink-2);
+  }
+  .ph.dark { background:
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 14px),
+      linear-gradient(180deg, #2a2521 0%, #14110f 100%);
+    color: rgba(255,255,255,0.6);
+  }
+  .ph.dark::after { background: rgba(0,0,0,0.6); color: #f0e9d9; }
+
+  /* hide scrollbars inside artboards */
+  .epm *::-webkit-scrollbar { display: none; }
+  .epm * { scrollbar-width: none; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="shared.jsx"></script>
+<script type="text/babel" src="direction-impresa.jsx"></script>
+<script type="text/babel" src="direction-moderno.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
