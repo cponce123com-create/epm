@@ -94,7 +94,7 @@ export default function Header() {
   /* ── Datos del strip superior ── */
   const today = format(new Date(), "EEEE · d 'de' MMMM 'de' yyyy", { locale: es }).toUpperCase();
   const edicion = s?.edicionNumero ? `· EDICIÓN Nº ${s.edicionNumero} · AÑO ${s.anoNumero ?? "I"}` : "· PERIODISMO CIUDADANO";
-  const clima   = s?.climaTexto   || "San Ramón · Chanchamayo";
+  const clima   = "Chanchamayo";
   const tipo    = s?.climaTipo    || "";
   const tipoCambio = s?.tipoCambio || "";
 
@@ -144,19 +144,17 @@ export default function Header() {
             <span className="hidden sm:inline">{today} {edicion}</span>
             <span className="sm:hidden">{format(new Date(), "EEE d MMM yyyy", { locale: es }).toUpperCase()}</span>
           </span>
-          {/* Derecha: clima (md+) · tipo de cambio (sm+) · EN VIVO siempre */}
+          {/* Derecha: clima + tipo de cambio · EN VIVO siempre */}
           <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {clima && (
-              <span className="epm-mono hidden md:inline" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-                {clima}{tipo ? ` · ${tipo}` : ""}
-              </span>
-            )}
-            {(exchangeRate || tipoCambio) && (
-              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-                <span className="hidden sm:inline">{exchangeRate || tipoCambio}</span>
-                <span className="sm:hidden">{exchangeRate ? (exchangeRate.includes('Compra') ? `USD/PEN: ${exchangeRate.split('Venta: ')[1]}` : exchangeRate.split(' · ')[0]) : tipoCambio}</span>
-              </span>
-            )}
+            <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
+              {clima}
+              {(exchangeRate || tipoCambio) && (
+                <>
+                  <span className="hidden sm:inline"> · {exchangeRate || tipoCambio}</span>
+                  <span className="sm:hidden"> · {exchangeRate ? (exchangeRate.includes('Compra') ? `USD/PEN: ${exchangeRate.split('Venta: ')[1]}` : exchangeRate.split(' · ')[0]) : tipoCambio}</span>
+                </>
+              )}
+            </span>
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7A1F1F", display: "inline-block", animation: "blink 1.5s ease-in-out infinite" }} />
               EN VIVO
