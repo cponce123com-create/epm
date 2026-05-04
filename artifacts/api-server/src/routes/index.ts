@@ -12,6 +12,7 @@ import uploadRouter from "./upload";
 import adminImportRouter from "./adminImport";
 import adminMigrateImagesRouter from "./adminMigrateImages";
 import proxyImageRouter from "./proxyImage";
+import tipoCambioRouter from "./tipoCambio";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(uploadRouter);
 router.use(adminImportRouter);
 router.use(adminMigrateImagesRouter);
 router.use(proxyImageRouter);
+router.use(tipoCambioRouter);
 
 export default router;
