@@ -67,26 +67,40 @@ export default function Header() {
 
   const [exchangeRate, setExchangeRate] = useState<string>("");
   useEffect(() => {
-    // Usamos el proxy de CORS o intentamos directamente si el entorno lo permite
-    // Dado que es un archivo .txt simple, podemos parsearlo fácilmente
-    fetch("https://www.sunat.gob.pe/a/txt/tipoCambio.txt")
-      .then(r => r.text())
-      .then(text => {
-        // Formato esperado: "04/05/2026|3.512|3.521|"
-        const parts = text.split('|');
-        if (parts.length >= 3) {
-          const compra = parts[1];
-          const venta = parts[2];
-          setExchangeRate(`USD/PEN · Compra: ${compra} Venta: ${venta}`);
+    const fetchSunat = async () => {
+      try {
+        // Intentamos usar un proxy público para evitar problemas de CORS con SUNAT
+        const proxyUrl = "https://api.allorigins.win/get?url=";
+        const targetUrl = encodeURIComponent("https://www.sunat.gob.pe/a/txt/tipoCambio.txt");
+        
+        const response = await fetch(`${proxyUrl}${targetUrl}`);
+        const data = await response.json();
+        const text = data.contents;
+        
+        if (text && text.includes('|')) {
+          const parts = text.split('|');
+          if (parts.length >= 3) {
+            const compra = parts[1].trim();
+            const venta = parts[2].trim();
+            if (compra && venta) {
+              setExchangeRate(`USD/PEN · Compra: ${compra} Venta: ${venta}`);
+              return;
+            }
+          }
         }
-      })
-      .catch(() => {
-        // Fallback a la API anterior si falla SUNAT (por temas de CORS en el navegador)
+        throw new Error("Invalid SUNAT format");
+      } catch (err) {
+        // Fallback a la API de respaldo si falla el proxy o la SUNAT
         fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")
           .then(r => r.json())
-          .then(d => { const pen = d?.usd?.pen; if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); })
+          .then(d => { 
+            const pen = d?.usd?.pen; 
+            if (pen) setExchangeRate(`USD/PEN · ${Number(pen).toFixed(2)}`); 
+          })
           .catch(() => {});
-      });
+      }
+    };
+    fetchSunat();
   }, []);
 
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
