@@ -67,67 +67,20 @@ export default function Header() {
 
   const [exchangeRate, setExchangeRate] = useState<string>("");
   useEffect(() => {
-    const SUNAT_URL = "https://www.sunat.gob.pe/a/txt/tipoCambio.txt";
-
-    // Parsea el texto de SUNAT: "DD/MM/YYYY|compra|venta"
-    const parseSunat = (text: string): string | null => {
-      if (!text || !text.includes("|")) return null;
-      const parts = text.trim().split("|");
-      if (parts.length < 3) return null;
-      const venta = parseFloat(parts[2].trim());
-      if (isNaN(venta)) return null;
-      return `USD/PEN · ${venta.toFixed(2)}`;
-    };
-
-    // Proxy 1: allorigins.win
-    const tryAllOrigins = async (): Promise<string | null> => {
-      const url = `https://api.allorigins.win/get?url=${encodeURIComponent(SUNAT_URL)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) throw new Error("allorigins failed");
-      const data = await res.json();
-      return parseSunat(data.contents ?? "");
-    };
-
-    // Proxy 2: corsproxy.io
-    const tryCorsproxy = async (): Promise<string | null> => {
-      const url = `https://corsproxy.io/?url=${encodeURIComponent(SUNAT_URL)}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) throw new Error("corsproxy failed");
-      const text = await res.text();
-      return parseSunat(text);
-    };
-
-    // Fallback: API de tipo de cambio libre (no SUNAT)
-    const tryFallback = async (): Promise<string | null> => {
-      const res = await fetch(
-        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (!res.ok) throw new Error("fallback failed");
-      const data = await res.json();
-      const pen = data?.usd?.pen;
-      if (!pen) return null;
-      return `USD/PEN · ${Number(pen).toFixed(2)}`;
-    };
-
-    const fetchSunat = async () => {
+    const fetchTC = async () => {
       try {
-        const r1 = await tryAllOrigins();
-        if (r1) { setExchangeRate(r1); return; }
-      } catch (_) { /* continúa */ }
-
-      try {
-        const r2 = await tryCorsproxy();
-        if (r2) { setExchangeRate(r2); return; }
-      } catch (_) { /* continúa */ }
-
-      try {
-        const r3 = await tryFallback();
-        if (r3) { setExchangeRate(r3); return; }
-      } catch (_) { /* sin tipo de cambio */ }
+        // Llamamos a nuestro propio backend — sin problemas de CORS
+        const res = await fetch("/api/tipo-cambio");
+        if (!res.ok) throw new Error("backend error");
+        const data = await res.json();
+        if (data.venta) {
+          setExchangeRate(`USD/PEN · ${data.venta}`);
+        }
+      } catch (_) {
+        // Si el backend falla también, dejamos el campo vacío silenciosamente
+      }
     };
-
-    fetchSunat();
+    fetchTC();
   }, []);
 
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
