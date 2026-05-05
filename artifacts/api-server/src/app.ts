@@ -1,5 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -29,24 +31,24 @@ app.use(
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 // CORS_ORIGINS: orígenes permitidos separados por coma (ej: "https://a.com,https://b.com")
-// Si no está definido, se permite cualquier origen (modo desarrollo).
-const corsOriginsRaw = process.env.CORS_ORIGINS;
-const allowedOrigins: string[] | boolean = corsOriginsRaw
-  ? corsOriginsRaw.split(",").map(s => s.trim()).filter(Boolean)
-  : true; // dev: allow all origins
+// Con el servidor unificado las peticiones del frontend son same-origin.
+// CORS solo es necesario para acceso externo (OG bots, futuras apps).
+const rawOrigins = process.env["CORS_ORIGINS"] ?? "";
+const allowedOrigins: string[] | boolean = rawOrigins
+  ? rawOrigins.split(",").map(o => o.trim()).filter(Boolean)
+  : [];
 
 const corsOptions: cors.CorsOptions = {
-  origin: allowedOrigins === true
-    ? true
-    : (origin, callback) => {
-        // Permitir requests sin origin (server-to-server, Postman, etc.)
+  origin: allowedOrigins.length > 0
+    ? (origin, callback) => {
         if (!origin) return callback(null, true);
-        if ((allowedOrigins as string[]).includes(origin)) {
+        if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         }
-      },
+      }
+    : false,
   credentials: true,
   allowedHeaders: [
     "Content-Type",
@@ -69,13 +71,7 @@ app.use("/api", router);
 
 // ── SSR Open Graph ────────────────────────────────────────────────────────────
 // Los bots de Facebook/WhatsApp/Twitter no ejecutan JS.
-// Este endpoint devuelve HTML con meta tags OG ya inyectados + meta-refresh
-// al frontend real para navegadores normales.
-//
-// PASO EXTRA en render.yaml: añadir esta regla ANTES del rewrite /* → /index.html:
-//   - type: rewrite
-//     source: /articulo/*
-//     destination: https://epm-api.onrender.com/articulo/*
+// Este endpoint devuelve HTML con meta tags OG ya inyectados para cada artículo.
 
 async function getOgSettings(): Promise<{
   ogImage: string;
@@ -132,8 +128,6 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
     const description = escHtml(article.summary ?? settings.siteDescription);
     const siteName    = escHtml(settings.siteName);
 
-    // Garantizar URL absoluta para og:image — requerido por WhatsApp/Facebook
-    // Usa || en lugar de ?? para que strings vacíos también caigan al fallback
     const rawImage = article.coverImageUrl || settings.ogImage || "";
     const image    = escHtml(
       rawImage.startsWith("http")
@@ -162,7 +156,6 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
       ? `\n  <meta property="article:published_time" content="${publishedAt}" />`
       : "";
 
-    // URL segura para atributos HTML y para el JS (JSON.stringify escapa correctamente)
     const safeUrl = escHtml(canonicalUrl);
     const jsUrl   = JSON.stringify(canonicalUrl);
 
@@ -208,8 +201,6 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
     </div>
   </div>
   <script>
-    // Los crawlers de FB/WhatsApp no ejecutan JS → leen los OG tags del <head>
-    // Los navegadores reales son redirigidos inmediatamente al SPA
     (function(){window.location.replace(${jsUrl});})();
   </script>
 </body>
@@ -220,10 +211,28 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// ── 404 para rutas no encontradas ─────────────────────────────────────────────
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: "Ruta no encontrada" });
-});
+// ── Frontend estático (solo en producción) ───────────────────────────────────
+// En producción Express sirve el build de Vite directamente.
+// En desarrollo el proxy de Vite maneja las rutas del frontend.
+if (process.env["NODE_ENV"] === "production") {
+  const __dirnameApp = path.dirname(fileURLToPath(import.meta.url));
+  // Desde artifacts/api-server/dist/ subimos dos niveles y bajamos al build de Vite
+  const FRONTEND_DIST = path.resolve(
+    __dirnameApp,
+    "..", "..", "el-principe-mestizo", "dist", "public",
+  );
+
+  app.use(express.static(FRONTEND_DIST, {
+    maxAge: "1y",
+    etag: true,
+    index: false,
+  }));
+
+  // SPA fallback: cualquier ruta no capturada por /api ni /articulo devuelve index.html
+  app.get("*", (_req: Request, res: Response) => {
+    res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+  });
+}
 
 // ── Manejador global de errores ───────────────────────────────────────────────
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

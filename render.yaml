@@ -5,13 +5,19 @@ databases:
     plan: free
 
 services:
-  # ── Backend API ─────────────────────────────────────────────────────────────
+  # ── Servicio único: backend + frontend ──────────────────────────────────────
   - type: web
-    name: epm-api
+    name: epm
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
+    # Compila primero el frontend (Vite), luego el backend (esbuild)
+    # El frontend necesita BASE_PATH=/ y PORT solo para que vite.config.ts no lance error
+    buildCommand: >
+      npm install -g pnpm &&
+      pnpm install --no-frozen-lockfile &&
+      PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build &&
+      pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps ./artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/health
     envVars:
@@ -29,45 +35,16 @@ services:
         value: admin@elprincinemestizo.com
       - key: ADMIN_PASSWORD
         value: CHANGE_ME_BEFORE_DEPLOY
-      # URL canónica del frontend — usada por el middleware SSR Open Graph
+      # Con frontend y backend unidos, el origen es el mismo servidor
       - key: FRONTEND_URL
         value: "https://elprincipemestizo.eu.cc"
-      # Orígenes CORS permitidos (separados por coma)
+      # CORS: solo el dominio propio (ya no hay Static Site separado)
       - key: CORS_ORIGINS
-        value: "https://elprincipemestizo.eu.cc,https://epm-1.onrender.com"
-      # Cloudinary — completar con tus credenciales reales en el dashboard de Render
+        value: "https://elprincipemestizo.eu.cc"
+      # VITE_API_URL queda vacío — las llamadas /api/* son al mismo origen
       - key: CLOUDINARY_CLOUD_NAME
         value: ""
       - key: CLOUDINARY_API_KEY
         value: ""
       - key: CLOUDINARY_API_SECRET
         value: ""
-
-  # ── Frontend (Static Site) ───────────────────────────────────────────────────
-  - type: web
-    name: epm-frontend
-    runtime: static
-    plan: free
-    rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build
-    staticPublishPath: artifacts/el-principe-mestizo/dist/public
-    envVars:
-      # URL directa al backend — el frontend la usa para uploads grandes (FormData)
-      # para evitar limitaciones del proxy CDN de Render en sitios estáticos.
-      - key: VITE_API_URL
-        value: "https://epm-7gaq.onrender.com"
-    routes:
-      # Las rutas /api/* van al backend
-      - type: rewrite
-        source: /api/*
-        destination: https://epm-7gaq.onrender.com/api/*
-      # Las rutas /articulo/* van al backend para que sirva los meta OG
-      # Los bots de Facebook/WhatsApp/Twitter obtendrán el HTML con og:tags
-      # Los navegadores normales recibirán el meta-refresh al frontend real
-      - type: rewrite
-        source: /articulo/*
-        destination: https://epm-7gaq.onrender.com/articulo/*
-      # Todo lo demás carga la SPA
-      - type: rewrite
-        source: /*
-        destination: /index.html
