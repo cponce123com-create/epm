@@ -5,7 +5,7 @@ import { es } from "date-fns/locale";
 import {
   PlusCircle, Pencil, Trash2, Globe, EyeOff, Search, Flag,
   Rss, FileText, Loader2, ExternalLink, CheckCircle2, X,
-  Image as ImageIcon, Upload,
+  Image as ImageIcon, Upload, Video, Plus, ChevronDown,
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import {
@@ -21,6 +21,7 @@ interface ScrapedItem {
   summary: string;
   content: string;
   coverImageUrl: string | null;
+  coverVideoUrl: string | null;
   sourceUrl: string;
   publishedAt: string;
 }
@@ -288,12 +289,24 @@ function TabArticles() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 2 — Scraper Telegram
+// TAB 2 — Scraper Telegram (multicanal hasta 10, soporte video)
 // ═══════════════════════════════════════════════════════════════════════════
+const MAX_CHANNELS = 10;
+
 function TabScraper() {
-  const [channelUsername, setChannelUsername] = useState(() => {
-    return localStorage.getItem("epm_scraper_channel") ?? "";
+  // Lista de canales persistida en localStorage
+  const [channels, setChannels] = useState<string[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("epm_scraper_channels") ?? "[]");
+      return Array.isArray(saved) ? saved.filter((c: unknown) => typeof c === "string" && c.trim()) : [];
+    } catch {
+      return [];
+    }
   });
+  const [activeChannel, setActiveChannel] = useState<string>(channels[0] ?? "");
+  const [newChannel, setNewChannel] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+
   const [items, setItems] = useState<(ScrapedItem & { editedTitle?: string; editedSummary?: string; imported?: boolean })[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -301,18 +314,54 @@ function TabScraper() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Persistir canales
   useEffect(() => {
-    if (channelUsername) localStorage.setItem("epm_scraper_channel", channelUsername);
-  }, [channelUsername]);
+    localStorage.setItem("epm_scraper_channels", JSON.stringify(channels));
+  }, [channels]);
 
-  const handleScrape = async () => {
-    if (!channelUsername.trim()) return;
+  // Si no hay canal activo pero hay canales, usar el primero
+  useEffect(() => {
+    if (!activeChannel && channels.length > 0) {
+      setActiveChannel(channels[0]);
+    }
+  }, [channels, activeChannel]);
+
+  const addChannel = () => {
+    const name = newChannel.trim().replace(/^@/, "");
+    if (!name) return;
+    if (channels.includes(name)) {
+      toast({ description: "Ese canal ya está en la lista.", variant: "destructive" });
+      return;
+    }
+    if (channels.length >= MAX_CHANNELS) {
+      toast({ description: `Máximo ${MAX_CHANNELS} canales.`, variant: "destructive" });
+      return;
+    }
+    const updated = [...channels, name];
+    setChannels(updated);
+    setActiveChannel(name);
+    setNewChannel("");
+    setShowAdd(false);
+  };
+
+  const removeChannel = (name: string) => {
+    const updated = channels.filter(c => c !== name);
+    setChannels(updated);
+    if (activeChannel === name) {
+      setActiveChannel(updated[0] ?? "");
+    }
+  };
+
+  const handleScrape = async (channel?: string) => {
+    const target = channel ?? activeChannel;
+    if (!target.trim()) return;
     setLoading(true);
     setError("");
     setItems([]);
+    setActiveChannel(target);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
       const token = localStorage.getItem("epm_token");
@@ -323,7 +372,7 @@ function TabScraper() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ channelUsername: channelUsername.trim() }),
+        body: JSON.stringify({ channelUsername: target.trim() }),
         signal: controller.signal,
       });
 
@@ -341,7 +390,7 @@ function TabScraper() {
       setItems(scrapedItems);
 
       if (scrapedItems.length === 0) {
-        setError("No se encontraron noticias en ese canal.");
+        setError(`No se encontraron noticias en @${target}.`);
       }
     } catch (err: any) {
       if (err.name === "AbortError") {
@@ -375,10 +424,11 @@ function TabScraper() {
             summary: item.editedSummary ?? item.summary,
             content: item.content,
             coverImageUrl: item.coverImageUrl,
+            coverVideoUrl: item.coverVideoUrl,
             sourceUrl: item.sourceUrl,
             publishedAt: item.publishedAt,
           },
-          channelUsername: channelUsername.trim(),
+          channelUsername: activeChannel.trim(),
         }),
       });
 
@@ -406,22 +456,94 @@ function TabScraper() {
 
   return (
     <div>
+      {/* ── Lista de canales ──────────────────────────────────────────── */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+            Canales ({channels.length}/{MAX_CHANNELS})
+          </span>
+          {channels.length < MAX_CHANNELS && (
+            <button
+              onClick={() => { setShowAdd(!showAdd); setNewChannel(""); }}
+              className="flex items-center gap-1 text-xs font-sans-ui text-primary hover:underline"
+            >
+              <Plus size={12} />
+              Agregar
+            </button>
+          )}
+        </div>
+
+        {/* Lista de chips */}
+        {channels.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {channels.map(ch => (
+              <span
+                key={ch}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-sans-ui font-medium cursor-pointer transition-colors ${
+                  activeChannel === ch
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent"
+                }`}
+                onClick={() => { setActiveChannel(ch); }}
+              >
+                @{ch}
+                <button
+                  onClick={e => { e.stopPropagation(); removeChannel(ch); }}
+                  className="hover:opacity-70"
+                  title="Quitar canal"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Input para agregar */}
+        {showAdd && (
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={newChannel}
+              onChange={e => setNewChannel(e.target.value)}
+              placeholder="Username del canal (sin @)"
+              className="flex-1 px-3 py-1.5 text-xs font-sans-ui border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              onKeyDown={e => e.key === "Enter" && addChannel()}
+            />
+            <button
+              onClick={addChannel}
+              disabled={!newChannel.trim()}
+              className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-sans-ui font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Agregar
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Botón de extracción ────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <input
-          type="text"
-          value={channelUsername}
-          onChange={e => setChannelUsername(e.target.value)}
-          placeholder="Username del canal (sin @), ej: RPP_Noticias"
-          className="flex-1 px-4 py-2.5 text-sm font-sans-ui border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-          onKeyDown={e => e.key === "Enter" && handleScrape()}
-        />
+        {channels.length > 1 && (
+          <div className="relative">
+            <select
+              value={activeChannel}
+              onChange={e => handleScrape(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2.5 text-sm font-sans-ui border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+            >
+              {channels.map(ch => (
+                <option key={ch} value={ch}>@{ch}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+          </div>
+        )}
         <button
-          onClick={handleScrape}
-          disabled={loading || !channelUsername.trim()}
+          onClick={() => handleScrape()}
+          disabled={loading || !activeChannel.trim()}
           className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-sans-ui text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Rss size={16} />}
-          {loading ? `Extrayendo del canal @${channelUsername}...` : "Extraer noticias"}
+          {loading ? `Extrayendo de @${activeChannel}...` : "Extraer noticias"}
         </button>
       </div>
 
@@ -438,105 +560,114 @@ function TabScraper() {
       )}
 
       {!loading && items.length > 0 && (
-        <div className="grid gap-4">
-          {items.map((item, i) => (
-            <div
-              key={i}
-              className={`border rounded-lg p-4 transition-colors ${
-                item.imported
-                  ? "bg-green-50 border-green-200"
-                  : "bg-card border-card-border"
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row gap-4">
-                {/* Imagen */}
-                {item.coverImageUrl && (
-                  <div className="w-full sm:w-48 shrink-0">
-                    <img
-                      src={item.coverImageUrl}
-                      alt=""
-                      className="w-full aspect-video object-cover rounded-md bg-muted"
-                      onError={e => ((e.target as HTMLElement).style.display = "none")}
-                    />
-                  </div>
-                )}
-                {!item.coverImageUrl && (
-                  <div className="w-full sm:w-48 shrink-0 aspect-video bg-muted rounded-md flex items-center justify-center">
-                    <ImageIcon size={24} className="text-muted-foreground/40" />
-                  </div>
-                )}
-
-                {/* Contenido editable */}
-                <div className="flex-1 min-w-0 space-y-2">
-                  <input
-                    type="text"
-                    value={item.editedTitle ?? item.title}
-                    onChange={e => {
-                      const updated = [...items];
-                      updated[i] = { ...updated[i], editedTitle: e.target.value };
-                      setItems(updated);
-                    }}
-                    disabled={item.imported}
-                    className="w-full text-sm font-sans-ui font-semibold border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
-                  />
-                  <textarea
-                    value={item.editedSummary ?? item.summary}
-                    onChange={e => {
-                      const updated = [...items];
-                      updated[i] = { ...updated[i], editedSummary: e.target.value };
-                      setItems(updated);
-                    }}
-                    disabled={item.imported}
-                    rows={2}
-                    className="w-full text-xs font-sans-ui border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none disabled:opacity-60"
-                  />
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground font-sans-ui">
-                    <span>
-                      {format(new Date(item.publishedAt), "d MMM yyyy HH:mm", { locale: es })}
-                    </span>
-                    <a
-                      href={item.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-blue-600 hover:underline"
-                    >
-                      <ExternalLink size={11} />
-                      Fuente
-                    </a>
-                  </div>
-
-                  {/* Botones */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {!item.imported ? (
-                      <>
-                        <button
-                          onClick={() => handleImport(i)}
-                          disabled={importingId === i}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-sans-ui font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-                        >
-                          {importingId === i ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                          Importar como borrador
-                        </button>
-                        <button
-                          onClick={() => handleDiscard(i)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans-ui font-medium rounded-md border border-border hover:bg-muted transition-colors"
-                        >
-                          <X size={12} />
-                          Descartar
-                        </button>
-                      </>
+        <>
+          <div className="text-xs text-muted-foreground font-sans-ui mb-3">
+            {items.length} noticias encontradas en @{activeChannel}
+          </div>
+          <div className="grid gap-4">
+            {items.map((item, i) => (
+              <div
+                key={i}
+                className={`border rounded-lg p-4 transition-colors ${
+                  item.imported
+                    ? "bg-green-50 border-green-200"
+                    : "bg-card border-card-border"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {/* Thumbnail: imagen o video */}
+                  <div className="w-full sm:w-48 shrink-0 relative">
+                    {item.coverImageUrl ? (
+                      <img
+                        src={item.coverImageUrl}
+                        alt=""
+                        className="w-full aspect-video object-cover rounded-md bg-muted"
+                        onError={e => ((e.target as HTMLElement).style.display = "none")}
+                      />
                     ) : (
-                      <span className="flex items-center gap-1.5 text-xs font-sans-ui font-medium text-green-700">
-                        <CheckCircle2 size={14} />
-                        ✓ Importado
-                      </span>
+                      <div className="w-full aspect-video bg-muted rounded-md flex items-center justify-center">
+                        <ImageIcon size={24} className="text-muted-foreground/40" />
+                      </div>
                     )}
+                    {item.coverVideoUrl && (
+                      <div className="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-sans-ui font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Video size={10} /> VIDEO
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contenido editable */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <input
+                      type="text"
+                      value={item.editedTitle ?? item.title}
+                      onChange={e => {
+                        const updated = [...items];
+                        updated[i] = { ...updated[i], editedTitle: e.target.value };
+                        setItems(updated);
+                      }}
+                      disabled={item.imported}
+                      className="w-full text-sm font-sans-ui font-semibold border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-60"
+                    />
+                    <textarea
+                      value={item.editedSummary ?? item.summary}
+                      onChange={e => {
+                        const updated = [...items];
+                        updated[i] = { ...updated[i], editedSummary: e.target.value };
+                        setItems(updated);
+                      }}
+                      disabled={item.imported}
+                      rows={2}
+                      className="w-full text-xs font-sans-ui border border-border rounded px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none disabled:opacity-60"
+                    />
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-sans-ui">
+                      <span>
+                        {format(new Date(item.publishedAt), "d MMM yyyy HH:mm", { locale: es })}
+                      </span>
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-blue-600 hover:underline"
+                      >
+                        <ExternalLink size={11} />
+                        Fuente
+                      </a>
+                    </div>
+
+                    {/* Botones */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {!item.imported ? (
+                        <>
+                          <button
+                            onClick={() => handleImport(i)}
+                            disabled={importingId === i}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-sans-ui font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+                          >
+                            {importingId === i ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                            Importar como borrador
+                          </button>
+                          <button
+                            onClick={() => handleDiscard(i)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans-ui font-medium rounded-md border border-border hover:bg-muted transition-colors"
+                          >
+                            <X size={12} />
+                            Descartar
+                          </button>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs font-sans-ui font-medium text-green-700">
+                          <CheckCircle2 size={14} />
+                          ✓ Importado
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

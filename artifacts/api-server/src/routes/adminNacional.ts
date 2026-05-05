@@ -14,6 +14,7 @@ interface ScrapedItem {
   summary: string;
   content: string;
   coverImageUrl: string | null;
+  coverVideoUrl: string | null;
   sourceUrl: string;
   publishedAt: string;
 }
@@ -23,7 +24,7 @@ interface RssItem {
   description?: string;
   link?: string;
   pubDate?: string;
-  enclosure?: { "@_url"?: string };
+  enclosure?: { "@_url"?: string; "@_type"?: string };
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -32,18 +33,85 @@ function stripHtml(html: string): string {
 }
 
 function cleanContent(html: string): string {
-  // Elimina scripts, estilos, iframes
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "")
-    .replace(/on\w+="[^"]*"/gi, "")
+    .replace(/on\w+=["'][^"']*["']/gi, "")
     .trim();
 }
 
+/**
+ * Extrae la primera imagen del HTML. Soporta:
+ * - src con comillas dobles o simples
+ * - URLs protocol-relative (//cdn...)
+ * - atributos data-src (lazy loading común en Telegram)
+ * - srcset (toma la primera entrada)
+ */
 function extractFirstImage(description: string): string | null {
-  const match = description.match(/<img[^>]+src="([^"]+)"/i);
-  return match?.[1] ?? null;
+  // Intentar <img src="..."> o <img src='...'>
+  let match = description.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (match?.[1]) {
+    const src = match[1];
+    if (src.startsWith("//")) return `https:${src}`;
+    if (src.startsWith("http")) return src;
+    return src;
+  }
+
+  // Intentar data-src (lazy loading)
+  match = description.match(/<img[^>]+data-src=["']([^"']+)["']/i);
+  if (match?.[1]) {
+    const src = match[1];
+    if (src.startsWith("//")) return `https:${src}`;
+    if (src.startsWith("http")) return src;
+    return src;
+  }
+
+  // Intentar srcset (tomar la primera URL)
+  match = description.match(/<img[^>]+srcset=["']([^"']+)["']/i);
+  if (match?.[1]) {
+    const first = match[1].split(/[\s,]+/)[0];
+    if (first) {
+      if (first.startsWith("//")) return `https:${first}`;
+      if (first.startsWith("http")) return first;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extrae la URL del primer video del HTML. Soporta:
+ * - <video><source src="..."></video>
+ * - <video src="...">
+ * - Enlaces de Telegram a videos
+ */
+function extractFirstVideo(description: string): string | null {
+  // <video src="...">
+  let match = description.match(/<video[^>]+src=["']([^"']+)["']/i);
+  if (match?.[1]) {
+    const src = match[1];
+    if (src.startsWith("//")) return `https:${src}`;
+    if (src.startsWith("http")) return src;
+  }
+
+  // <video><source src="...">
+  match = description.match(/<source[^>]+src=["']([^"']+)["']/i);
+  if (match?.[1]) {
+    const src = match[1];
+    if (src.startsWith("//")) return `https:${src}`;
+    if (src.startsWith("http")) return src;
+  }
+
+  // Enlaces de Telegram a videos (t.me/*?video)
+  match = description.match(/https?:\/\/t\.me\/[^\s"']+\?video/i);
+  if (match?.[0]) return match[0];
+
+  // Enlaces directos a mp4/mov/webm
+  match = description.match(/https?:\/\/[^\s"']+\.(mp4|mov|webm)(\?[^\s"']*)?/i);
+  if (match?.[0]) return match[0];
+
+  return null;
 }
 
 async function fetchRss(channelUsername: string): Promise<RssItem[]> {
@@ -55,7 +123,7 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
   for (const url of urls) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const res = await fetch(url, {
         signal: controller.signal,
         headers: {
@@ -75,7 +143,6 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
       });
       const parsed = parser.parse(xml);
 
-      // RSS 2.0: rss.channel.item[]
       const items =
         parsed?.rss?.channel?.item ??
         parsed?.feed?.entry ??
@@ -108,7 +175,8 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
       return;
     }
 
-    const scraped: ScrapedItem[] = items.slice(0, 10).map((item: RssItem) => {
+    // ── Extraer hasta 30 posts ──────────────────────────────────────────
+    const scraped: ScrapedItem[] = items.slice(0, 30).map((item: RssItem) => {
       const rawDescription = item.description ?? "";
       const content = cleanContent(rawDescription);
       const plainText = stripHtml(rawDescription);
@@ -118,11 +186,16 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
         plainText.slice(0, 80) + (plainText.length > 80 ? "…" : "") ||
         "Sin título";
 
-      const summary = plainText.slice(0, 200) + (plainText.length > 200 ? "…" : "");
+      const summary = plainText.slice(0, 250) + (plainText.length > 250 ? "…" : "");
 
       const coverImageUrl =
         extractFirstImage(rawDescription) ??
-        item.enclosure?.["@_url"] ??
+        (item.enclosure?.["@_type"]?.startsWith("image") ? item.enclosure?.["@_url"] ?? null : null) ??
+        null;
+
+      const coverVideoUrl =
+        extractFirstVideo(rawDescription) ??
+        (item.enclosure?.["@_type"]?.startsWith("video") ? item.enclosure?.["@_url"] ?? null : null) ??
         null;
 
       let publishedAt = "";
@@ -130,7 +203,6 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
         const d = new Date(item.pubDate);
         if (!isNaN(d.getTime())) publishedAt = d.toISOString();
       }
-
       if (!publishedAt) publishedAt = new Date().toISOString();
 
       return {
@@ -138,6 +210,7 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
         summary,
         content,
         coverImageUrl,
+        coverVideoUrl,
         sourceUrl: item.link ?? `https://t.me/s/${channelUsername}`,
         publishedAt,
       };
@@ -164,9 +237,19 @@ router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<voi
 
   const user = (req as any).user;
   const slug = makeSlug(item.title);
-  const readingTime = calcReadingTime(item.content || item.summary);
 
-  // Buscar categoría "nacional"
+  // ── Si hay video, embeberlo al inicio del contenido ───────────────────
+  let finalContent = item.content || item.summary || "";
+  if (item.coverVideoUrl) {
+    const videoHtml = `<video controls style="width:100%;max-height:500px;margin-bottom:1.5rem" preload="metadata">
+  <source src="${item.coverVideoUrl}" type="video/mp4" />
+  Tu navegador no soporta video HTML5.
+</video>`;
+    finalContent = videoHtml + "\n" + finalContent;
+  }
+
+  const readingTime = calcReadingTime(finalContent);
+
   const [nacionalCat] = await db
     .select({ id: categoriesTable.id })
     .from(categoriesTable)
@@ -183,7 +266,7 @@ router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<voi
       title: item.title,
       slug,
       summary: item.summary || "",
-      content: item.content || item.summary || "",
+      content: finalContent,
       categoryId: nacionalCat.id,
       authorId: user.userId,
       coverImageUrl: item.coverImageUrl ?? undefined,
