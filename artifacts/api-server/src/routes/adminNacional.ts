@@ -87,7 +87,7 @@ function extractFirstImage(description: string): string | null {
  * - Enlaces de Telegram a videos
  */
 function extractFirstVideo(description: string): string | null {
-  // <video src="...">
+  // <video src="..."> — prioridad máxima, es el video directo
   let match = description.match(/<video[^>]+src=["']([^"']+)["']/i);
   if (match?.[1]) {
     const src = match[1];
@@ -103,12 +103,12 @@ function extractFirstVideo(description: string): string | null {
     if (src.startsWith("http")) return src;
   }
 
-  // Enlaces de Telegram a videos (t.me/*?video)
-  match = description.match(/https?:\/\/t\.me\/[^\s"']+\?video/i);
+  // CDN de Telegram: cdn*.cdn-telegram.org o cdn4.telegram-cdn.org
+  match = description.match(/https?:\/\/[^\s"']*cdn[^\s"']*telegram[^\s"']*\.(mp4|mov|webm)(\?[^\s"']*)?/i);
   if (match?.[0]) return match[0];
 
-  // Enlaces directos a mp4/mov/webm
-  match = description.match(/https?:\/\/[^\s"']+\.(mp4|mov|webm)(\?[^\s"']*)?/i);
+  // Enlaces directos a mp4/mov/webm (que NO sean de t.me — esos son páginas, no archivos)
+  match = description.match(/https?:\/\/(?!t\.me\/)[^\s"']+\.(mp4|mov|webm)(\?[^\s"']*)?/i);
   if (match?.[0]) return match[0];
 
   return null;
@@ -334,10 +334,25 @@ router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<voi
   // ── Si hay video, embeberlo al inicio del contenido ───────────────────
   let finalContent = item.content || item.summary || "";
   if (item.coverVideoUrl) {
-    const videoHtml = `<video controls style="width:100%;max-height:500px;margin-bottom:1.5rem" preload="metadata">
-  <source src="${item.coverVideoUrl}" type="video/mp4" />
-  Tu navegador no soporta video HTML5.
-</video>`;
+    const videoUrl = item.coverVideoUrl;
+    const posterUrl = item.coverImageUrl ?? "";
+    const posterAttr = posterUrl ? ` poster="${posterUrl}"` : "";
+
+    // Detectar tipo MIME por extensión para el <source>
+    const isMov = videoUrl.includes(".mov");
+    const isWebm = videoUrl.includes(".webm");
+    const isMp4 = videoUrl.includes(".mp4") || (!isMov && !isWebm);
+    const mime = isMov ? "video/quicktime" : isWebm ? "video/webm" : "video/mp4";
+
+    const videoHtml = `<div style="margin-bottom:1.5rem" class="article-video-wrapper">
+  <video controls style="width:100%;max-height:500px;background:#000;border-radius:4px" preload="metadata" playsinline${posterAttr}>
+    <source src="${videoUrl}" type="${mime}" />
+    <p style="padding:16px;color:#999;font-family:sans-serif;font-size:14px;text-align:center">
+      El video no se pudo cargar directamente.<br/>
+      <a href="${videoUrl}" target="_blank" rel="noopener" style="color:#7A1F1F">▶ Ver video en Telegram →</a>
+    </p>
+  </video>
+</div>`;
     finalContent = videoHtml + "\n" + finalContent;
   }
 

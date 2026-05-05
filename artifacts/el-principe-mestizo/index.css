@@ -336,6 +336,15 @@
   width: 100%;
   height: auto;
 }
+.article-body .article-video-wrapper,
+.article-body video {
+  margin: 1.75rem 0;
+  width: 100%;
+  border-radius: 4px;
+}
+.article-body video::-webkit-media-controls-panel {
+  /* Mejor visibilidad de controles en mobile */
+}
 .article-body figure {
   margin: 2rem 0;
 }
