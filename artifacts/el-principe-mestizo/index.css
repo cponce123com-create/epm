@@ -179,7 +179,18 @@
   100% { transform: translateX(-50%); }
 }
 .epm-tick {
-  animation: epm-tick 60s linear infinite;
+  animation: epm-tick 35s linear infinite;
+}
+
+/* ─── Loading dots animados ─── */
+@keyframes loadingDots {
+  0%, 20% { opacity: 0.2; }
+  50% { opacity: 1; }
+  80%, 100% { opacity: 0.2; }
+}
+.loading-dots {
+  animation: loadingDots 1.4s ease-in-out infinite;
+  letter-spacing: 0.12em;
 }
 
 /* ─── Line clamp helpers ─── */

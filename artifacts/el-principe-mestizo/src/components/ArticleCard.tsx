@@ -70,14 +70,23 @@ export default function ArticleCard({
 
       {/* Imagen */}
       {article.coverImageUrl && !imgErr ? (
-        <Link href={`/articulo/${article.slug}`} className="news-card__img">
+        <Link href={`/articulo/${article.slug}`} className="news-card__img" style={{ position: "relative", overflow: "hidden" }}>
           <OptimizedImage
             src={article.coverImageUrl}
             alt={article.coverImageAlt ?? article.title}
             optimizeWidth={size === "lg" ? 960 : 600}
-            className="w-full object-cover"
+            className="w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
             style={{ aspectRatio: "16/9" }}
             onError={() => setImgErr(true)}
+          />
+          <div
+            className="absolute inset-0 transition-opacity duration-300 pointer-events-none"
+            style={{
+              background: "linear-gradient(to top, rgba(0,0,0,0.15), transparent 50%)",
+              opacity: 0,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "0")}
           />
         </Link>
       ) : !imgErr ? (

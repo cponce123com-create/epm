@@ -66,6 +66,13 @@ export async function seed() {
       { key: "footer_text", value: "Periodismo ciudadano, opinión y denuncia desde la selva central peruana." },
       { key: "footer_location", value: "San Ramón, Chanchamayo — Junín, Perú" },
       { key: "footer_show_sections", value: "true" },
+      { key: "ads_mode", value: "disabled" },
+      { key: "ad_slot_1_image", value: "" },
+      { key: "ad_slot_1_link", value: "" },
+      { key: "ad_slot_1_alt", value: "" },
+      { key: "ad_slot_2_image", value: "" },
+      { key: "ad_slot_2_link", value: "" },
+      { key: "ad_slot_2_alt", value: "" },
     ];
 
     for (const setting of EXTENDED_SETTINGS) {

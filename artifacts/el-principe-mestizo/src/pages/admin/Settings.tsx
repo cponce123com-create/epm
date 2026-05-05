@@ -45,6 +45,14 @@ interface FormState {
   adBanner3Url: string;
   adBanner3Link: string;
   adBanner3Alt: string;
+  // Publicidad directa
+  adsMode: string;
+  adSlot1Image: string;
+  adSlot1Link: string;
+  adSlot1Alt: string;
+  adSlot2Image: string;
+  adSlot2Link: string;
+  adSlot2Alt: string;
   // SEO
   metaKeywords: string;
   adsenseClient: string;
@@ -83,6 +91,13 @@ const KEY_MAP: Record<keyof FormState, string> = {
   adBanner3Url: "ad_banner_3_url",
   adBanner3Link: "ad_banner_3_link",
   adBanner3Alt: "ad_banner_3_alt",
+  adsMode: "ads_mode",
+  adSlot1Image: "ad_slot_1_image",
+  adSlot1Link: "ad_slot_1_link",
+  adSlot1Alt: "ad_slot_1_alt",
+  adSlot2Image: "ad_slot_2_image",
+  adSlot2Link: "ad_slot_2_link",
+  adSlot2Alt: "ad_slot_2_alt",
   metaKeywords: "meta_keywords",
   adsenseClient: "adsense_client",
 };
@@ -229,6 +244,8 @@ export default function Settings() {
     adBanner1Url: "", adBanner1Link: "", adBanner1Alt: "",
     adBanner2Url: "", adBanner2Link: "", adBanner2Alt: "",
     adBanner3Url: "", adBanner3Link: "", adBanner3Alt: "",
+    adsMode: "disabled", adSlot1Image: "", adSlot1Link: "", adSlot1Alt: "",
+    adSlot2Image: "", adSlot2Link: "", adSlot2Alt: "",
     metaKeywords: "", adsenseClient: "",
   };
 
@@ -271,6 +288,13 @@ export default function Settings() {
         adBanner3Url: s.adBanner3Url ?? "",
         adBanner3Link: s.adBanner3Link ?? "",
         adBanner3Alt: s.adBanner3Alt ?? "",
+        adsMode: s.adsMode ?? "disabled",
+        adSlot1Image: s.adSlot1Image ?? "",
+        adSlot1Link: s.adSlot1Link ?? "",
+        adSlot1Alt: s.adSlot1Alt ?? "",
+        adSlot2Image: s.adSlot2Image ?? "",
+        adSlot2Link: s.adSlot2Link ?? "",
+        adSlot2Alt: s.adSlot2Alt ?? "",
         metaKeywords: s.metaKeywords ?? "",
         adsenseClient: s.adsenseClient ?? "",
       }));
@@ -474,22 +498,118 @@ export default function Settings() {
               <div className="bg-card border border-card-border rounded-lg p-6 space-y-6">
                 <div>
                   <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2 mb-1">
-                    Banners publicitarios manuales
+                    Configuración de publicidad
                   </h2>
                   <p className="text-xs font-sans-ui text-muted-foreground">
-                    Sube imágenes de tus anunciantes y agrega el enlace a su negocio. Estos banners aparecen en la barra lateral del sitio.
+                    Elegí cómo querés monetizar el sitio.
                   </p>
                 </div>
-                <AdBannerCard num={1} urlKey="adBanner1Url" linkKey="adBanner1Link" altKey="adBanner1Alt" form={form} set={set} />
-                <AdBannerCard num={2} urlKey="adBanner2Url" linkKey="adBanner2Link" altKey="adBanner2Alt" form={form} set={set} />
-                <AdBannerCard num={3} urlKey="adBanner3Url" linkKey="adBanner3Link" altKey="adBanner3Alt" form={form} set={set} />
 
-                <div className="border-t border-border pt-5 space-y-3">
-                  <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">Google AdSense (opcional)</h3>
-                  {field("adsenseClient", "ID de cliente AdSense", {
-                    placeholder: "ca-pub-xxxxxxxxxxxxxxxxx",
-                    hint: "Si tienes cuenta de AdSense, ingresa tu ID para habilitar anuncios automáticos.",
-                  })}
+                {/* Select ads_mode */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                    Modo de publicidad
+                  </label>
+                  <select
+                    value={form.adsMode}
+                    onChange={e => set("adsMode")(e.target.value)}
+                    className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="disabled">Desactivada</option>
+                    <option value="adsense">Google AdSense</option>
+                    <option value="direct">Publicidad directa</option>
+                  </select>
+                </div>
+
+                {/* AdSense */}
+                {form.adsMode === "adsense" && (
+                  <div className="border-t border-border pt-5 space-y-3">
+                    <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                      Google AdSense
+                    </h3>
+                    {field("adsenseClient", "ID de cliente AdSense", {
+                      placeholder: "ca-pub-xxxxxxxxxxxxxxxxx",
+                      hint: "Ingresá tu ID de AdSense para habilitar anuncios automáticos.",
+                    })}
+                  </div>
+                )}
+
+                {/* Publicidad directa */}
+                {form.adsMode === "direct" && (
+                  <div className="border-t border-border pt-5 space-y-6">
+                    <div>
+                      <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Banner horizontal (leaderboard)
+                      </h3>
+                      <p className="text-xs font-sans-ui text-muted-foreground mt-1">
+                        Aparece en la portada y dentro de los artículos.
+                      </p>
+                    </div>
+                    <ImageUpload
+                      label="Imagen del banner"
+                      value={form.adSlot1Image}
+                      hint="Tamaño recomendado: 728×90 px"
+                      onChange={set("adSlot1Image")}
+                    />
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Enlace al hacer clic
+                      </label>
+                      <input
+                        type="url"
+                        value={form.adSlot1Link}
+                        onChange={e => set("adSlot1Link")(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    {field("adSlot1Alt", "Texto alternativo")}
+
+                    <div className="border-t border-border pt-5">
+                      <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Banner lateral (rectangle)
+                      </h3>
+                      <p className="text-xs font-sans-ui text-muted-foreground mt-1">
+                        Aparece en la barra lateral.
+                      </p>
+                    </div>
+                    <ImageUpload
+                      label="Imagen del banner"
+                      value={form.adSlot2Image}
+                      hint="Tamaño recomendado: 300×250 px"
+                      onChange={set("adSlot2Image")}
+                    />
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Enlace al hacer clic
+                      </label>
+                      <input
+                        type="url"
+                        value={form.adSlot2Link}
+                        onChange={e => set("adSlot2Link")(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    {field("adSlot2Alt", "Texto alternativo")}
+                  </div>
+                )}
+
+                {/* Separador visual */}
+                <div className="border-t border-border pt-5 mt-2">
+                  <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                    Banners manuales (sidebar, modo legacy)
+                  </h3>
+                  <p className="text-xs font-sans-ui text-muted-foreground mb-4">
+                    Estos banners siempre aparecen en la barra lateral, independientemente del modo elegido arriba.
+                  </p>
+                  <AdBannerCard num={1} urlKey="adBanner1Url" linkKey="adBanner1Link" altKey="adBanner1Alt" form={form} set={set} />
+                  <div className="mt-4">
+                    <AdBannerCard num={2} urlKey="adBanner2Url" linkKey="adBanner2Link" altKey="adBanner2Alt" form={form} set={set} />
+                  </div>
+                  <div className="mt-4">
+                    <AdBannerCard num={3} urlKey="adBanner3Url" linkKey="adBanner3Link" altKey="adBanner3Alt" form={form} set={set} />
+                  </div>
                 </div>
               </div>
             )}

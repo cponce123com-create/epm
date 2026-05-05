@@ -67,37 +67,71 @@ export default function Header() {
 
   const [exchangeRate, setExchangeRate] = useState<{ compra: string; venta: string } | null>(null);
   const [climaData, setClimaData] = useState<{ temp: string; emoji: string } | null>(null);
+  const [stripLoading, setStripLoading] = useState(true);
+
+  // Helper: fetch con retry y timeout
+  const fetchWithRetry = async (url: string, timeoutMs = 4000): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { signal: controller.signal });
+    } catch (err) {
+      // Retry una vez después de 3 segundos
+      await new Promise(r => setTimeout(r, 3000));
+      const retryController = new AbortController();
+      const retryTimer = setTimeout(() => retryController.abort(), timeoutMs);
+      try {
+        return await fetch(url, { signal: retryController.signal });
+      } finally {
+        clearTimeout(retryTimer);
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   useEffect(() => {
-    const fetchTC = async () => {
+    let cancelled = false;
+    const fetchData = async () => {
+      // Clima
       try {
-        const res = await fetch("/api/tipo-cambio");
-        if (!res.ok) throw new Error("backend error");
-        const data = await res.json();
-        if (data.compra && data.venta) {
-          setExchangeRate({ compra: data.compra, venta: data.venta });
+        const res = await fetchWithRetry("/api/clima");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (data.temp) setClimaData({ temp: data.temp, emoji: data.emoji });
         }
-      } catch (_) {
-        // Silencioso — si falla, no mostramos tipo de cambio
-      }
-    };
-    fetchTC();
-  }, []);
+      } catch (_) {}
 
-  useEffect(() => {
-    const fetchClima = async () => {
+      // Tipo de cambio — intenta nuestro backend primero
+      let tcData: { compra: string; venta: string } | null = null;
       try {
-        const res = await fetch("/api/clima");
-        if (!res.ok) throw new Error("backend error");
-        const data = await res.json();
-        if (data.temp) {
-          setClimaData({ temp: data.temp, emoji: data.emoji });
+        const res = await fetchWithRetry("/api/tipo-cambio");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.compra && data.venta) tcData = { compra: data.compra, venta: data.venta };
         }
-      } catch (_) {
-        // Silencioso — si falla, mostramos solo "Chanchamayo"
+      } catch (_) {}
+
+      // Fallback: exchangerate-api.com
+      if (!tcData) {
+        try {
+          const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+          if (res.ok) {
+            const data = await res.json() as { rates?: { PEN?: number } };
+            if (data.rates?.PEN) {
+              const pen = data.rates.PEN.toFixed(2);
+              tcData = { compra: pen, venta: pen };
+            }
+          }
+        } catch (_) {}
       }
+
+      if (!cancelled && tcData) setExchangeRate(tcData);
+      if (!cancelled) setStripLoading(false);
     };
-    fetchClima();
+
+    fetchData();
+    return () => { cancelled = true; };
   }, []);
 
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
@@ -134,8 +168,8 @@ export default function Header() {
   const closeDrop = () => { dropdownTimer.current = setTimeout(() => setOpenDropdown(null), 180); };
   const keepDrop  = (href: string) => { if (dropdownTimer.current) clearTimeout(dropdownTimer.current); setOpenDropdown(href); };
 
-  /* Ticker */
-  const tickerItems = latestArticles.length > 0
+  /* Ticker — solo si hay al menos 3 artículos */
+  const tickerItems = latestArticles.length >= 3
     ? [...latestArticles, ...latestArticles].map((a: any) => a.title)
     : [];
 
@@ -156,16 +190,22 @@ export default function Header() {
           <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
             {/* Clima */}
             <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-              {climaData
-                ? `${climaData.emoji} Chanchamayo ${climaData.temp}°C`
-                : "Chanchamayo"}
+              {stripLoading ? (
+                <span className="loading-dots">···</span>
+              ) : climaData ? (
+                `${climaData.emoji} Chanchamayo ${climaData.temp}°C`
+              ) : (
+                "Chanchamayo"
+              )}
             </span>
             {/* Tipo de cambio: compra y venta */}
-            {exchangeRate && (
+            {stripLoading ? (
+              <span className="epm-mono loading-dots" style={{ fontSize: 11, color: "rgba(244,240,231,0.35)", letterSpacing: "0.08em" }}>···</span>
+            ) : exchangeRate ? (
               <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.45)", letterSpacing: "0.06em" }}>
                 $ · C: S/{exchangeRate.compra} · V: S/{exchangeRate.venta}
               </span>
-            )}
+            ) : null}
             {/* EN VIVO */}
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7A1F1F", display: "inline-block", animation: "blink 1.5s ease-in-out infinite" }} />

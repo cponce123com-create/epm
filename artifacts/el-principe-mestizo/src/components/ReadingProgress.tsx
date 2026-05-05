@@ -19,7 +19,11 @@ export default function ReadingProgress() {
   return (
     <div
       className="reading-progress"
-      style={{ width: `${progress}%` }}
+      style={{
+        width: `${progress}%`,
+        background: "linear-gradient(90deg, #7A1F1F, #a83232)",
+        boxShadow: "0 0 8px rgba(122,31,31,0.5)",
+      }}
       aria-hidden="true"
     />
   );

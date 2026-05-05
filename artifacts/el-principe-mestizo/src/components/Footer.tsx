@@ -171,8 +171,13 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Separador decorativo */}
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: 24 }}>
+          <div style={{ width: 40, height: 2, background: GRANATE }} />
+        </div>
+
         {/* Copyright + frase */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: 24, gap: 10 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: 16, gap: 10 }}>
           <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.38)", letterSpacing: "0.06em" }}>
             {footerCopyright}
           </span>

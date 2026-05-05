@@ -51,6 +51,14 @@ const SETTING_KEYS = [
   "ad_banner_3_alt",
   // Publicidad AdSense
   "adsense_client",
+  // Publicidad directa
+  "ads_mode",
+  "ad_slot_1_image",
+  "ad_slot_1_link",
+  "ad_slot_1_alt",
+  "ad_slot_2_image",
+  "ad_slot_2_link",
+  "ad_slot_2_alt",
 ] as const;
 
 async function getAllSettings() {
@@ -103,6 +111,14 @@ async function getAllSettings() {
     adBanner3Alt:       map["ad_banner_3_alt"]      ?? "",
     // AdSense
     adsenseClient:      map["adsense_client"]       ?? "",
+    // Publicidad directa
+    adsMode:            map["ads_mode"]             ?? "disabled",
+    adSlot1Image:       map["ad_slot_1_image"]      ?? "",
+    adSlot1Link:        map["ad_slot_1_link"]       ?? "",
+    adSlot1Alt:         map["ad_slot_1_alt"]        ?? "",
+    adSlot2Image:       map["ad_slot_2_image"]      ?? "",
+    adSlot2Link:        map["ad_slot_2_link"]       ?? "",
+    adSlot2Alt:         map["ad_slot_2_alt"]        ?? "",
   };
 }
 
