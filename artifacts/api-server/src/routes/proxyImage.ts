@@ -2,12 +2,37 @@ import { Router } from "express";
 
 const router = Router();
 
-const MEDIUM_HOST_RE =
-  /(^|\.)medium\.com$|(^|\.)miro\.medium\.com$|(^|\.)cdn-images-\d+\.medium\.com$/i;
+// Dominios permitidos en el proxy de imágenes
+const ALLOWED_IMAGE_HOSTS = new Set([
+  "medium.com",
+  "miro.medium.com",
+  "images.unsplash.com",
+  "plus.unsplash.com",
+  "substackcdn.com",
+  "substack-post-media.s3.amazonaws.com",
+  "i.imgur.com",
+  "pbs.twimg.com",
+  "imagekit.io",
+  "storage.googleapis.com",
+  "lh3.googleusercontent.com",
+  "lh4.googleusercontent.com",
+  "lh5.googleusercontent.com",
+  "lh6.googleusercontent.com",
+  "blogger.googleusercontent.com",
+  "upload.wikimedia.org",
+  "images.squarespace-cdn.com",
+]);
 
-function isMediumUrl(url: string): boolean {
+const MEDIUM_CDN_RE = /^cdn-images-\d+\.medium\.com$/i;
+
+function isAllowedImageHost(url: string): boolean {
   try {
-    return MEDIUM_HOST_RE.test(new URL(url).hostname);
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (ALLOWED_IMAGE_HOSTS.has(hostname)) return true;
+    if (MEDIUM_CDN_RE.test(hostname)) return true;
+    if (hostname.endsWith(".medium.com")) return true;
+    if (hostname.endsWith(".substack.com")) return true;
+    return false;
   } catch {
     return false;
   }
@@ -31,8 +56,8 @@ function sleep(ms: number) {
 router.get("/proxy-image", async (req, res): Promise<void> => {
   const raw = String(req.query["url"] ?? "");
 
-  if (!raw || !isMediumUrl(raw)) {
-    res.status(400).json({ error: "Only Medium CDN URLs are supported." });
+  if (!raw || !isAllowedImageHost(raw)) {
+    res.status(400).json({ error: "URL de imagen no permitida." });
     return;
   }
 

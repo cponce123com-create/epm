@@ -116,8 +116,9 @@ export default function MediumImport() {
         return;
       }
 
-      const data = await res.json() as { articles: ArticleParsed[] };
+      const data = await res.json() as { articles: ArticleParsed[]; zipImages?: Record<string, string> };
       articles = data.articles;
+      setZipImages(data.zipImages ?? {});
 
       if (!articles || articles.length === 0) {
         setError("No se encontraron artículos en el ZIP.");
@@ -155,6 +156,7 @@ export default function MediumImport() {
             defaultStatus,
             autoCategorize,
             migrateImages,
+            zipImages,
           }),
         });
 
@@ -186,6 +188,7 @@ export default function MediumImport() {
     toast({ description: `Importación completada: ${imp} artículos importados.` });
   };
 
+  const [zipImages, setZipImages]       = useState<Record<string, string>>({});
   const [fixingImages, setFixingImages] = useState(false);
   const [fixResult, setFixResult]       = useState<string | null>(null);
 
