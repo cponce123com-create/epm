@@ -229,7 +229,8 @@ if (process.env["NODE_ENV"] === "production") {
   }));
 
   // SPA fallback: cualquier ruta no capturada por /api ni /articulo devuelve index.html
-  app.get("*", (_req: Request, res: Response) => {
+  // Express 5 + path-to-regexp v8 no soportan "*" sin nombre — usamos middleware sin path
+  app.use((_req: Request, res: Response) => {
     res.sendFile(path.join(FRONTEND_DIST, "index.html"));
   });
 }
