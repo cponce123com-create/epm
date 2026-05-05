@@ -28,12 +28,25 @@ app.use(
 );
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.FRONTEND_URL
-  ? [process.env.FRONTEND_URL]
+// CORS_ORIGINS: orígenes permitidos separados por coma (ej: "https://a.com,https://b.com")
+// Si no está definido, se permite cualquier origen (modo desarrollo).
+const corsOriginsRaw = process.env.CORS_ORIGINS;
+const allowedOrigins: string[] | boolean = corsOriginsRaw
+  ? corsOriginsRaw.split(",").map(s => s.trim()).filter(Boolean)
   : true; // dev: allow all origins
 
 const corsOptions: cors.CorsOptions = {
-  origin: allowedOrigins,
+  origin: allowedOrigins === true
+    ? true
+    : (origin, callback) => {
+        // Permitir requests sin origin (server-to-server, Postman, etc.)
+        if (!origin) return callback(null, true);
+        if ((allowedOrigins as string[]).includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+      },
   credentials: true,
   allowedHeaders: [
     "Content-Type",

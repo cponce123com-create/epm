@@ -29,9 +29,12 @@ services:
         value: admin@elprincinemestizo.com
       - key: ADMIN_PASSWORD
         value: CHANGE_ME_BEFORE_DEPLOY
-      # URL pública del frontend — usada por el middleware SSR Open Graph
+      # URL canónica del frontend — usada por el middleware SSR Open Graph
       - key: FRONTEND_URL
         value: "https://elprincipemestizo.eu.cc"
+      # Orígenes CORS permitidos (separados por coma)
+      - key: CORS_ORIGINS
+        value: "https://elprincipemestizo.eu.cc,https://epm-1.onrender.com"
       # Cloudinary — completar con tus credenciales reales en el dashboard de Render
       - key: CLOUDINARY_CLOUD_NAME
         value: ""
