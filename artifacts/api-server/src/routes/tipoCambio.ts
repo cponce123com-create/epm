@@ -8,7 +8,7 @@ const router = Router();
  * Se hace desde el servidor para evitar problemas de CORS en el frontend.
  * Devuelve: { compra: "3.44", venta: "3.58", fuente: "BN" }
  */
-router.get("/api/tipo-cambio", async (_req, res): Promise<void> => {
+router.get("/tipo-cambio", async (_req, res): Promise<void> => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);

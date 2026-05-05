@@ -120,7 +120,7 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
       .where(and(eq(articlesTable.slug, slug), eq(articlesTable.status, "published")));
 
     const settings     = await getOgSettings();
-    const frontendUrl  = settings.siteUrl || FALLBACK_URL;
+    const frontendUrl  = (settings.siteUrl || FALLBACK_URL).replace(/\/+$/, "");
     const canonicalUrl = `${frontendUrl}/articulo/${slug}`;
 
     if (!article) {

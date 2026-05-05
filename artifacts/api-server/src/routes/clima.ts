@@ -8,7 +8,7 @@ const router = Router();
  * API gratuita, sin clave, coordenadas: lat=-11.12, lon=-75.34.
  * Devuelve: { temp: "24", emoji: "☀️", fuente: "open-meteo" }
  */
-router.get("/api/clima", async (_req, res): Promise<void> => {
+router.get("/clima", async (_req, res): Promise<void> => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
