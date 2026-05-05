@@ -52,18 +52,18 @@ services:
       # URL directa al backend — el frontend la usa para uploads grandes (FormData)
       # para evitar limitaciones del proxy CDN de Render en sitios estáticos.
       - key: VITE_API_URL
-        value: "https://epm-api.onrender.com"
+        value: "https://epm-7gaq.onrender.com"
     routes:
       # Las rutas /api/* van al backend
       - type: rewrite
         source: /api/*
-        destination: https://epm-api.onrender.com/api/*
+        destination: https://epm-7gaq.onrender.com/api/*
       # Las rutas /articulo/* van al backend para que sirva los meta OG
       # Los bots de Facebook/WhatsApp/Twitter obtendrán el HTML con og:tags
       # Los navegadores normales recibirán el meta-refresh al frontend real
       - type: rewrite
         source: /articulo/*
-        destination: https://epm-api.onrender.com/articulo/*
+        destination: https://epm-7gaq.onrender.com/articulo/*
       # Todo lo demás carga la SPA
       - type: rewrite
         source: /*
