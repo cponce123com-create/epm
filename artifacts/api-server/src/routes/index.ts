@@ -13,6 +13,7 @@ import adminImportRouter from "./adminImport";
 import adminMigrateImagesRouter from "./adminMigrateImages";
 import proxyImageRouter from "./proxyImage";
 import tipoCambioRouter from "./tipoCambio";
+import climaRouter from "./clima";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(adminImportRouter);
 router.use(adminMigrateImagesRouter);
 router.use(proxyImageRouter);
 router.use(tipoCambioRouter);
+router.use(climaRouter);
 
 export default router;

@@ -65,22 +65,39 @@ export default function Header() {
   const [logoErr, setLogoErr] = useState(false);
   useEffect(() => { setLogoErr(false); }, [logoUrl]);
 
-  const [exchangeRate, setExchangeRate] = useState<string>("");
+  const [exchangeRate, setExchangeRate] = useState<{ compra: string; venta: string } | null>(null);
+  const [climaData, setClimaData] = useState<{ temp: string; emoji: string } | null>(null);
+
   useEffect(() => {
     const fetchTC = async () => {
       try {
-        // Llamamos a nuestro propio backend — sin problemas de CORS
         const res = await fetch("/api/tipo-cambio");
         if (!res.ok) throw new Error("backend error");
         const data = await res.json();
-        if (data.venta) {
-          setExchangeRate(`USD/PEN · ${data.venta}`);
+        if (data.compra && data.venta) {
+          setExchangeRate({ compra: data.compra, venta: data.venta });
         }
       } catch (_) {
-        // Si el backend falla también, dejamos el campo vacío silenciosamente
+        // Silencioso — si falla, no mostramos tipo de cambio
       }
     };
     fetchTC();
+  }, []);
+
+  useEffect(() => {
+    const fetchClima = async () => {
+      try {
+        const res = await fetch("/api/clima");
+        if (!res.ok) throw new Error("backend error");
+        const data = await res.json();
+        if (data.temp) {
+          setClimaData({ temp: data.temp, emoji: data.emoji });
+        }
+      } catch (_) {
+        // Silencioso — si falla, mostramos solo "Chanchamayo"
+      }
+    };
+    fetchClima();
   }, []);
 
   const latestArticles: any[] = (latestData as any)?.articles ?? [];
@@ -88,9 +105,6 @@ export default function Header() {
   /* ── Datos del strip superior ── */
   const today = format(new Date(), "EEEE · d 'de' MMMM 'de' yyyy", { locale: es }).toUpperCase();
   const edicion = s?.edicionNumero ? `· EDICIÓN Nº ${s.edicionNumero} · AÑO ${s.anoNumero ?? "I"}` : "· PERIODISMO CIUDADANO";
-  const clima   = "Chanchamayo";
-  const tipo    = s?.climaTipo    || "";
-  const tipoCambio = s?.tipoCambio || "";
 
   /* ── Nav ── */
   const navLinks = [
@@ -138,14 +152,21 @@ export default function Header() {
             <span className="hidden sm:inline">{today} {edicion}</span>
             <span className="sm:hidden">{format(new Date(), "EEE d MMM yyyy", { locale: es }).toUpperCase()}</span>
           </span>
-          {/* Derecha: clima + tipo de cambio · EN VIVO siempre */}
+          {/* Derecha: clima · tipo de cambio · EN VIVO */}
           <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            {/* Clima */}
             <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.55)", letterSpacing: "0.08em" }}>
-              {clima}
-              {(exchangeRate || tipoCambio) && (
-                <span> · {exchangeRate || tipoCambio}</span>
-              )}
+              {climaData
+                ? `${climaData.emoji} Chanchamayo ${climaData.temp}°C`
+                : "Chanchamayo"}
             </span>
+            {/* Tipo de cambio: compra y venta */}
+            {exchangeRate && (
+              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.45)", letterSpacing: "0.06em" }}>
+                $ · C: S/{exchangeRate.compra} · V: S/{exchangeRate.venta}
+              </span>
+            )}
+            {/* EN VIVO */}
             <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7A1F1F", display: "inline-block", animation: "blink 1.5s ease-in-out infinite" }} />
               EN VIVO
