@@ -214,38 +214,31 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
 
 // ── Frontend estático (solo en producción) ───────────────────────────────────
 // En producción Express sirve el build de Vite directamente.
-// En desarrollo el proxy de Vite maneja las rutas del frontend.
 if (process.env["NODE_ENV"] === "production") {
   const __dirnameApp = path.dirname(fileURLToPath(import.meta.url));
-  // Desde artifacts/api-server/dist/ subimos dos niveles y bajamos al build de Vite
   const FRONTEND_DIST = path.resolve(
     __dirnameApp,
     "..", "..", "el-principe-mestizo", "dist", "public",
   );
 
   const indexHtml = path.join(FRONTEND_DIST, "index.html");
+  const hasFrontend = fs.existsSync(indexHtml);
 
-  if (fs.existsSync(indexHtml)) {
-    logger.info({ frontendDist: FRONTEND_DIST }, "Serving frontend static files");
-  } else {
-    logger.warn({ frontendDist: FRONTEND_DIST }, "Frontend build not found — run the Vite build first");
-  }
+  logger.info({ frontendDist: FRONTEND_DIST, hasFrontend }, "Frontend check");
 
-  app.use(express.static(FRONTEND_DIST, {
-    maxAge: "1y",
-    etag: true,
-    index: false,
-    fallthrough: true,
-  }));
+  if (hasFrontend) {
+    // Servir archivos estáticos (JS, CSS, imágenes con hash → cache 1 año)
+    app.use(express.static(FRONTEND_DIST, {
+      maxAge: "1y",
+      etag: true,
+      index: false,
+    }));
 
-  // SPA fallback: cualquier ruta no capturada por /api ni /articulo devuelve index.html
-  app.use((_req: Request, res: Response, next: NextFunction) => {
-    if (fs.existsSync(indexHtml)) {
+    // SPA fallback: cualquier ruta no-API devuelve index.html (wouter maneja el routing)
+    app.use((_req: Request, res: Response) => {
       res.sendFile(indexHtml);
-    } else {
-      next();
-    }
-  });
+    });
+  }
 }
 
 // ── Manejador global de errores ───────────────────────────────────────────────
