@@ -114,48 +114,141 @@ function extractFirstVideo(description: string): string | null {
   return null;
 }
 
+/**
+ * Parsea la vista web pública de Telegram (t.me/s/username).
+ * Extrae mensajes del HTML usando regex sobre los bloques de mensaje.
+ * Esto es un fallback porque Telegram no tiene API pública.
+ */
+function parseTgWebView(html: string, channelUsername: string): RssItem[] {
+  const items: RssItem[] = [];
+
+  // Cada mensaje en t.me/s/ está dentro de un div con clase "tgme_widget_message_wrap"
+  // Buscamos bloques de mensaje como texto + posibles imágenes/videos
+  const msgBlockRegex = /<div class="tgme_widget_message_wrap[^"]*"[\s\S]*?<div class="tgme_widget_message_footer/g;
+  const blocks = html.match(msgBlockRegex);
+  if (!blocks) return items;
+
+  for (const block of blocks.slice(0, 30)) {
+    // Extraer texto del mensaje
+    const textMatch = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    const description = textMatch?.[1] ?? "";
+
+    if (!description || description.length < 10) continue;
+
+    // Extraer fecha
+    const timeMatch = block.match(/<time[^>]+datetime="([^"]+)"/);
+    const pubDate = timeMatch?.[1] ?? undefined;
+
+    // Extraer imágenes del mensaje
+    const imgMatch = block.match(/<a class="tgme_widget_message_photo_wrap[^"]*"[^>]*style="[^"]*background-image:url\('([^']+)'\)/);
+    const imgSrc = imgMatch?.[1] ?? null;
+
+    // Extraer link al mensaje individual
+    const linkMatch = block.match(/<a class="tgme_widget_message_date"[^>]+href="([^"]+)"/);
+    const link = linkMatch?.[1]
+      ? `https://t.me${linkMatch[1]}`
+      : `https://t.me/s/${channelUsername}`;
+
+    // Título: primeras 80 chars del texto limpio
+    const plainText = description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const title = plainText.slice(0, 80) + (plainText.length > 80 ? "…" : "");
+
+    items.push({
+      title,
+      description,
+      link,
+      pubDate,
+    });
+  }
+
+  return items;
+}
+
+function parseRssXml(xml: string): RssItem[] {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    textNodeName: "#text",
+  });
+  const parsed = parser.parse(xml);
+
+  // Intentar formato RSS 2.0
+  let items = parsed?.rss?.channel?.item;
+  if (items) {
+    return Array.isArray(items) ? items : [items];
+  }
+
+  // Intentar formato Atom
+  items = parsed?.feed?.entry;
+  if (items) {
+    return Array.isArray(items) ? items : [items];
+  }
+
+  return [];
+}
+
 async function fetchRss(channelUsername: string): Promise<RssItem[]> {
-  const urls = [
-    `https://rsshub.app/telegram/channel/${channelUsername}`,
-    `https://tg.i-c-a.su/rss/${channelUsername}`,
+  const allItems: RssItem[] = [];
+  const seenLinks = new Set<string>();
+
+  const sources = [
+    // rsshub.app — soporta ?limit=N
+    {
+      url: `https://rsshub.app/telegram/channel/${channelUsername}?limit=30`,
+      label: "rsshub",
+    },
+    // tg.i-c-a.su — mirror alternativo
+    {
+      url: `https://tg.i-c-a.su/rss/${channelUsername}`,
+      label: "tg.i-c-a.su",
+    },
+    // Fallback: scraping directo de t.me/s/
+    {
+      url: `https://t.me/s/${channelUsername}`,
+      label: "t.me/s",
+    },
   ];
 
-  for (const url of urls) {
+  for (const src of sources) {
+    if (allItems.length >= 30) break;
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch(url, {
+      const res = await fetch(src.url, {
         signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; EPM-Bot/1.0)",
-          Accept: "application/rss+xml, application/xml, text/xml, */*",
+          Accept: "text/html,application/rss+xml,application/xml,text/xml,*/*",
         },
       });
       clearTimeout(timeout);
 
       if (!res.ok) continue;
 
-      const xml = await res.text();
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: "@_",
-        textNodeName: "#text",
-      });
-      const parsed = parser.parse(xml);
+      const body = await res.text();
+      let items: RssItem[] = [];
 
-      const items =
-        parsed?.rss?.channel?.item ??
-        parsed?.feed?.entry ??
-        [];
+      if (src.label === "t.me/s") {
+        // HTML scraping de t.me/s/
+        items = parseTgWebView(body, channelUsername);
+      } else {
+        items = parseRssXml(body);
+      }
 
-      const arr = Array.isArray(items) ? items : [items];
-      if (arr.length > 0) return arr;
+      // Deducplicar por link
+      for (const item of items) {
+        const link = item.link ?? "";
+        if (!link || seenLinks.has(link)) continue;
+        seenLinks.add(link);
+        allItems.push(item);
+        if (allItems.length >= 30) break;
+      }
     } catch {
-      // Intentar siguiente URL
+      // Intentar siguiente fuente
     }
   }
 
-  return [];
+  return allItems;
 }
 
 // ── POST /admin/nacional/scrape ─────────────────────────────────────────────
