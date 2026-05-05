@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -222,16 +223,28 @@ if (process.env["NODE_ENV"] === "production") {
     "..", "..", "el-principe-mestizo", "dist", "public",
   );
 
+  const indexHtml = path.join(FRONTEND_DIST, "index.html");
+
+  if (fs.existsSync(indexHtml)) {
+    logger.info({ frontendDist: FRONTEND_DIST }, "Serving frontend static files");
+  } else {
+    logger.warn({ frontendDist: FRONTEND_DIST }, "Frontend build not found — run the Vite build first");
+  }
+
   app.use(express.static(FRONTEND_DIST, {
     maxAge: "1y",
     etag: true,
     index: false,
+    fallthrough: true,
   }));
 
   // SPA fallback: cualquier ruta no capturada por /api ni /articulo devuelve index.html
-  // Express 5 + path-to-regexp v8 no soportan "*" sin nombre — usamos middleware sin path
-  app.use((_req: Request, res: Response) => {
-    res.sendFile(path.join(FRONTEND_DIST, "index.html"));
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    if (fs.existsSync(indexHtml)) {
+      res.sendFile(indexHtml);
+    } else {
+      next();
+    }
   });
 }
 
