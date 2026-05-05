@@ -623,6 +623,8 @@ components:
           type: string
         categoryId:
           type: integer
+        secondaryCategoryId:
+          type: ["integer", "null"]
         authorId:
           type: integer
         status:
@@ -642,6 +644,17 @@ components:
           type: string
         category:
           $ref: "#/components/schemas/Category"
+        secondaryCategory:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: string
+            color:
+              type: string
         authorName:
           type: string
       required:
@@ -695,7 +708,7 @@ components:
         authorName:
           type: string
         authorEmail:
-          type: string
+          type: ["string", "null"]
         content:
           type: string
         approved:
@@ -706,7 +719,6 @@ components:
         - id
         - articleId
         - authorName
-        - authorEmail
         - content
         - approved
         - createdAt

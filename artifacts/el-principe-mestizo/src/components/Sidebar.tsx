@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useGetMostRead, useGetCategories, useGetPublicSettings, useGetArticles } from "@workspace/api-client-react";
+import AdSlot from "@/components/AdSlot";
 
 function SidebarSkeleton() {
   return (
@@ -275,9 +276,13 @@ export default function Sidebar() {
       </div>
 
       {/* Banner 3 */}
-      {s?.adBanner3Url && (
+      {s?.adBanner3Url ? (
         <div className="sidebar-block" style={{ borderTop: "none", paddingTop: 0 }}>
           <AdBanner url={s.adBanner3Url} link={s.adBanner3Link} alt={s.adBanner3Alt} />
+        </div>
+      ) : (
+        <div className="sidebar-block">
+          <AdSlot format="rectangle" />
         </div>
       )}
 

@@ -8,6 +8,8 @@ import ArticleCard from "@/components/ArticleCard";
 import ArticleCardFeatured from "@/components/ArticleCardFeatured";
 import Sidebar from "@/components/Sidebar";
 import OptimizedImage from "@/components/OptimizedImage";
+import AdSlot from "@/components/AdSlot";
+import BackToTop from "@/components/BackToTop";
 import { useGetFeaturedArticles, useGetArticles, useGetCategories } from "@workspace/api-client-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -261,7 +263,7 @@ export default function Home() {
 
         {/* ══ PUBLICIDAD ══════════════════════════════════════════ */}
         <div className="mb-8">
-          <div className="ad-slot ad-slot--leaderboard" />
+          <AdSlot format="leaderboard" />
         </div>
 
         {/* ══ GRID PRINCIPAL: artículos + sidebar ══════════════════ */}
@@ -343,6 +345,7 @@ export default function Home() {
         </div>
       </main>
 
+      <BackToTop />
       <Footer />
     </div>
   );

@@ -7,7 +7,7 @@ export const commentsTable = pgTable("comments", {
   id: serial("id").primaryKey(),
   articleId: integer("article_id").notNull().references(() => articlesTable.id, { onDelete: "cascade" }),
   authorName: varchar("author_name", { length: 255 }).notNull(),
-  authorEmail: varchar("author_email", { length: 255 }).notNull(),
+  authorEmail: varchar("author_email", { length: 255 }),
   content: text("content").notNull(),
   approved: boolean("approved").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

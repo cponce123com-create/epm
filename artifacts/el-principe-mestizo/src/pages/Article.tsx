@@ -11,6 +11,8 @@ import ReadingProgress from "@/components/ReadingProgress";
 import ShareButtons from "@/components/ShareButtons";
 import CommentSection from "@/components/CommentSection";
 import ArticleCard from "@/components/ArticleCard";
+import BackToTop from "@/components/BackToTop";
+import AdSlot from "@/components/AdSlot";
 import { useGetArticleBySlug, useGetRelatedArticles, useGetPublicSettings } from "@workspace/api-client-react";
 import OptimizedImage from "@/components/OptimizedImage";
 import { normalizeMaybeProtocolRelativeUrl } from "@/lib/image";
@@ -602,7 +604,7 @@ export default function Article() {
 
             {/* Publicidad inline */}
             <div className="mb-5">
-              <div className="ad-slot ad-slot--banner" />
+              <AdSlot format="horizontal" />
             </div>
 
             {/* Imagen de portada */}
@@ -639,7 +641,7 @@ export default function Article() {
 
             {/* Publicidad final */}
             <div className="mt-8 mb-8">
-              <div className="ad-slot ad-slot--leaderboard" />
+              <AdSlot format="leaderboard" />
             </div>
 
             {/* Compartir */}
@@ -670,6 +672,7 @@ export default function Article() {
         </div>
       </article>
 
+      <BackToTop />
       <Footer />
     </div>
   );

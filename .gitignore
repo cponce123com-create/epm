@@ -55,5 +55,9 @@ artifacts/*.d.ts
 uploads/
 .env
 artifacts/api-server/.env
-.env
-artifacts/api-server/.env
+artifacts/api-server/.env.save
+artifacts/api-server/.env.save.*
+
+# AI tool state
+.deepseek/
+.claude/

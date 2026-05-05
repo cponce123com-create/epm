@@ -8,7 +8,7 @@ const router = Router();
  * Se hace desde el servidor para evitar problemas de CORS en el frontend.
  * Devuelve: { compra: "3.44", venta: "3.58", fuente: "BN" }
  */
-router.get("/api/tipo-cambio", async (_req, res) => {
+router.get("/api/tipo-cambio", async (_req, res): Promise<void> => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
@@ -54,13 +54,14 @@ router.get("/api/tipo-cambio", async (_req, res) => {
       const fallback = await fetch(
         "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
       );
-      const data = await fallback.json();
+      const data = await fallback.json() as { usd?: { pen?: number } };
       const pen = data?.usd?.pen;
 
       if (pen) {
         const venta = Number(pen).toFixed(2);
         res.set("Cache-Control", "public, max-age=1800");
-        return res.json({ compra: venta, venta, fuente: "fawazahmed0" });
+        res.json({ compra: venta, venta, fuente: "fawazahmed0" });
+        return;
       }
     } catch (_) {
       // fallback también falló

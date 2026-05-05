@@ -24,7 +24,7 @@ router.get("/admin/users", requireAuth, requireSuperAdmin, async (_req, res): Pr
 
 // Cambiar el rol de un usuario (Solo Superadmin)
 router.patch("/admin/users/:id/role", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   const { role } = req.body as { role: "superadmin" | "admin" | "author" };
 
   if (!["superadmin", "admin", "author"].includes(role)) {
@@ -41,7 +41,7 @@ router.patch("/admin/users/:id/role", requireAuth, requireSuperAdmin, async (req
 
 // Eliminar un usuario (Solo Superadmin)
 router.delete("/admin/users/:id", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   const user = (req as any).user;
 
   if (id === user.userId) {
