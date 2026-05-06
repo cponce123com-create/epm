@@ -32,9 +32,9 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ADMIN_EMAIL
-        value: admin@elprincinemestizo.com
+        value: elprincipemestizosr@gmail.com
       - key: ADMIN_PASSWORD
-        value: CHANGE_ME_BEFORE_DEPLOY
+        value: Hadrones456%
       # Con frontend y backend unidos, el origen es el mismo servidor
       - key: FRONTEND_URL
         value: "https://elprincipemestizo.eu.cc"
