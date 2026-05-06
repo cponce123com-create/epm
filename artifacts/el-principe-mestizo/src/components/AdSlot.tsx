@@ -50,6 +50,18 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
   const adsMode = s?.adsMode ?? "disabled";
   const adsenseClient = s?.adsenseClient ?? "";
 
+  // Hook de AdSense — debe estar en el nivel superior (NO dentro de if)
+  const isAdsense = adsMode === "adsense" && !!adsenseClient;
+  useEffect(() => {
+    if (!isAdsense || pushed.current) return;
+    pushed.current = true;
+    try {
+      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    } catch {
+      // AdSense puede fallar si está bloqueado
+    }
+  }, [isAdsense]);
+
   // ── Modo direct ──────────────────────────────────────────────────────────
   if (adsMode === "direct") {
     const isHorizontal = format === "horizontal" || format === "leaderboard";
@@ -79,15 +91,7 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
   }
 
   // ── Modo adsense ─────────────────────────────────────────────────────────
-  if (adsMode === "adsense" && adsenseClient) {
-    useEffect(() => {
-      if (pushed.current) return;
-      pushed.current = true;
-      try {
-        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-      } catch {}
-    }, []);
-
+  if (isAdsense) {
     return (
       <div ref={adRef} className={`ad-slot ${className}`} data-format={format}>
         <ins
