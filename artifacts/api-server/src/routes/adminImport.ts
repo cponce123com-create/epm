@@ -111,6 +111,28 @@ function toProxyUrl(imageUrl: string): string {
   return `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
 }
 
+/** Restaura imágenes marcadas como data-zip-image que no se encontraron en el ZIP */
+function restoreOrphanedZipImages(content: string): string {
+  const $ = cheerio.load(content);
+  let changed = false;
+  $("img[data-zip-image]").each((_, el) => {
+    const img = $(el);
+    // Si tiene src vacío pero tiene data-original-src, restaurar
+    const src = img.attr("src")?.trim();
+    if (!src) {
+      const original = img.attr("data-original-src");
+      if (original) {
+        const restored = isMediumUrl(original) ? toProxyUrl(original) : original;
+        img.attr("src", restored);
+        img.removeAttr("data-original-src");
+        img.removeAttr("data-zip-image");
+        changed = true;
+      }
+    }
+  });
+  return changed ? ($.html() ?? content) : content;
+}
+
 /** Sube un Buffer de imagen a Cloudinary usando upload_stream */
 async function uploadImageBufferToCloudinary(buffer: Buffer, fileName: string): Promise<string | null> {
   if (!ensureCloudinaryConfigured()) return null;
@@ -160,6 +182,13 @@ async function processLocalZipImages(
     const imageBuffer = zipImageBuffers.get(fileName);
 
     if (!imageBuffer) {
+      // No se encontró en el ZIP — restaurar URL original si existe
+      const originalSrc = imgEl.attr("data-original-src");
+      if (originalSrc) {
+        const restoredSrc = isMediumUrl(originalSrc) ? toProxyUrl(originalSrc) : originalSrc;
+        imgEl.attr("src", restoredSrc);
+        imgEl.removeAttr("data-original-src");
+      }
       imgEl.removeAttr("data-zip-image");
       continue;
     }
@@ -216,9 +245,14 @@ function normalizeMediumImageAttributes($: cheerio.CheerioAPI) {
     const normalized = candidate.startsWith("//") ? `https:${candidate}` : candidate.trim();
 
     // Fix 1: detectar rutas relativas a la carpeta images/ del ZIP
-    const localMatch = normalized.match(/(?:\.\.\/|\.\/)?images\/([^"'\s?]+)/i);
+    // Solo captura si la URL COMIENZA con ../images/, ./images/, o images/
+    const localMatch = normalized.match(/^(?:\.\.\/|\.\/)?images\/([^"'\s?]+)/i);
     if (localMatch) {
       const fileName = localMatch[1];
+      // Guardar la URL original en data-original-src para poder recuperarla si no se encuentra en el ZIP
+      if (!img.attr("data-original-src")) {
+        img.attr("data-original-src", normalized);
+      }
       img.attr("data-zip-image", fileName);
       img.attr("src", ""); // vacío hasta que se suba en /batch
       img.removeAttr("data-src");
@@ -464,6 +498,8 @@ router.post(
         if (zipImageBuffers.size > 0) {
           processedContent = await processLocalZipImages(processedContent, zipImageBuffers);
         }
+        // Restaurar cualquier imagen huérfana que no se encontró en el ZIP
+        processedContent = restoreOrphanedZipImages(processedContent);
 
         // Migrar imágenes de Medium a Cloudinary si se solicitó
         if (migrateImages) {
@@ -602,7 +638,10 @@ router.post(
         const html = entry.getData().toString("utf8");
         const parsed = parseMediumHtml(html);
         const slug = makeSlug(parsed.title);
-        const content = migrateImages ? await migrateMediumImagesToCloudinary(parsed.content) : parsed.content;
+        let content = parsed.content;
+        // Restaurar imágenes huérfanas del ZIP si las hay
+        content = restoreOrphanedZipImages(content);
+        if (migrateImages) content = await migrateMediumImagesToCloudinary(content);
         const readingTime = calcReadingTime(content);
         const finalStatus = forceStatus ?? parsed.status;
         const publishedAt = finalStatus === "published"
