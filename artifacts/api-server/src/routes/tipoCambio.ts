@@ -4,72 +4,72 @@ const router = Router();
 
 /**
  * GET /api/tipo-cambio
- * Obtiene el tipo de cambio USD/PEN desde el Banco de la Nación del Perú.
- * Se hace desde el servidor para evitar problemas de CORS en el frontend.
- * Devuelve: { compra: "3.44", venta: "3.58", fuente: "BN" }
+ * Obtiene el tipo de cambio USD/PEN desde el archivo oficial de la SUNAT.
+ * Formato: fecha|compra|venta (ej: 2025-05-06|3.745|3.755)
+ * Fuente: https://www.sunat.gob.pe/a/txt/tipoCambio.txt
  */
 router.get("/tipo-cambio", async (_req, res): Promise<void> => {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     const response = await fetch(
-      "https://bancaporinternet.bn.com.pe/TCWeb/?KeepThis=true&TB_iframe=true&height=500&width=860",
+      "https://www.sunat.gob.pe/a/txt/tipoCambio.txt",
       {
         signal: controller.signal,
         headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; EPM-Bot/1.0; +https://elprincipemestizo.eu.cc)",
-          Accept: "text/html,application/xhtml+xml",
+          "User-Agent": "Mozilla/5.0 (compatible; EPM-Bot/1.0)",
+          Accept: "text/plain,*/*",
         },
       }
     );
     clearTimeout(timeout);
 
     if (!response.ok) {
-      throw new Error(`BN responded with status ${response.status}`);
+      throw new Error(`SUNAT responded with status ${response.status}`);
     }
 
-    const html = await response.text();
-
-    // El HTML tiene: Dolar | (S/) 3.4400 | (S/) 3.5800
-    // Buscamos los valores con regex sobre el texto del HTML
-    const dollarMatch = html.match(
-      /Dolar[\s\S]*?\(S\/\)\s*([\d.]+)[\s\S]*?\(S\/\)\s*([\d.]+)/i
-    );
-
-    if (!dollarMatch) {
-      throw new Error("No se encontró el tipo de cambio en la respuesta del BN");
+    const text = await response.text();
+    // Formato: fecha|compra|venta — tomamos la última línea no vacía
+    const lines = text.trim().split("\n").filter(l => l.includes("|"));
+    if (lines.length === 0) {
+      throw new Error("Formato SUNAT no reconocido");
     }
 
-    const compra = parseFloat(dollarMatch[1]).toFixed(2);
-    const venta  = parseFloat(dollarMatch[2]).toFixed(2);
+    const lastLine = lines[lines.length - 1].trim();
+    const parts = lastLine.split("|");
+    if (parts.length < 3) {
+      throw new Error("Formato SUNAT inesperado: " + lastLine);
+    }
 
-    // Cache de 30 minutos (el BN actualiza una vez al día)
-    res.set("Cache-Control", "public, max-age=1800");
-    res.json({ compra, venta, fuente: "BN" });
-  } catch (err: any) {
-    // Si falla el BN, intentamos la API libre de fawazahmed0
+    const compra = parseFloat(parts[1]).toFixed(3);
+    const venta  = parseFloat(parts[2]).toFixed(3);
+
+    // Cache de 2 horas (SUNAT actualiza una vez al día hábil)
+    res.set("Cache-Control", "public, max-age=7200");
+    res.json({ compra, venta, fuente: "SUNAT" });
+  } catch (err: unknown) {
+    // Fallback: exchangerate-api.com
     try {
       const fallback = await fetch(
-        "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
+        "https://api.exchangerate-api.com/v4/latest/USD",
+        { signal: AbortSignal.timeout(5000) }
       );
-      const data = await fallback.json() as { usd?: { pen?: number } };
-      const pen = data?.usd?.pen;
-
+      const data = await fallback.json() as { rates?: { PEN?: number } };
+      const pen = data?.rates?.PEN;
       if (pen) {
-        const venta = Number(pen).toFixed(2);
-        res.set("Cache-Control", "public, max-age=1800");
-        res.json({ compra: venta, venta, fuente: "fawazahmed0" });
+        const venta = Number(pen).toFixed(3);
+        res.set("Cache-Control", "public, max-age=3600");
+        res.json({ compra: venta, venta, fuente: "exchangerate-api" });
         return;
       }
-    } catch (_) {
-      // fallback también falló
+    } catch {
+      // Ambos fallaron
     }
 
     res.status(502).json({
       error: "No se pudo obtener el tipo de cambio",
-      detail: err?.message ?? "unknown",
+      detail: err instanceof Error ? err.message : "unknown",
     });
   }
 });

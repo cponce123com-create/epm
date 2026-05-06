@@ -119,7 +119,7 @@ export default function Header() {
           if (res.ok) {
             const data = await res.json() as { rates?: { PEN?: number } };
             if (data.rates?.PEN) {
-              const pen = data.rates.PEN.toFixed(2);
+              const pen = data.rates.PEN.toFixed(3);
               tcData = { compra: pen, venta: pen };
             }
           }
@@ -183,8 +183,8 @@ export default function Header() {
         <div className="max-w-7xl mx-auto" style={{ padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           {/* Izquierda: fecha completa (sm+) / abreviada (móvil) */}
           <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.65)", letterSpacing: "0.1em" }}>
-            <span className="hidden sm:inline">{today} {edicion}</span>
-            <span className="sm:hidden">{format(new Date(), "EEE d MMM yyyy", { locale: es }).toUpperCase()}</span>
+            <span className="hidden sm:inline strip-date-full">{today} {edicion}</span>
+            <span className="sm:hidden strip-date-short">{format(new Date(), "EEE d MMM yyyy", { locale: es }).toUpperCase()}</span>
           </span>
           {/* Derecha: clima · tipo de cambio · EN VIVO */}
           <span style={{ display: "flex", gap: 14, alignItems: "center" }}>
@@ -200,14 +200,14 @@ export default function Header() {
             </span>
             {/* Tipo de cambio: compra y venta */}
             {stripLoading ? (
-              <span className="epm-mono loading-dots" style={{ fontSize: 11, color: "rgba(244,240,231,0.35)", letterSpacing: "0.08em" }}>···</span>
+              <span className="epm-mono loading-dots strip-tc" style={{ fontSize: 11, color: "rgba(244,240,231,0.35)", letterSpacing: "0.08em" }}>···</span>
             ) : exchangeRate ? (
-              <span className="epm-mono" style={{ fontSize: 11, color: "rgba(244,240,231,0.45)", letterSpacing: "0.06em" }}>
+              <span className="epm-mono strip-tc" style={{ fontSize: 11, color: "rgba(244,240,231,0.45)", letterSpacing: "0.06em" }}>
                 $ · C: S/{exchangeRate.compra} · V: S/{exchangeRate.venta}
               </span>
             ) : null}
             {/* EN VIVO */}
-            <span className="epm-mono" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
+            <span className="epm-mono strip-live" style={{ fontSize: 11, color: "#7A1F1F", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.12em" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7A1F1F", display: "inline-block", animation: "blink 1.5s ease-in-out infinite" }} />
               EN VIVO
             </span>
@@ -416,6 +416,7 @@ export default function Header() {
         <nav style={{ padding: "8px 0" }}>
           {navLinks.map(link => (
             <Link key={link.href} href={link.href}
+              className="epm-mobile-nav-link"
               style={{
                 display: "block", padding: "12px 20px",
                 fontFamily: "var(--app-font-sans)", fontSize: 14, fontWeight: 500,

@@ -468,6 +468,7 @@
 
 /* ─── Mejoras mobile ─── */
 @media (max-width: 640px) {
+  /* ── Tipografía ── */
   .article-body {
     font-size: 1.05rem;
     line-height: 1.8;
@@ -477,11 +478,101 @@
   }
   .article-body h2 {
     font-size: 1.4rem;
+    margin-top: 2rem;
+  }
+  .article-body h3 {
+    font-size: 1.15rem;
   }
   .article-body blockquote {
     padding: 0.4rem 0 0.4rem 1rem;
     font-size: 1.08em;
+    margin: 1.5rem 0;
   }
+  .article-body img,
+  .article-body video,
+  .article-body .article-video-wrapper {
+    margin: 1.25rem 0;
+  }
+
+  /* ── Header ── */
+  /* Masthead más compacto */
+  .epm-masthead {
+    padding-top: 4px;
+  }
+  /* Crests más chicos en móvil */
+  .epm-masthead .crest-mobile {
+    display: inline-block !important;
+  }
+
+  /* ── Strip superior ── */
+  /* En móviles muy chicos, ocultar tipo de cambio para que no se corte */
+  .strip-tc {
+    display: none;
+  }
+  @media (min-width: 380px) {
+    .strip-tc {
+      display: inline;
+    }
+  }
+
+  /* ── Footer ── */
+  footer .grid {
+    gap: 24px;
+  }
+
+  /* ── Article cards ── */
+  .news-card__title {
+    font-size: 1rem !important;
+  }
+  .news-card__summary {
+    font-size: 0.82rem;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar-block {
+    padding: 16px 0;
+  }
+
+  /* ── Navegación móvil ── */
+  .epm-mobile-nav-link {
+    min-height: 44px; /* touch target iOS */
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Home hero ── */
+  .hero-panel-article {
+    padding: 14px 16px !important;
+  }
+
+  /* ── Botones ── */
+  .btn-touch {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* ── Paginación ── */
+  .pagination-btn {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+}
+
+/* ── Pantallas extra pequeñas (< 380px) ── */
+@media (max-width: 379px) {
+  .article-body {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+  .article-body > p:first-of-type::first-letter {
+    font-size: 3.2em;
+  }
+  /* Ocultar fecha larga, mostrar solo corta */
+  .strip-date-full { display: none; }
+  .strip-date-short { display: inline; }
+
+  /* Ocultar "EN VIVO" */
+  .strip-live { display: none; }
 }
 
 /* ─── Scrollbar personalizado (Chromium) ─── */
