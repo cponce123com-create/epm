@@ -59,6 +59,9 @@ const SETTING_KEYS = [
   "ad_slot_2_image",
   "ad_slot_2_link",
   "ad_slot_2_alt",
+  // Publicidad por código HTML/JS
+  "ad_code_1",
+  "ad_code_2",
 ] as const;
 
 async function getAllSettings() {
@@ -119,6 +122,9 @@ async function getAllSettings() {
     adSlot2Image:       map["ad_slot_2_image"]      ?? "",
     adSlot2Link:        map["ad_slot_2_link"]       ?? "",
     adSlot2Alt:         map["ad_slot_2_alt"]        ?? "",
+    // Código HTML/JS
+    adCode1:            map["ad_code_1"]            ?? "",
+    adCode2:            map["ad_code_2"]            ?? "",
   };
 }
 

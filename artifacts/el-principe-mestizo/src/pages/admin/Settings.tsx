@@ -53,6 +53,9 @@ interface FormState {
   adSlot2Image: string;
   adSlot2Link: string;
   adSlot2Alt: string;
+  // Publicidad por código HTML/JS
+  adCode1: string;
+  adCode2: string;
   // SEO
   metaKeywords: string;
   adsenseClient: string;
@@ -98,6 +101,8 @@ const KEY_MAP: Record<keyof FormState, string> = {
   adSlot2Image: "ad_slot_2_image",
   adSlot2Link: "ad_slot_2_link",
   adSlot2Alt: "ad_slot_2_alt",
+  adCode1: "ad_code_1",
+  adCode2: "ad_code_2",
   metaKeywords: "meta_keywords",
   adsenseClient: "adsense_client",
 };
@@ -246,6 +251,7 @@ export default function Settings() {
     adBanner3Url: "", adBanner3Link: "", adBanner3Alt: "",
     adsMode: "disabled", adSlot1Image: "", adSlot1Link: "", adSlot1Alt: "",
     adSlot2Image: "", adSlot2Link: "", adSlot2Alt: "",
+    adCode1: "", adCode2: "",
     metaKeywords: "", adsenseClient: "",
   };
 
@@ -295,6 +301,8 @@ export default function Settings() {
         adSlot2Image: s.adSlot2Image ?? "",
         adSlot2Link: s.adSlot2Link ?? "",
         adSlot2Alt: s.adSlot2Alt ?? "",
+        adCode1: s.adCode1 ?? "",
+        adCode2: s.adCode2 ?? "",
         metaKeywords: s.metaKeywords ?? "",
         adsenseClient: s.adsenseClient ?? "",
       }));
@@ -526,7 +534,8 @@ export default function Settings() {
                   >
                     <option value="disabled">Desactivada</option>
                     <option value="adsense">Google AdSense</option>
-                    <option value="direct">Publicidad directa</option>
+                    <option value="direct">Publicidad directa (banners)</option>
+                    <option value="code">Código HTML/JS externo</option>
                   </select>
                 </div>
 
@@ -601,6 +610,43 @@ export default function Settings() {
                       />
                     </div>
                     {field("adSlot2Alt", "Texto alternativo")}
+                  </div>
+                )}
+
+                {/* Código HTML/JS externo */}
+                {form.adsMode === "code" && (
+                  <div className="border-t border-border pt-5 space-y-5">
+                    <div>
+                      <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Código HTML/JS — Banner horizontal / leaderboard
+                      </h3>
+                      <p className="text-xs font-sans-ui text-muted-foreground mt-1">
+                        Pegá el código de tu red publicitaria (ej: PropellerAds, Adsterra, etc). Se muestra en portada y artículos.
+                      </p>
+                    </div>
+                    <textarea
+                      value={form.adCode1}
+                      onChange={e => set("adCode1")(e.target.value)}
+                      rows={6}
+                      placeholder='<script src="https://..." async></script>'
+                      className="w-full px-3 py-2 text-xs font-mono border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+                    />
+
+                    <div className="border-t border-border pt-5">
+                      <h3 className="text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        Código HTML/JS — Banner lateral / rectangle
+                      </h3>
+                      <p className="text-xs font-sans-ui text-muted-foreground mt-1">
+                        Se muestra en la barra lateral.
+                      </p>
+                    </div>
+                    <textarea
+                      value={form.adCode2}
+                      onChange={e => set("adCode2")(e.target.value)}
+                      rows={6}
+                      placeholder='<script src="https://..." async></script>'
+                      className="w-full px-3 py-2 text-xs font-mono border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+                    />
                   </div>
                 )}
 

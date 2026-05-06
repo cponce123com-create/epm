@@ -50,6 +50,9 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
   const adsMode = s?.adsMode ?? "disabled";
   const adsenseClient = s?.adsenseClient ?? "";
 
+  const isHorizontal = format === "horizontal" || format === "leaderboard";
+  const adCode = isHorizontal ? (s?.adCode1 ?? "") : (s?.adCode2 ?? "");
+
   // Hook de AdSense — debe estar en el nivel superior (NO dentro de if)
   const isAdsense = adsMode === "adsense" && !!adsenseClient;
   useEffect(() => {
@@ -62,9 +65,37 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
     }
   }, [isAdsense]);
 
+  // Hook de código HTML/JS — inyecta scripts correctamente
+  useEffect(() => {
+    if (adsMode !== "code" || !adCode || !adRef.current) return;
+    // Limpiar contenido previo
+    adRef.current.innerHTML = "";
+    // Insertar el HTML
+    adRef.current.innerHTML = adCode;
+    // Re-crear scripts para que se ejecuten
+    const scripts = adRef.current.querySelectorAll("script");
+    scripts.forEach(oldScript => {
+      const newScript = document.createElement("script");
+      // Copiar atributos
+      Array.from(oldScript.attributes).forEach(attr => {
+        newScript.setAttribute(attr.name, attr.value);
+      });
+      // Copiar contenido inline
+      newScript.textContent = oldScript.textContent;
+      // Reemplazar
+      oldScript.parentNode?.replaceChild(newScript, oldScript);
+    });
+  }, [adsMode, adCode]);
+
+  // ── Modo code (HTML/JS) ──────────────────────────────────────────────────
+  if (adsMode === "code" && adCode) {
+    return (
+      <div ref={adRef} className={className} />
+    );
+  }
+
   // ── Modo direct ──────────────────────────────────────────────────────────
   if (adsMode === "direct") {
-    const isHorizontal = format === "horizontal" || format === "leaderboard";
     const image = isHorizontal ? (s?.adSlot1Image ?? "") : (s?.adSlot2Image ?? "");
     const link  = isHorizontal ? (s?.adSlot1Link ?? "") : (s?.adSlot2Link ?? "");
     const alt   = isHorizontal ? (s?.adSlot1Alt ?? "Publicidad") : (s?.adSlot2Alt ?? "Publicidad");

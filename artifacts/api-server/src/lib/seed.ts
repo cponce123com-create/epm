@@ -80,6 +80,8 @@ export async function seed() {
       { key: "ad_slot_2_image", value: "" },
       { key: "ad_slot_2_link", value: "" },
       { key: "ad_slot_2_alt", value: "" },
+      { key: "ad_code_1", value: "" },
+      { key: "ad_code_2", value: "" },
     ];
 
     for (const setting of EXTENDED_SETTINGS) {
