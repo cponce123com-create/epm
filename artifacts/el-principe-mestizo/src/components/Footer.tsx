@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Facebook, Twitter, Youtube, Instagram } from "lucide-react";
 import { useGetPublicSettings } from "@workspace/api-client-react";
+import SubscribeButton from "@/components/SubscribeButton";
 
 function Crest({ size = 36, color = "#7A1F1F" }: { size?: number; color?: string }) {
   return (
@@ -156,18 +157,24 @@ export default function Footer() {
           {/* Publicidad / Apoyo */}
           <div>
             <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, color: "rgba(244,240,231,0.4)" }}>
-              Apóyanos
+              Suscríbete
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 14 }}>
-              ¿Tienes un negocio en Chanchamayo? Anúnciate aquí y llega a tu comunidad.
+              Recibí las noticias en tu correo. Sin spam, solo periodismo.
             </p>
-            {contactEmail && (
-              <a href={`mailto:${contactEmail}`}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "var(--app-font-mono)", color: GRANATE, textDecoration: "none", letterSpacing: "0.1em", transition: "opacity 0.15s" }}
-                className="hover:opacity-75">
-                Contáctanos →
-              </a>
-            )}
+            <SubscribeButton />
+            <div style={{ marginTop: 18 }}>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 8 }}>
+                ¿Tienes un negocio en Chanchamayo? Anúnciate aquí.
+              </p>
+              {contactEmail && (
+                <a href={`mailto:${contactEmail}`}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "var(--app-font-mono)", color: GRANATE, textDecoration: "none", letterSpacing: "0.1em", transition: "opacity 0.15s" }}
+                  className="hover:opacity-75">
+                  Contáctanos →
+                </a>
+              )}
+            </div>
           </div>
         </div>
 

@@ -76,6 +76,14 @@ async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS subscribers (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL DEFAULT '',
+      google_id TEXT UNIQUE,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      subscribed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
   // Ensure secondary_category_id exists on already-deployed databases
   await db.execute(sql`

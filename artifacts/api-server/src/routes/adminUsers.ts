@@ -1,10 +1,48 @@
 import { Router, type IRouter } from "express";
+import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { eq, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 
 const router: IRouter = Router();
+
+// Crear un nuevo usuario (Solo Superadmin)
+router.post("/admin/users", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
+  const { email, password, displayName, role } = req.body as {
+    email?: string;
+    password?: string;
+    displayName?: string;
+    role?: string;
+  };
+
+  if (!email || !password) {
+    res.status(400).json({ error: "Email y contraseña son requeridos." });
+    return;
+  }
+
+  const validRoles = ["superadmin", "admin", "author"];
+  const finalRole = validRoles.includes(role ?? "") ? role! : "author";
+
+  const existing = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+  if (existing.length > 0) {
+    res.status(409).json({ error: "Ya existe un usuario con ese email." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const [user] = await db.insert(usersTable).values({
+    email,
+    passwordHash,
+    displayName: displayName || email.split("@")[0],
+    role: finalRole as "superadmin" | "admin" | "author",
+  }).returning({ id: usersTable.id, email: usersTable.email, role: usersTable.role });
+
+  res.status(201).json(user);
+});
 
 // Listar todos los usuarios (Solo Superadmin)
 router.get("/admin/users", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
