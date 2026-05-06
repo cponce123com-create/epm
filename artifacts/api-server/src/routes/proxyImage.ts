@@ -110,6 +110,28 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     }
   }
 
+  // Fallback: usar un proxy de imágenes público como intermediario
+  // Render free tier IPs son bloqueadas por Cloudflare (Medium CDN)
+  try {
+    const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&default=-`;
+    const weservResponse = await fetch(weservUrl, {
+      headers: { "User-Agent": randomUA() },
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (weservResponse.ok) {
+      const contentType = weservResponse.headers.get("content-type") ?? "image/jpeg";
+      const buffer = Buffer.from(await weservResponse.arrayBuffer());
+      res.set("Content-Type", contentType);
+      res.set("Cache-Control", "public, max-age=604800");
+      res.set("X-Content-Type-Options", "nosniff");
+      res.send(buffer);
+      return;
+    }
+  } catch {
+    // El fallback también falló
+  }
+
   res.status(502).end();
 });
 
