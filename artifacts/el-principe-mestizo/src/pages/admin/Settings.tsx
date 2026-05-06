@@ -307,21 +307,30 @@ export default function Settings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      for (const [formKey, apiKey] of Object.entries(KEY_MAP)) {
-        const value = form[formKey as keyof FormState];
-        if (value !== undefined) {
-          await update.mutateAsync({ data: { key: apiKey, value } });
+    let errors = 0;
+    for (const [formKey, apiKey] of Object.entries(KEY_MAP)) {
+      const value = form[formKey as keyof FormState];
+      if (value === undefined) continue;
+      try {
+        await update.mutateAsync({ data: { key: apiKey, value } });
+      } catch (err: any) {
+        errors++;
+        // Si es error 403, es problema de permisos (requiere superadmin)
+        if (err?.status === 403 || err?.message?.includes("403")) {
+          toast({ description: "⚠️ No tienes permisos de superadmin. Solo el superadmin puede cambiar la configuración.", variant: "destructive" });
+          setSaving(false);
+          return;
         }
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/settings/public"] });
-      toast({ description: "✅ Configuración guardada correctamente." });
-    } catch {
-      toast({ description: "Error al guardar la configuración.", variant: "destructive" });
-    } finally {
-      setSaving(false);
     }
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/settings/public"] });
+    if (errors === 0) {
+      toast({ description: "✅ Configuración guardada correctamente." });
+    } else {
+      toast({ description: `⚠️ Guardado parcial — ${errors} campo(s) no se pudieron guardar.`, variant: "destructive" });
+    }
+    setSaving(false);
   };
 
   const field = (key: keyof FormState, label: string, opts?: { placeholder?: string; hint?: string; type?: string }) => (
