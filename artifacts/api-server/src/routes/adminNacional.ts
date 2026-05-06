@@ -363,15 +363,41 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
 
       const summary = plainText.slice(0, 250) + (plainText.length > 250 ? "…" : "");
 
-      const coverImageUrl =
-        extractFirstImage(rawDescription) ??
-        (item.enclosure?.["@_type"]?.startsWith("image") ? item.enclosure?.["@_url"] ?? null : null) ??
-        null;
+      // Extraer imagen de portada: buscar en description, enclosure (RSS), y links (Atom)
+      let coverImageUrl: string | null = extractFirstImage(rawDescription) ?? null;
 
-      const coverVideoUrl =
-        extractFirstVideo(rawDescription) ??
-        (item.enclosure?.["@_type"]?.startsWith("video") ? item.enclosure?.["@_url"] ?? null : null) ??
-        null;
+      // RSS enclosure: <enclosure url="..." type="image/...">
+      if (!coverImageUrl && item.enclosure?.["@_type"]?.startsWith?.("image")) {
+        coverImageUrl = item.enclosure?.["@_url"] ?? null;
+      }
+
+      // Atom link enclosure: <link rel="enclosure" type="image/..." href="...">
+      if (!coverImageUrl && Array.isArray((item as any).link)) {
+        for (const link of (item as any).link) {
+          if (link?.["@_rel"] === "enclosure" && String(link?.["@_type"] ?? "").startsWith("image")) {
+            coverImageUrl = link?.["@_href"] ?? link?.["@_url"] ?? null;
+            if (coverImageUrl) break;
+          }
+        }
+      }
+
+      // Extraer video: buscar en description, enclosure (RSS), y links (Atom)
+      let coverVideoUrl: string | null = extractFirstVideo(rawDescription) ?? null;
+
+      // RSS enclosure: <enclosure url="..." type="video/...">
+      if (!coverVideoUrl && item.enclosure?.["@_type"]?.startsWith?.("video")) {
+        coverVideoUrl = item.enclosure?.["@_url"] ?? null;
+      }
+
+      // Atom link enclosure: <link rel="enclosure" type="video/..." href="...">
+      if (!coverVideoUrl && Array.isArray((item as any).link)) {
+        for (const link of (item as any).link) {
+          if (link?.["@_rel"] === "enclosure" && String(link?.["@_type"] ?? "").startsWith("video")) {
+            coverVideoUrl = link?.["@_href"] ?? link?.["@_url"] ?? null;
+            if (coverVideoUrl) break;
+          }
+        }
+      }
 
       let publishedAt = "";
       if (item.pubDate) {
