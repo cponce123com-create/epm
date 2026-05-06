@@ -41,120 +41,210 @@ function cleanContent(html: string): string {
     .trim();
 }
 
+/** Normaliza una URL de imagen/video encontrada en cualquier formato */
+function normalizeUrl(raw: string): string {
+  if (!raw) return "";
+  let url = raw.trim();
+  // Protocolo relativo → https
+  if (url.startsWith("//")) return `https:${url}`;
+  // Quitar barras y espacios del final
+  url = url.replace(/[\\'"]+$/g, "").trim();
+  if (url.startsWith("http")) return url;
+  return url;
+}
+
+/** Determina el tipo MIME por extensión */
+function guessMime(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes(".mov")) return "video/quicktime";
+  if (lower.includes(".webm")) return "video/webm";
+  if (lower.includes(".mp4")) return "video/mp4";
+  if (lower.includes(".png")) return "image/png";
+  if (lower.includes(".gif")) return "image/gif";
+  if (lower.includes(".webp")) return "image/webp";
+  return "image/jpeg";
+}
+
 /**
- * Extrae la primera imagen del HTML. Soporta:
- * - src con comillas dobles o simples
- * - URLs protocol-relative (//cdn...)
- * - atributos data-src (lazy loading común en Telegram)
- * - srcset (toma la primera entrada)
+ * Extrae TODAS las imágenes detectables en un string HTML.
+ * Busca: <img src>, <img data-src>, background-image:url(...), srcset, y enlaces directos a imágenes.
  */
-function extractFirstImage(description: string): string | null {
-  // Intentar <img src="..."> o <img src='...'>
-  let match = description.match(/<img[^>]+src=["']([^"']+)["']/i);
-  if (match?.[1]) {
-    const src = match[1];
-    if (src.startsWith("//")) return `https:${src}`;
-    if (src.startsWith("http")) return src;
-    return src;
+function extractAllImages(description: string): string[] {
+  const found = new Set<string>();
+
+  // 1) <img src="..."> y <img src='...'>
+  for (const m of description.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)) {
+    const url = normalizeUrl(m[1]);
+    if (url) found.add(url);
   }
 
-  // Intentar data-src (lazy loading)
-  match = description.match(/<img[^>]+data-src=["']([^"']+)["']/i);
-  if (match?.[1]) {
-    const src = match[1];
-    if (src.startsWith("//")) return `https:${src}`;
-    if (src.startsWith("http")) return src;
-    return src;
+  // 2) <img data-src="...">
+  for (const m of description.matchAll(/<img[^>]+data-src=["']([^"']+)["']/gi)) {
+    const url = normalizeUrl(m[1]);
+    if (url) found.add(url);
   }
 
-  // Intentar srcset (tomar la primera URL)
-  match = description.match(/<img[^>]+srcset=["']([^"']+)["']/i);
-  if (match?.[1]) {
-    const first = match[1].split(/[\s,]+/)[0];
-    if (first) {
-      if (first.startsWith("//")) return `https:${first}`;
-      if (first.startsWith("http")) return first;
+  // 3) srcset — tomar todas las URLs
+  const srcsetMatch = description.match(/<img[^>]+srcset=["']([^"']+)["']/i);
+  if (srcsetMatch?.[1]) {
+    for (const part of srcsetMatch[1].split(/,/)) {
+      const url = normalizeUrl(part.trim().split(/\s+/)[0]);
+      if (url) found.add(url);
     }
   }
 
-  return null;
+  // 4) CSS background-image:url('...') o url("...") — t.me/s/ usa esto
+  for (const m of description.matchAll(/background-image:\s*url\(["']?([^"')]+)["']?\)/gi)) {
+    const url = normalizeUrl(m[1]);
+    if (url) found.add(url);
+  }
+
+  // 5) Enlaces directos a archivos de imagen (comunes en RSS de Telegram)
+  for (const m of description.matchAll(/https?:\/\/[^\s"'<>]+\.(jpe?g|png|gif|webp)(\?[^\s"'<>]*)?/gi)) {
+    found.add(m[0]);
+  }
+
+  return Array.from(found);
 }
 
 /**
- * Extrae la URL del primer video del HTML. Soporta:
- * - <video><source src="..."></video>
- * - <video src="...">
- * - Enlaces de Telegram a videos
+ * Extrae TODAS las URLs de video detectables.
+ * Busca: <video src>, <source src>, enlaces a mp4/mov/webm, y CDN de Telegram.
  */
-function extractFirstVideo(description: string): string | null {
-  // <video src="..."> — prioridad máxima, es el video directo
-  let match = description.match(/<video[^>]+src=["']([^"']+)["']/i);
-  if (match?.[1]) {
-    const src = match[1];
-    if (src.startsWith("//")) return `https:${src}`;
-    if (src.startsWith("http")) return src;
+function extractAllVideos(description: string): string[] {
+  const found = new Set<string>();
+
+  // 1) <video src="...">
+  for (const m of description.matchAll(/<video[^>]+src=["']([^"']+)["']/gi)) {
+    const url = normalizeUrl(m[1]);
+    if (url) found.add(url);
   }
 
-  // <video><source src="...">
-  match = description.match(/<source[^>]+src=["']([^"']+)["']/i);
-  if (match?.[1]) {
-    const src = match[1];
-    if (src.startsWith("//")) return `https:${src}`;
-    if (src.startsWith("http")) return src;
+  // 2) <source src="...">
+  for (const m of description.matchAll(/<source[^>]+src=["']([^"']+)["']/gi)) {
+    const url = normalizeUrl(m[1]);
+    if (url) found.add(url);
   }
 
-  // CDN de Telegram: cdn*.cdn-telegram.org o cdn4.telegram-cdn.org
-  match = description.match(/https?:\/\/[^\s"']*cdn[^\s"']*telegram[^\s"']*\.(mp4|mov|webm)(\?[^\s"']*)?/i);
-  if (match?.[0]) return match[0];
+  // 3) CDN de Telegram con extensiones de video
+  for (const m of description.matchAll(/https?:\/\/[^\s"'<>]+?cdn[^\s"'<>]*?telegram[^\s"'<>]*?\.(mp4|mov|webm)(\?[^\s"'<>]*)?/gi)) {
+    found.add(m[0]);
+  }
 
-  // Enlaces directos a mp4/mov/webm (que NO sean de t.me — esos son páginas, no archivos)
-  match = description.match(/https?:\/\/(?!t\.me\/)[^\s"']+\.(mp4|mov|webm)(\?[^\s"']*)?/i);
-  if (match?.[0]) return match[0];
+  // 4) Cualquier enlace directo a archivo de video (no t.me)
+  for (const m of description.matchAll(/https?:\/\/(?!t\.me\/)[^\s"'<>]+\.(mp4|mov|webm)(\?[^\s"'<>]*)?/gi)) {
+    found.add(m[0]);
+  }
 
-  return null;
+  return Array.from(found);
 }
 
+/** Devuelve la primera imagen (para portada) */
+function extractFirstImage(description: string): string | null {
+  return extractAllImages(description)[0] ?? null;
+}
+
+/** Devuelve el primer video */
+function extractFirstVideo(description: string): string | null {
+  return extractAllVideos(description)[0] ?? null;
+}
+
+// ── Scraper de t.me/s/ ──────────────────────────────────────────────────────
 /**
  * Parsea la vista web pública de Telegram (t.me/s/username).
- * Extrae mensajes del HTML usando regex sobre los bloques de mensaje.
- * Esto es un fallback porque Telegram no tiene API pública.
+ * Extrae texto, imágenes (background-image), videos, y fecha de cada mensaje.
+ * Construye un HTML rico para el contenido del artículo.
  */
 function parseTgWebView(html: string, channelUsername: string): RssItem[] {
   const items: RssItem[] = [];
 
-  // Cada mensaje en t.me/s/ está dentro de un div con clase "tgme_widget_message_wrap"
-  // Buscamos bloques de mensaje como texto + posibles imágenes/videos
+  // Bloques de mensaje: <div class="tgme_widget_message_wrap ...">  ... footer
   const msgBlockRegex = /<div class="tgme_widget_message_wrap[^"]*"[\s\S]*?<div class="tgme_widget_message_footer/g;
   const blocks = html.match(msgBlockRegex);
   if (!blocks) return items;
 
   for (const block of blocks.slice(0, 30)) {
-    // Extraer texto del mensaje
+    // ── Texto ─────────────────────────────────────────────────────────
     const textMatch = block.match(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-    const description = textMatch?.[1] ?? "";
+    const rawText = textMatch?.[1] ?? "";
+    // Limpiar HTML interno pero conservar enlaces y saltos de línea
+    const cleanText = rawText
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .trim();
 
-    if (!description || description.length < 10) continue;
+    if (!cleanText || cleanText.length < 5) continue;
 
-    // Extraer fecha
+    // ── Fecha ─────────────────────────────────────────────────────────
     const timeMatch = block.match(/<time[^>]+datetime="([^"]+)"/);
     const pubDate = timeMatch?.[1] ?? undefined;
 
-    // Extraer imágenes del mensaje
-    const imgMatch = block.match(/<a class="tgme_widget_message_photo_wrap[^"]*"[^>]*style="[^"]*background-image:url\('([^']+)'\)/);
-    const imgSrc = imgMatch?.[1] ?? null;
-
-    // Extraer link al mensaje individual
+    // ── Link al mensaje ───────────────────────────────────────────────
     const linkMatch = block.match(/<a class="tgme_widget_message_date"[^>]+href="([^"]+)"/);
     const link = linkMatch?.[1]
       ? `https://t.me${linkMatch[1]}`
       : `https://t.me/s/${channelUsername}`;
 
-    // Título: primeras 80 chars del texto limpio
-    const plainText = description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    const title = plainText.slice(0, 80) + (plainText.length > 80 ? "…" : "");
+    // ── Imágenes (background-image en photo_wrap) ─────────────────────
+    const imgUrls: string[] = [];
+    for (const imgMatch of block.matchAll(/background-image:\s*url\(["']?([^"')]+)["']?\)/gi)) {
+      const url = normalizeUrl(imgMatch[1]);
+      if (url) imgUrls.push(url);
+    }
+
+    // ── Videos (enlaces a t.me/*?video o tags <video>) ────────────────
+    const videoUrls: string[] = [];
+    // Buscar <video src="..."> en el bloque
+    for (const vMatch of block.matchAll(/<video[^>]+src=["']([^"']+)["']/gi)) {
+      const url = normalizeUrl(vMatch[1]);
+      if (url) videoUrls.push(url);
+    }
+    // Buscar enlaces t.me/*?video (son páginas, los convertimos a enlaces)
+    for (const vLink of block.matchAll(/https?:\/\/t\.me\/[^\s"'<>]+\?video/gi)) {
+      videoUrls.push(vLink[0]);
+    }
+    // Buscar CDN de Telegram con videos
+    for (const cdnMatch of block.matchAll(/https?:\/\/[^\s"'<>]+?cdn[^\s"'<>]*telegram[^\s"'<>]*\.(mp4|mov|webm)(\?[^\s"'<>]*)?/gi)) {
+      videoUrls.push(cdnMatch[0]);
+    }
+
+    // ── Construir HTML rico ────────────────────────────────────────────
+    const htmlParts: string[] = [];
+
+    // Video primero (lo más destacado)
+    for (const vUrl of videoUrls) {
+      const mime = guessMime(vUrl);
+      // Si es una página t.me/*?video, mostrar enlace (no es archivo directo)
+      if (vUrl.includes("t.me/") && vUrl.includes("?video")) {
+        htmlParts.push(
+          `<p style="text-align:center;padding:12px;background:#f5f5f5;border-radius:4px;margin-bottom:1rem">` +
+          `<a href="${vUrl}" target="_blank" rel="noopener" style="color:#7A1F1F;font-weight:600">▶ Ver video en Telegram →</a></p>`
+        );
+      } else {
+        htmlParts.push(
+          `<div style="margin-bottom:1rem"><video controls style="width:100%;max-height:500px;background:#000;border-radius:4px" preload="metadata" playsinline>` +
+          `<source src="${vUrl}" type="${mime}" /></video></div>`
+        );
+      }
+    }
+
+    // Imágenes
+    for (const imgUrl of imgUrls) {
+      htmlParts.push(
+        `<img src="${imgUrl}" alt="" loading="lazy" style="width:100%;max-width:600px;display:block;margin-bottom:1rem;border-radius:4px" />`
+      );
+    }
+
+    // Texto del mensaje (convertir saltos de línea a <p>)
+    const paragraphs = cleanText.split(/\n+/).filter(Boolean);
+    for (const p of paragraphs) {
+      htmlParts.push(`<p>${p}</p>`);
+    }
+
+    const description = htmlParts.join("\n");
 
     items.push({
-      title,
+      title: cleanText.slice(0, 80) + (cleanText.length > 80 ? "…" : ""),
       description,
       link,
       pubDate,
@@ -164,6 +254,7 @@ function parseTgWebView(html: string, channelUsername: string): RssItem[] {
   return items;
 }
 
+// ── Parseo de RSS/Atom ──────────────────────────────────────────────────────
 function parseRssXml(xml: string): RssItem[] {
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -172,41 +263,24 @@ function parseRssXml(xml: string): RssItem[] {
   });
   const parsed = parser.parse(xml);
 
-  // Intentar formato RSS 2.0
   let items = parsed?.rss?.channel?.item;
-  if (items) {
-    return Array.isArray(items) ? items : [items];
-  }
+  if (items) return Array.isArray(items) ? items : [items];
 
-  // Intentar formato Atom
   items = parsed?.feed?.entry;
-  if (items) {
-    return Array.isArray(items) ? items : [items];
-  }
+  if (items) return Array.isArray(items) ? items : [items];
 
   return [];
 }
 
+// ── Fetch multicanal con acumulación ────────────────────────────────────────
 async function fetchRss(channelUsername: string): Promise<RssItem[]> {
   const allItems: RssItem[] = [];
   const seenLinks = new Set<string>();
 
   const sources = [
-    // rsshub.app — soporta ?limit=N
-    {
-      url: `https://rsshub.app/telegram/channel/${channelUsername}?limit=30`,
-      label: "rsshub",
-    },
-    // tg.i-c-a.su — mirror alternativo
-    {
-      url: `https://tg.i-c-a.su/rss/${channelUsername}`,
-      label: "tg.i-c-a.su",
-    },
-    // Fallback: scraping directo de t.me/s/
-    {
-      url: `https://t.me/s/${channelUsername}`,
-      label: "t.me/s",
-    },
+    { url: `https://rsshub.app/telegram/channel/${channelUsername}?limit=30`, label: "rsshub" },
+    { url: `https://tg.i-c-a.su/rss/${channelUsername}`, label: "tg.i-c-a.su" },
+    { url: `https://t.me/s/${channelUsername}`, label: "t.me/s" },
   ];
 
   for (const src of sources) {
@@ -222,20 +296,13 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
         },
       });
       clearTimeout(timeout);
-
       if (!res.ok) continue;
 
       const body = await res.text();
-      let items: RssItem[] = [];
+      const items = src.label === "t.me/s"
+        ? parseTgWebView(body, channelUsername)
+        : parseRssXml(body);
 
-      if (src.label === "t.me/s") {
-        // HTML scraping de t.me/s/
-        items = parseTgWebView(body, channelUsername);
-      } else {
-        items = parseRssXml(body);
-      }
-
-      // Deducplicar por link
       for (const item of items) {
         const link = item.link ?? "";
         if (!link || seenLinks.has(link)) continue;
@@ -244,14 +311,16 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
         if (allItems.length >= 30) break;
       }
     } catch {
-      // Intentar siguiente fuente
+      // siguiente fuente
     }
   }
 
   return allItems;
 }
 
-// ── POST /admin/nacional/scrape ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// POST /admin/nacional/scrape
+// ═══════════════════════════════════════════════════════════════════════════
 router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<void> => {
   const { channelUsername } = req.body as { channelUsername?: string };
 
@@ -268,7 +337,6 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
       return;
     }
 
-    // ── Extraer hasta 30 posts ──────────────────────────────────────────
     const scraped: ScrapedItem[] = items.slice(0, 30).map((item: RssItem) => {
       const rawDescription = item.description ?? "";
       const content = cleanContent(rawDescription);
@@ -316,7 +384,9 @@ router.post("/admin/nacional/scrape", requireAuth, async (req, res): Promise<voi
   }
 });
 
-// ── POST /admin/nacional/import ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// POST /admin/nacional/import
+// ═══════════════════════════════════════════════════════════════════════════
 router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<void> => {
   const { item, channelUsername } = req.body as {
     item?: ScrapedItem;
@@ -331,33 +401,32 @@ router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<voi
   const user = (req as any).user;
   const slug = makeSlug(item.title);
 
-  // ── Si hay video, embeberlo al inicio del contenido ───────────────────
+  // ── Contenido final: video embebido + imágenes + texto ─────────────┐
   let finalContent = item.content || item.summary || "";
-  if (item.coverVideoUrl) {
-    const videoUrl = item.coverVideoUrl;
+
+  // Si hay video Y no está ya en el contenido, embeberlo al inicio
+  if (item.coverVideoUrl && !finalContent.includes(item.coverVideoUrl)) {
     const posterUrl = item.coverImageUrl ?? "";
     const posterAttr = posterUrl ? ` poster="${posterUrl}"` : "";
-
-    // Detectar tipo MIME por extensión para el <source>
-    const isMov = videoUrl.includes(".mov");
-    const isWebm = videoUrl.includes(".webm");
-    const isMp4 = videoUrl.includes(".mp4") || (!isMov && !isWebm);
-    const mime = isMov ? "video/quicktime" : isWebm ? "video/webm" : "video/mp4";
-
-    const videoHtml = `<div style="margin-bottom:1.5rem" class="article-video-wrapper">
-  <video controls style="width:100%;max-height:500px;background:#000;border-radius:4px" preload="metadata" playsinline${posterAttr}>
-    <source src="${videoUrl}" type="${mime}" />
-    <p style="padding:16px;color:#999;font-family:sans-serif;font-size:14px;text-align:center">
-      El video no se pudo cargar directamente.<br/>
-      <a href="${videoUrl}" target="_blank" rel="noopener" style="color:#7A1F1F">▶ Ver video en Telegram →</a>
-    </p>
-  </video>
-</div>`;
+    const mime = guessMime(item.coverVideoUrl);
+    const videoHtml = `<div style="margin-bottom:1.5rem"><video controls style="width:100%;max-height:500px;background:#000;border-radius:4px" preload="metadata" playsinline${posterAttr}><source src="${item.coverVideoUrl}" type="${mime}" /><p style="padding:16px;color:#999;text-align:center">Video no disponible directamente.<br/><a href="${item.coverVideoUrl}" target="_blank" rel="noopener" style="color:#7A1F1F">▶ Ver video →</a></p></video></div>`;
     finalContent = videoHtml + "\n" + finalContent;
+  }
+
+  // Si hay imagen de portada Y no está ya en el contenido, agregarla
+  if (item.coverImageUrl && !finalContent.includes(item.coverImageUrl)) {
+    const imgHtml = `<img src="${item.coverImageUrl}" alt="" loading="lazy" style="width:100%;max-width:600px;display:block;margin-bottom:1rem;border-radius:4px" />`;
+    // Insertar después del video (si hay) o al inicio
+    if (finalContent.includes("<video ") || finalContent.includes("<div")) {
+      finalContent = finalContent.replace(/(<\/video>\s*<\/div>)/, `$1\n${imgHtml}`);
+    } else {
+      finalContent = imgHtml + "\n" + finalContent;
+    }
   }
 
   const readingTime = calcReadingTime(finalContent);
 
+  // ── Buscar categoría nacional ──────────────────────────────────────┐
   const [nacionalCat] = await db
     .select({ id: categoriesTable.id })
     .from(categoriesTable)
@@ -386,7 +455,6 @@ router.post("/admin/nacional/import", requireAuth, async (req, res): Promise<voi
     .returning({ id: articlesTable.id, slug: articlesTable.slug });
 
   logger.info({ articleId: article.id, channelUsername }, "Artículo importado desde scraper");
-
   res.status(201).json({ article: { id: article.id, slug: article.slug } });
 });
 
