@@ -37,7 +37,7 @@ export async function seed() {
 
     if (adminEmail && adminPassword) {
       const existingAdmin = await db
-        .select({ id: usersTable.id })
+        .select({ id: usersTable.id, role: usersTable.role })
         .from(usersTable)
         .where(eq(usersTable.email, adminEmail));
 
@@ -50,6 +50,13 @@ export async function seed() {
           role: "superadmin",
         });
         logger.info({ email: adminEmail }, "Seeded superadmin user");
+      } else if (existingAdmin[0].role !== "superadmin") {
+        // Ascender a superadmin si ya existe pero no tiene el rol máximo
+        await db
+          .update(usersTable)
+          .set({ role: "superadmin" })
+          .where(eq(usersTable.email, adminEmail));
+        logger.info({ email: adminEmail, previousRole: existingAdmin[0].role }, "Upgraded user to superadmin");
       }
     } else {
       logger.warn("ADMIN_EMAIL o ADMIN_PASSWORD no configurados. Saltando creación de admin.");
