@@ -6,9 +6,23 @@ import OptimizedImage from "@/components/OptimizedImage";
 import { useGetPublicSettings, useGetArticles } from "@workspace/api-client-react";
 
 export default function About() {
-  const { data: settings } = useGetPublicSettings();
+  const { data: settings, isLoading } = useGetPublicSettings();
   const { data: articlesPage } = useGetArticles({ page: 1, limit: 3 });
   const recentArticles = articlesPage?.articles ?? [];
+
+  const s = settings as any;
+
+  // Datos dinámicos desde el admin (con fallbacks elegantes)
+  const aboutTitle   = s?.aboutTitle?.trim() || "El Príncipe Mestizo";
+  const aboutRole    = s?.aboutRole?.trim() || "Columnista independiente";
+  const aboutText    = s?.aboutText?.trim() || "Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio de denuncia y reflexión sobre la gestión pública local — un ejercicio de periodismo ciudadano que nace de la convicción de que la verdad tiene que ser dicha, aunque incomode.";
+  const aboutPhotoUrl = s?.aboutPhotoUrl?.trim() || "";
+  const siteDescription = s?.siteDescription?.trim() || "El Príncipe Mestizo es un espacio de periodismo ciudadano, opinión y denuncia desde la selva central peruana.";
+  const twitterUrl  = s?.twitterUrl || "";
+  const facebookUrl = s?.facebookUrl || "";
+
+  // Partir el texto en párrafos para la bio
+  const bioParagraphs = aboutText.split("\n").filter((p: string) => p.trim());
 
   const values = [
     {
@@ -28,6 +42,21 @@ export default function About() {
     },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="max-w-5xl mx-auto px-4 py-24 text-center">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-muted rounded w-64 mx-auto" />
+            <div className="h-4 bg-muted rounded w-96 mx-auto" />
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -43,13 +72,12 @@ export default function About() {
               <div className="flex items-center gap-2 mb-5">
                 <span className="block w-8 h-0.5 bg-red-700" />
                 <span className="font-sans-ui text-[11px] uppercase tracking-[0.2em] text-red-700 font-bold">
-                  Columnista independiente
+                  {aboutRole}
                 </span>
               </div>
 
               <h1 className="font-display text-4xl md:text-6xl font-bold text-gray-900 leading-tight mb-4">
-                El Príncipe<br />
-                <span className="text-red-700">Mestizo</span>
+                {aboutTitle}
               </h1>
 
               <div className="flex items-center gap-1.5 mb-6">
@@ -67,28 +95,30 @@ export default function About() {
                 </p>
               </div>
 
-              <p className="font-serif-body text-base text-gray-600 leading-relaxed mb-3">
-                Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio
-                de <strong>denuncia y reflexión</strong> sobre la gestión pública local — un ejercicio
-                de periodismo ciudadano que nace de la convicción de que la verdad tiene que
-                ser dicha, aunque incomode.
-              </p>
-              <p className="font-serif-body text-base text-gray-600 leading-relaxed">
-                No tengo partido ni afiliación política. Mi único compromiso es con la comunidad
-                de Chanchamayo y con quienes merecen saber qué se hace con sus recursos y en
-                su nombre.
-              </p>
+              {/* Bio desde el admin */}
+              {bioParagraphs.length > 0 ? (
+                bioParagraphs.map((p: string, i: number) => (
+                  <p key={i} className="font-serif-body text-base text-gray-600 leading-relaxed mb-3">
+                    {p}
+                  </p>
+                ))
+              ) : (
+                <p className="font-serif-body text-base text-gray-600 leading-relaxed mb-3">
+                  Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio
+                  de denuncia y reflexión sobre la gestión pública local.
+                </p>
+              )}
 
               {/* Redes */}
               <div className="flex flex-wrap items-center gap-3 mt-8">
-                {settings?.twitterUrl && (
-                  <a href={settings.twitterUrl} target="_blank" rel="noopener noreferrer"
+                {twitterUrl && (
+                  <a href={twitterUrl} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-sans-ui font-medium hover:bg-black transition-colors">
                     <Twitter size={14} /> X / Twitter
                   </a>
                 )}
-                {settings?.facebookUrl && (
-                  <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer"
+                {facebookUrl && (
+                  <a href={facebookUrl} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-[#1877F2] text-white text-sm font-sans-ui font-medium hover:bg-blue-700 transition-colors">
                     <Facebook size={14} /> Facebook
                   </a>
@@ -100,20 +130,35 @@ export default function About() {
               </div>
             </div>
 
-            {/* Avatar */}
+            {/* Avatar — usa la foto del admin si existe */}
             <div className="md:pt-4 flex flex-col items-center gap-3">
-              <div className="relative">
-                {/* Marco decorativo */}
-                <div className="absolute -inset-2 border-2 border-red-700 translate-x-2 translate-y-2" />
-                <div className="relative w-44 h-44 bg-gray-900 flex items-center justify-center overflow-hidden">
-                  <span className="font-display text-6xl font-bold text-white select-none">PM</span>
-                  {/* Banda roja diagonal decorativa */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-700" />
+              {aboutPhotoUrl ? (
+                <div className="relative">
+                  <div className="absolute -inset-2 border-2 border-red-700 translate-x-2 translate-y-2" />
+                  <div className="relative w-44 h-44 overflow-hidden">
+                    <OptimizedImage
+                      src={aboutPhotoUrl}
+                      alt={aboutTitle}
+                      className="w-full h-full object-cover"
+                      optimizeWidth={400}
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-700" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="relative">
+                  <div className="absolute -inset-2 border-2 border-red-700 translate-x-2 translate-y-2" />
+                  <div className="relative w-44 h-44 bg-gray-900 flex items-center justify-center overflow-hidden">
+                    <span className="font-display text-6xl font-bold text-white select-none">
+                      {aboutTitle.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-700" />
+                  </div>
+                </div>
+              )}
               <div className="text-center mt-4">
-                <p className="font-sans-ui text-[10px] uppercase tracking-widest text-gray-400">Desde</p>
-                <p className="font-display text-2xl font-bold text-gray-800">2020</p>
+                <p className="font-sans-ui text-[10px] uppercase tracking-widest text-gray-400">{aboutRole}</p>
+                <p className="font-sans-ui text-sm font-semibold text-gray-700">{aboutTitle}</p>
               </div>
             </div>
           </div>
@@ -201,8 +246,7 @@ export default function About() {
             <div>
               <div className="section-heading mb-4">Sobre este blog</div>
               <p className="font-serif-body text-sm text-gray-600 leading-relaxed">
-                {settings?.siteDescription ??
-                  "El Príncipe Mestizo es un espacio de periodismo ciudadano, opinión y denuncia desde la selva central peruana. Voces libres, historias que importan."}
+                {siteDescription}
               </p>
             </div>
           </div>
