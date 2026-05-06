@@ -129,12 +129,24 @@ app.get("/articulo/:slug", async (req: Request, res: Response): Promise<void> =>
     const description = escHtml(article.summary ?? settings.siteDescription);
     const siteName    = escHtml(settings.siteName);
 
+    // Para Open Graph usamos la URL directa, NO el proxy.
+    // Los crawlers de Facebook/Twitter/Telegram tienen sus propios UA
+    // y pueden descargar imágenes de Medium CDN sin problema.
+    // El proxy solo es necesario para <img> embebidos en el contenido.
     const rawImage = article.coverImageUrl || settings.ogImage || "";
-    const image    = escHtml(
-      rawImage.startsWith("http")
-        ? rawImage
-        : rawImage
-          ? `${frontendUrl}${rawImage.startsWith("/") ? "" : "/"}${rawImage}`
+    let directImage = rawImage;
+    // Si está usando nuestro proxy (/api/proxy-image), extraer la URL original
+    const proxyMatch = directImage.match(/^\/api\/proxy-image\?url=(.+)$/i);
+    if (proxyMatch) {
+      try {
+        directImage = decodeURIComponent(proxyMatch[1]);
+      } catch { /* mantener como está */ }
+    }
+    const image = escHtml(
+      directImage.startsWith("http")
+        ? directImage
+        : directImage
+          ? `${frontendUrl}${directImage.startsWith("/") ? "" : "/"}${directImage}`
           : `${frontendUrl}/opengraph.jpg`,
     );
 
