@@ -173,8 +173,6 @@ function parseTgWebView(html: string, channelUsername: string): RssItem[] {
       .replace(/<[^>]+>/g, "")
       .trim();
 
-    if (!cleanText || cleanText.length < 5) continue;
-
     // ── Fecha ─────────────────────────────────────────────────────────
     const timeMatch = block.match(/<time[^>]+datetime="([^"]+)"/);
     const pubDate = timeMatch?.[1] ?? undefined;
@@ -241,10 +239,21 @@ function parseTgWebView(html: string, channelUsername: string): RssItem[] {
       htmlParts.push(`<p>${p}</p>`);
     }
 
+    // Saltar mensajes completamente vacíos (sin texto, sin imágenes, sin videos)
+    if (htmlParts.length === 0) continue;
+
     const description = htmlParts.join("\n");
 
+    // Título: texto del mensaje, o descripción del tipo de media
+    let title = cleanText.slice(0, 80) + (cleanText.length > 80 ? "…" : "");
+    if (!title.trim()) {
+      if (videoUrls.length > 0) title = "🎬 Video";
+      else if (imgUrls.length > 0) title = "📷 Imagen";
+      else title = "Sin título";
+    }
+
     items.push({
-      title: cleanText.slice(0, 80) + (cleanText.length > 80 ? "…" : ""),
+      title,
       description,
       link,
       pubDate,
@@ -278,8 +287,13 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
   const seenLinks = new Set<string>();
 
   const sources = [
-    { url: `https://rsshub.app/telegram/channel/${channelUsername}?limit=30`, label: "rsshub" },
+    // rsshub.app — instancia principal, hasta 50 posts
+    { url: `https://rsshub.app/telegram/channel/${channelUsername}?limit=50`, label: "rsshub" },
+    // rsshub.pseudoyu.com — mirror
+    { url: `https://rsshub.pseudoyu.com/telegram/channel/${channelUsername}?limit=50`, label: "rsshub2" },
+    // tg.i-c-a.su — mirror alternativo
     { url: `https://tg.i-c-a.su/rss/${channelUsername}`, label: "tg.i-c-a.su" },
+    // Fallback: scraping directo de t.me/s/ (solo ~3 mensajes visibles sin JS)
     { url: `https://t.me/s/${channelUsername}`, label: "t.me/s" },
   ];
 
