@@ -1,4 +1,5 @@
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -6,12 +7,25 @@ import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import {
-  Bold, Italic, Underline as UnderlineIcon,
-  List, ListOrdered, Quote, Undo, Redo,
-  Link as LinkIcon, Image as ImageIcon, Images,
-  AlignLeft, AlignCenter, AlignRight,
-  Heading2, Heading3, Minus,
-  ZoomIn, ZoomOut, RotateCcw, X,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  ListOrdered,
+  Quote,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Images,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Heading2,
+  Heading3,
+  Minus,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
@@ -22,7 +36,15 @@ interface Props {
 }
 
 // ── Lightbox minimalista para el editor ──────────────────────────────────────
-function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+function EditorLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
@@ -42,17 +64,20 @@ function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClo
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const zoom = useCallback((delta: number) => {
-    setScale(s => {
+    setScale((s) => {
       const next = Math.min(5, Math.max(1, s + delta));
       if (next === 1) setPos({ x: 0, y: 0 });
       return next;
     });
   }, []);
 
-  const reset = useCallback(() => { setScale(1); setPos({ x: 0, y: 0 }); }, []);
+  const reset = useCallback(() => {
+    setScale(1);
+    setPos({ x: 0, y: 0 });
+  }, []);
 
   const onWheel = (e: React.WheelEvent) => {
     e.stopPropagation();
@@ -73,9 +98,12 @@ function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClo
       y: posAtDrag.current.y + (e.clientY - dragOrigin.current.y),
     });
   };
-  const onMouseUp = () => { isDragging.current = false; };
+  const onMouseUp = () => {
+    isDragging.current = false;
+  };
 
-  const btn = "flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors backdrop-blur-sm";
+  const btn =
+    "flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white transition-colors backdrop-blur-sm";
 
   return (
     <div
@@ -84,27 +112,41 @@ function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClo
     >
       <div
         className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-sm"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <button className={btn} onClick={() => zoom(-0.4)} aria-label="Alejar"><ZoomOut size={15} /></button>
+        <button className={btn} onClick={() => zoom(-0.4)} aria-label="Alejar">
+          <ZoomOut size={15} />
+        </button>
         <span className="text-white/60 text-[11px] font-mono w-10 text-center tabular-nums">
           {Math.round(scale * 100)}%
         </span>
-        <button className={btn} onClick={() => zoom(0.4)} aria-label="Acercar"><ZoomIn size={15} /></button>
+        <button className={btn} onClick={() => zoom(0.4)} aria-label="Acercar">
+          <ZoomIn size={15} />
+        </button>
         {scale > 1 && (
-          <button className={btn} onClick={reset} aria-label="Restablecer"><RotateCcw size={14} /></button>
+          <button className={btn} onClick={reset} aria-label="Restablecer">
+            <RotateCcw size={14} />
+          </button>
         )}
         <div className="w-px h-4 bg-white/20 mx-1" />
-        <button className={btn} onClick={onClose} aria-label="Cerrar"><X size={15} /></button>
+        <button className={btn} onClick={onClose} aria-label="Cerrar">
+          <X size={15} />
+        </button>
       </div>
       <div
-        style={{ cursor: scale > 1 ? (isDragging.current ? "grabbing" : "grab") : "zoom-out" }}
+        style={{
+          cursor:
+            scale > 1 ? (isDragging.current ? "grabbing" : "grab") : "zoom-out",
+        }}
         onWheel={onWheel}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseUp}
-        onClick={e => { if (scale === 1) onClose(); else e.stopPropagation(); }}
+        onClick={(e) => {
+          if (scale === 1) onClose();
+          else e.stopPropagation();
+        }}
       >
         <img
           src={src}
@@ -115,7 +157,9 @@ function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClo
             maxHeight: "88vh",
             objectFit: "contain",
             transform: `scale(${scale}) translate(${pos.x / scale}px, ${pos.y / scale}px)`,
-            transition: isDragging.current ? "none" : "transform 0.2s cubic-bezier(0.25,0.46,0.45,0.94)",
+            transition: isDragging.current
+              ? "none"
+              : "transform 0.2s cubic-bezier(0.25,0.46,0.45,0.94)",
             transformOrigin: "center center",
             userSelect: "none",
             WebkitUserSelect: "none",
@@ -133,6 +177,37 @@ function EditorLightbox({ src, alt, onClose }: { src: string; alt: string; onClo
   );
 }
 
+// ── Bubble toolbar button ────────────────────────────────────────────────────
+function BubbleBtn({
+  active,
+  onClick,
+  children,
+  title,
+  disabled,
+}: {
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  title: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      disabled={disabled}
+      className={`p-1.5 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+        active
+          ? "bg-gray-200 text-gray-900"
+          : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ── Editor principal ─────────────────────────────────────────────────────────
 export default function RichEditor({ value, onChange }: Props) {
   const { token } = useAuth();
@@ -141,7 +216,9 @@ export default function RichEditor({ value, onChange }: Props) {
 
   const [uploading, setUploading] = useState(false);
   const [uploadingGrid, setUploadingGrid] = useState(false);
-  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(
+    null,
+  );
 
   const editor = useEditor({
     extensions: [
@@ -152,7 +229,7 @@ export default function RichEditor({ value, onChange }: Props) {
       Link.configure({ openOnClick: false }),
       Image.configure({ inline: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({ placeholder: "Escribe el contenido del artículo aquí..." }),
+      Placeholder.configure({ placeholder: "Comienza a escribir…" }),
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -160,12 +237,17 @@ export default function RichEditor({ value, onChange }: Props) {
     },
     editorProps: {
       attributes: {
-        class: "article-body focus:outline-none min-h-[400px] p-4",
+        class:
+          "prose prose-lg max-w-none focus:outline-none min-h-[500px] " +
+          "text-[17px] leading-[1.8] text-gray-800 font-serif",
       },
       handleClickOn(_view, _pos, node, _nodePos, event) {
         if (node.type.name === "image") {
           event.preventDefault();
-          setLightbox({ src: node.attrs.src as string, alt: (node.attrs.alt as string | null) ?? "" });
+          setLightbox({
+            src: node.attrs.src as string,
+            alt: (node.attrs.alt as string | null) ?? "",
+          });
           return true;
         }
         return false;
@@ -177,7 +259,7 @@ export default function RichEditor({ value, onChange }: Props) {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value);
     }
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [value]);
 
   const uploadFile = async (file: File): Promise<string | null> => {
     try {
@@ -186,7 +268,7 @@ export default function RichEditor({ value, onChange }: Props) {
       const apiUrl = import.meta.env.VITE_API_URL ?? "";
       const res = await fetch(`${apiUrl}/api/admin/upload`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       if (!res.ok) return null;
@@ -236,7 +318,8 @@ export default function RichEditor({ value, onChange }: Props) {
     }
 
     // Dos imágenes consecutivas: la vista pública las agrupa en cuadrícula de 2 columnas
-    editor.chain()
+    editor
+      .chain()
       .focus()
       .setImage({ src: valid[0], alt: "" })
       .setImage({ src: valid[1], alt: "" })
@@ -245,7 +328,10 @@ export default function RichEditor({ value, onChange }: Props) {
 
   const addLink = () => {
     if (!editor) return;
-    const url = window.prompt("URL del enlace:", editor.getAttributes("link").href ?? "");
+    const url = window.prompt(
+      "URL del enlace:",
+      editor.getAttributes("link").href ?? "",
+    );
     if (url === null) return;
     if (url === "") {
       editor.chain().focus().unsetLink().run();
@@ -256,33 +342,7 @@ export default function RichEditor({ value, onChange }: Props) {
 
   if (!editor) return null;
 
-  const ToolbarButton = ({
-    active,
-    onClick,
-    children,
-    title,
-    disabled,
-  }: {
-    active?: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-    title: string;
-    disabled?: boolean;
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      className={`p-1.5 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
+  const separator = <div className="w-px h-5 bg-gray-200" />;
 
   return (
     <>
@@ -294,121 +354,177 @@ export default function RichEditor({ value, onChange }: Props) {
         />
       )}
 
-      <div className="border border-input rounded-lg overflow-hidden bg-background">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-0.5 p-2 border-b border-border bg-muted/30">
-          <ToolbarButton title="Deshacer" onClick={() => editor.chain().focus().undo().run()}>
-            <Undo size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Rehacer" onClick={() => editor.chain().focus().redo().run()}>
-            <Redo size={15} />
-          </ToolbarButton>
+      <div className="relative">
+        {/* ── Bubble toolbar ───────────────────────────────────────────── */}
+        {editor && (
+          <BubbleMenu
+            editor={editor}
+            className="flex items-center gap-0.5 px-1.5 py-1 bg-white rounded-xl shadow-lg border border-gray-200/80 backdrop-blur-sm"
+          >
+            <BubbleBtn
+              title="Negrita"
+              active={editor.isActive("bold")}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+            >
+              <Bold size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Cursiva"
+              active={editor.isActive("italic")}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            >
+              <Italic size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Subrayado"
+              active={editor.isActive("underline")}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+            >
+              <UnderlineIcon size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Enlace"
+              active={editor.isActive("link")}
+              onClick={addLink}
+            >
+              <LinkIcon size={14} />
+            </BubbleBtn>
 
-          <div className="w-px h-5 bg-border mx-1" />
+            {separator}
 
-          <ToolbarButton title="Negrita" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
-            <Bold size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Cursiva" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}>
-            <Italic size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Subrayado" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-            <UnderlineIcon size={15} />
-          </ToolbarButton>
+            <BubbleBtn
+              title="Título 2"
+              active={editor.isActive("heading", { level: 2 })}
+              onClick={() =>
+                editor.chain().focus().toggleHeading({ level: 2 }).run()
+              }
+            >
+              <Heading2 size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Título 3"
+              active={editor.isActive("heading", { level: 3 })}
+              onClick={() =>
+                editor.chain().focus().toggleHeading({ level: 3 }).run()
+              }
+            >
+              <Heading3 size={14} />
+            </BubbleBtn>
 
-          <div className="w-px h-5 bg-border mx-1" />
+            {separator}
 
-          <ToolbarButton title="Encabezado 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            <Heading2 size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Encabezado 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-            <Heading3 size={15} />
-          </ToolbarButton>
+            <BubbleBtn
+              title="Lista"
+              active={editor.isActive("bulletList")}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            >
+              <List size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Lista numerada"
+              active={editor.isActive("orderedList")}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Cita"
+              active={editor.isActive("blockquote")}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            >
+              <Quote size={14} />
+            </BubbleBtn>
 
-          <div className="w-px h-5 bg-border mx-1" />
+            {separator}
 
-          <ToolbarButton title="Lista" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            <List size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Lista numerada" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-            <ListOrdered size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Cita" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-            <Quote size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Línea horizontal" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-            <Minus size={15} />
-          </ToolbarButton>
+            <BubbleBtn
+              title="Alinear izquierda"
+              active={editor.isActive({ textAlign: "left" })}
+              onClick={() => editor.chain().focus().setTextAlign("left").run()}
+            >
+              <AlignLeft size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Centrar"
+              active={editor.isActive({ textAlign: "center" })}
+              onClick={() =>
+                editor.chain().focus().setTextAlign("center").run()
+              }
+            >
+              <AlignCenter size={14} />
+            </BubbleBtn>
+            <BubbleBtn
+              title="Alinear derecha"
+              active={editor.isActive({ textAlign: "right" })}
+              onClick={() => editor.chain().focus().setTextAlign("right").run()}
+            >
+              <AlignRight size={14} />
+            </BubbleBtn>
 
-          <div className="w-px h-5 bg-border mx-1" />
+            {separator}
 
-          <ToolbarButton title="Alinear izquierda" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
-            <AlignLeft size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Centrar" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
-            <AlignCenter size={15} />
-          </ToolbarButton>
-          <ToolbarButton title="Alinear derecha" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
-            <AlignRight size={15} />
-          </ToolbarButton>
+            <BubbleBtn
+              title="Línea horizontal"
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            >
+              <Minus size={14} />
+            </BubbleBtn>
+          </BubbleMenu>
+        )}
 
-          <div className="w-px h-5 bg-border mx-1" />
+        {/* ── Editor content ─────────────────────────────────────────── */}
+        <EditorContent editor={editor} />
 
-          <ToolbarButton title="Insertar enlace" active={editor.isActive("link")} onClick={addLink}>
-            <LinkIcon size={15} />
-          </ToolbarButton>
-
-          {/* Imagen simple */}
-          <ToolbarButton
+        {/* ── Floating insert bar (aparece al final del editor) ──────── */}
+        <div className="flex items-center gap-1 mt-6 pb-2">
+          <button
+            type="button"
             title={uploading ? "Subiendo imagen…" : "Insertar imagen"}
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
           >
-            {uploading
-              ? <span className="w-[15px] h-[15px] border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
-              : <ImageIcon size={15} />
+            {uploading ? (
+              <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin inline-block" />
+            ) : (
+              <ImageIcon size={14} />
+            )}
+            <span>Imagen</span>
+          </button>
+          <button
+            type="button"
+            title={
+              uploadingGrid ? "Subiendo imágenes…" : "Galería de 2 imágenes"
             }
-          </ToolbarButton>
-
-          {/* Fila de 2 imágenes */}
-          <ToolbarButton
-            title={uploadingGrid ? "Subiendo imágenes…" : "Insertar fila de 2 imágenes"}
             disabled={uploadingGrid}
             onClick={() => gridInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
           >
-            {uploadingGrid
-              ? <span className="w-[15px] h-[15px] border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
-              : <Images size={15} />
-            }
-          </ToolbarButton>
-
-          {/* Inputs ocultos */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-          <input
-            ref={gridInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleGridUpload}
-          />
+            {uploadingGrid ? (
+              <span className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin inline-block" />
+            ) : (
+              <Images size={14} />
+            )}
+            <span>Galería</span>
+          </button>
         </div>
 
-        {/* Editor */}
-        <EditorContent editor={editor} />
-
-        {/* Hint para imágenes en el editor */}
-        <div className="px-4 pb-2 pt-0">
-          <p className="text-[11px] text-muted-foreground/60">
-            Haz clic en cualquier imagen del editor para ampliarla · Usa <Images size={10} className="inline mb-0.5" /> para insertar 2 imágenes en fila (selecciona ambas a la vez)
-          </p>
-        </div>
+        {/* ── Hidden file inputs ─────────────────────────────────────── */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+        <input
+          ref={gridInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleGridUpload}
+        />
       </div>
     </>
   );

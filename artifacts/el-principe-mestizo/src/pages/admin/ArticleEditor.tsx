@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Globe, EyeOff, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, Globe, Upload, X } from "lucide-react";
 import { Link } from "wouter";
 import AdminLayout from "@/components/admin/AdminLayout";
 import RichEditor from "@/components/admin/RichEditor";
@@ -51,10 +51,13 @@ export default function ArticleEditor() {
   });
 
   // For editing: find the article in admin list (returns Article[] not paginated)
-  const { data: adminArticles } = useAdminGetArticles({}, {
-  // @ts-ignore
-    enabled: isEdit,
-  });
+  const { data: adminArticles } = useAdminGetArticles(
+    {},
+    {
+      // @ts-expect-error - enabled prop may not be in the hook types
+      enabled: isEdit,
+    },
+  );
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
   const { data: categories } = useGetCategories();
@@ -69,7 +72,8 @@ export default function ArticleEditor() {
         summary: articleFromList.summary,
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
-        secondaryCategoryId: (articleFromList as any).secondaryCategoryId ?? null,
+        secondaryCategoryId:
+          (articleFromList as any).secondaryCategoryId ?? null,
         status: articleFromList.status as "draft" | "published",
         featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
@@ -80,8 +84,13 @@ export default function ArticleEditor() {
 
   // Set default category once categories load
   useEffect(() => {
-    if (categories && categories.length > 0 && form.categoryId === 0 && !isEdit) {
-      setForm(f => ({ ...f, categoryId: categories[0].id }));
+    if (
+      categories &&
+      categories.length > 0 &&
+      form.categoryId === 0 &&
+      !isEdit
+    ) {
+      setForm((f) => ({ ...f, categoryId: categories[0].id }));
     }
   }, [categories, isEdit]);
 
@@ -97,7 +106,7 @@ export default function ArticleEditor() {
       const response = await fetch(`${apiUrl}/api/admin/upload`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
@@ -108,10 +117,13 @@ export default function ArticleEditor() {
       }
 
       const result = await response.json();
-      setForm(f => ({ ...f, coverImageUrl: result.url }));
+      setForm((f) => ({ ...f, coverImageUrl: result.url }));
       toast({ description: "Imagen de portada cargada correctamente." });
     } catch (err: any) {
-      toast({ description: err.message ?? "Error al cargar la imagen.", variant: "destructive" });
+      toast({
+        description: err.message ?? "Error al cargar la imagen.",
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
       if (e.target) e.target.value = "";
@@ -121,19 +133,31 @@ export default function ArticleEditor() {
   const handleSave = async (publishStatus?: "draft" | "published") => {
     const status = publishStatus ?? form.status;
     if (!form.title.trim()) {
-      toast({ description: "El título es obligatorio.", variant: "destructive" });
+      toast({
+        description: "El título es obligatorio.",
+        variant: "destructive",
+      });
       return;
     }
     if (!form.summary.trim()) {
-      toast({ description: "El resumen es obligatorio.", variant: "destructive" });
+      toast({
+        description: "El resumen es obligatorio.",
+        variant: "destructive",
+      });
       return;
     }
     if (!form.content || form.content === "<p></p>") {
-      toast({ description: "El contenido es obligatorio.", variant: "destructive" });
+      toast({
+        description: "El contenido es obligatorio.",
+        variant: "destructive",
+      });
       return;
     }
     if (!form.categoryId) {
-      toast({ description: "Selecciona una categoría.", variant: "destructive" });
+      toast({
+        description: "Selecciona una categoría.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -152,17 +176,30 @@ export default function ArticleEditor() {
     try {
       if (isEdit && id) {
         await updateArticle.mutateAsync({ id: Number(id), data: payload });
-        toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
+        toast({
+          description:
+            status === "published"
+              ? "Artículo publicado."
+              : "Borrador guardado.",
+        });
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
       } else {
         await createArticle.mutateAsync({ data: payload });
-        toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
+        toast({
+          description:
+            status === "published"
+              ? "Artículo publicado."
+              : "Borrador guardado.",
+        });
         queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
         setLocation("/admin/articles");
       }
     } catch (err: any) {
-      toast({ description: "Error al guardar el artículo.", variant: "destructive" });
+      toast({
+        description: "Error al guardar el artículo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -170,247 +207,564 @@ export default function ArticleEditor() {
 
   return (
     <AdminLayout>
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <Link href="/admin/articles" className="p-1.5 rounded hover:bg-muted transition-colors">
-              <ArrowLeft size={18} />
+      <div className="min-h-screen bg-[#FAFAFA]">
+        {/* ═══════════════════════════════════════════════════════════════
+            HEADER — minimalista, fijo arriba
+           ═══════════════════════════════════════════════════════════════ */}
+        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100">
+          <div className="flex items-center justify-between h-14 px-5 max-w-[1200px] mx-auto">
+            {/* Izquierda: volver */}
+            <Link
+              href="/admin/articles"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Volver</span>
             </Link>
-            <h1 className="font-display text-xl font-bold">
-              {isEdit ? "Editar artículo" : "Nuevo artículo"}
-            </h1>
+
+            {/* Centro: nombre del blog */}
+            <span className="text-sm font-serif italic text-gray-400 select-none">
+              El Príncipe Mestizo
+            </span>
+
+            {/* Derecha: acciones */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSave("draft")}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-gray-600 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                <Save size={14} />
+                <span className="hidden sm:inline">Guardar borrador</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave("published")}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-5 py-1.5 text-sm font-medium text-white rounded-full transition-colors disabled:opacity-40"
+                style={{ backgroundColor: "#8B0000" }}
+              >
+                <Globe size={14} />
+                <span>{isSaving ? "Guardando…" : "Publicar"}</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleSave("draft")}
-              disabled={isSaving}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui font-medium border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-60"
-            >
-              <Save size={15} />
-              Guardar borrador
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSave("published")}
-              disabled={isSaving}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-60"
-            >
-              {form.status === "published" ? <Globe size={15} /> : <Globe size={15} />}
-              {isSaving ? "Guardando..." : "Publicar"}
-            </button>
+        </header>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            CUERPO — layout escritura centrada + sidebar derecho
+           ═══════════════════════════════════════════════════════════════ */}
+        <div className="flex justify-center">
+          {/* Columna principal de escritura */}
+          <div className="w-full max-w-[720px] px-5 sm:px-8 md:px-12 pt-10 pb-32">
+            {/* ── Portada (hero) ──────────────────────────────────── */}
+            {form.coverImageUrl && (
+              <div className="relative mb-12 -mx-5 sm:-mx-8 md:-mx-12">
+                <img
+                  src={form.coverImageUrl}
+                  alt={form.coverImageAlt || "Imagen de portada"}
+                  className="w-full aspect-[2/1] object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      coverImageUrl: "",
+                      coverImageAlt: "",
+                    }))
+                  }
+                  className="absolute top-3 right-3 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                  title="Quitar imagen de portada"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* ── Título ──────────────────────────────────────────── */}
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, title: e.target.value }))
+              }
+              placeholder="Título"
+              className="w-full text-[36px] sm:text-[42px] font-serif font-bold leading-tight text-gray-900 placeholder-gray-300 bg-transparent border-none outline-none focus:outline-none"
+              style={{ fontFamily: "'Playfair Display', serif" }}
+            />
+
+            {/* ── Resumen / bajada ────────────────────────────────── */}
+            <textarea
+              value={form.summary}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, summary: e.target.value }))
+              }
+              rows={2}
+              placeholder="Breve resumen del artículo…"
+              className="w-full mt-4 text-[18px] font-serif italic leading-relaxed text-gray-500 placeholder-gray-300 bg-transparent border-none outline-none focus:outline-none resize-none"
+            />
+
+            {/* ── Separador ───────────────────────────────────────── */}
+            <div className="mt-8 mb-8 flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-gray-300 font-sans">
+                Contenido
+              </span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+
+            {/* ── Editor de contenido ─────────────────────────────── */}
+            <RichEditor
+              value={form.content}
+              onChange={(v) => setForm((f) => ({ ...f, content: v }))}
+            />
           </div>
+
+          {/* ═══════════════════════════════════════════════════════
+              SIDEBAR — fijo a la derecha (desktop), refinado
+             ═══════════════════════════════════════════════════════ */}
+          <aside className="hidden lg:block w-[260px] flex-shrink-0 pt-10 pr-5">
+            <div className="sticky top-20 space-y-5">
+              {/* ── Estado (Borrador / Publicado) ────────────────── */}
+              <SidebarSection title="Estado">
+                <div className="flex rounded-lg bg-gray-100 p-0.5">
+                  {(["draft", "published"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, status: s }))}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        form.status === s
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {s === "draft" ? "Borrador" : "Publicado"}
+                    </button>
+                  ))}
+                </div>
+              </SidebarSection>
+
+              {/* ── Categoría principal ──────────────────────────── */}
+              <SidebarSection title="Categoría principal">
+                <select
+                  value={form.categoryId}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      categoryId: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full px-3 py-2 text-sm font-sans text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors"
+                >
+                  {categories
+                    ?.filter((c) => !(c as any).parentId)
+                    .flatMap((parent) => {
+                      const subs = categories.filter(
+                        (c) => (c as any).parentId === parent.id,
+                      );
+                      return [
+                        <option key={parent.id} value={parent.id}>
+                          {parent.name}
+                        </option>,
+                        ...subs.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            ↳ {sub.name}
+                          </option>
+                        )),
+                      ];
+                    })}
+                </select>
+              </SidebarSection>
+
+              {/* ── Categoría secundaria ─────────────────────────── */}
+              <SidebarSection title="Categoría secundaria">
+                <select
+                  value={form.secondaryCategoryId ?? ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      secondaryCategoryId: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    }))
+                  }
+                  className="w-full px-3 py-2 text-sm font-sans text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors"
+                >
+                  <option value="">— Ninguna —</option>
+                  {categories
+                    ?.filter(
+                      (c) => c.id !== form.categoryId && !(c as any).parentId,
+                    )
+                    .flatMap((parent) => {
+                      const subs = categories.filter(
+                        (c) =>
+                          (c as any).parentId === parent.id &&
+                          c.id !== form.categoryId,
+                      );
+                      return [
+                        <option key={parent.id} value={parent.id}>
+                          {parent.name}
+                        </option>,
+                        ...subs.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            ↳ {sub.name}
+                          </option>
+                        )),
+                      ];
+                    })}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1.5 leading-relaxed">
+                  Etiqueta adicional visible en el artículo
+                </p>
+              </SidebarSection>
+
+              {/* ── Destacado ─────────────────────────────────────── */}
+              <SidebarSection title="">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={form.featured}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          featured: e.target.checked,
+                        }))
+                      }
+                      className="sr-only"
+                    />
+                    <div
+                      className={`w-9 h-5 rounded-full transition-colors ${
+                        form.featured ? "bg-gray-900" : "bg-gray-300"
+                      }`}
+                    />
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                        form.featured ? "translate-x-4" : ""
+                      }`}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">
+                    Artículo destacado
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-400 mt-1.5 ml-12">
+                  Aparece en la portada del sitio
+                </p>
+              </SidebarSection>
+
+              {/* ── Imagen de portada ────────────────────────────── */}
+              <SidebarSection title="Imagen de portada">
+                {form.coverImageUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative rounded-lg overflow-hidden">
+                      <img
+                        src={form.coverImageUrl}
+                        alt="Portada"
+                        className="w-full aspect-video object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            coverImageUrl: "",
+                            coverImageAlt: "",
+                          }))
+                        }
+                        className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                        title="Quitar imagen"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={form.coverImageAlt}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          coverImageAlt: e.target.value,
+                        }))
+                      }
+                      placeholder="Texto alternativo (alt)..."
+                      className="w-full px-3 py-2 text-xs font-sans text-gray-700 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 transition-colors placeholder-gray-300"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-full py-6 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50/50 transition-colors disabled:opacity-50"
+                    >
+                      <Upload size={18} className="text-gray-400" />
+                      <span className="text-xs text-gray-500 font-medium">
+                        {uploading ? "Subiendo…" : "Subir imagen"}
+                      </span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-[10px] text-gray-400">
+                        o pega una URL
+                      </span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v) setForm((f) => ({ ...f, coverImageUrl: v }));
+                      }}
+                      className="w-full px-3 py-2 text-xs font-sans text-gray-700 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 transition-colors placeholder-gray-300"
+                    />
+                  </div>
+                )}
+                <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                  Se muestra al compartir en WhatsApp, Facebook y Twitter
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverUpload}
+                />
+              </SidebarSection>
+            </div>
+          </aside>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-          {/* Main editor area */}
-          <div className="space-y-5">
-            {/* Title */}
-            <div>
-              <input
-                type="text"
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Título del artículo"
-                className="w-full px-4 py-3 font-display text-xl font-bold border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring placeholder:font-serif placeholder:font-normal placeholder:text-muted-foreground/60"
-              />
+        {/* ═══════════════════════════════════════════════════════════════
+            SIDEBAR MOBILE — al final, debajo del editor (móvil/tablet)
+           ═══════════════════════════════════════════════════════════════ */}
+        <div className="lg:hidden max-w-[720px] mx-auto px-5 sm:px-8 md:px-12 pb-20 space-y-5">
+          {/* ── Estado ────────────────────────────────────────────── */}
+          <SidebarSection title="Estado">
+            <div className="flex rounded-lg bg-gray-100 p-0.5">
+              {(["draft", "published"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, status: s }))}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    form.status === s
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {s === "draft" ? "Borrador" : "Publicado"}
+                </button>
+              ))}
             </div>
+          </SidebarSection>
 
-            {/* Summary */}
-            <div>
-              <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-                Resumen / bajada
-              </label>
-              <textarea
-                value={form.summary}
-                onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
-                rows={3}
-                placeholder="Breve descripción que aparece en la tarjeta del artículo..."
-                className="w-full px-3 py-2.5 text-sm font-serif border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-              />
-            </div>
-
-            {/* Content */}
-            <div>
-              <label className="block text-xs font-sans-ui font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
-                Contenido
-              </label>
-              <RichEditor value={form.content} onChange={v => setForm(f => ({ ...f, content: v }))} />
-            </div>
-          </div>
-
-          {/* Sidebar panel */}
-          <div className="space-y-4">
-            {/* Publish status */}
-            <div className="bg-card border border-card-border rounded-lg p-4">
-              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Estado
-              </h3>
-              <div className="flex gap-2">
-                {(["draft", "published"] as const).map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, status: s }))}
-                    className={`flex-1 py-1.5 text-xs font-sans-ui font-medium rounded border transition-colors ${
-                      form.status === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    {s === "draft" ? "Borrador" : "Publicado"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Category */}
-            <div className="bg-card border border-card-border rounded-lg p-4">
-              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Categoría principal
-              </h3>
-              <select
-                value={form.categoryId}
-                onChange={e => setForm(f => ({ ...f, categoryId: Number(e.target.value) }))}
-                className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {categories
-                  ?.filter(c => !(c as any).parentId)
-                  .flatMap(parent => {
-                    const subs = categories.filter(c => (c as any).parentId === parent.id);
-                    return [
-                      <option key={parent.id} value={parent.id}>{parent.name}</option>,
-                      ...subs.map(sub => (
-                        <option key={sub.id} value={sub.id}>　↳ {sub.name}</option>
-                      )),
-                    ];
-                  })}
-              </select>
-            </div>
-
-            {/* Secondary Category */}
-            <div className="bg-card border border-card-border rounded-lg p-4">
-              <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Categoría secundaria
-              </h3>
-              <select
-                value={form.secondaryCategoryId ?? ""}
-                onChange={e => setForm(f => ({
+          {/* ── Categoría principal ──────────────────────────────── */}
+          <SidebarSection title="Categoría principal">
+            <select
+              value={form.categoryId}
+              onChange={(e) =>
+                setForm((f) => ({
                   ...f,
-                  secondaryCategoryId: e.target.value ? Number(e.target.value) : null,
-                }))}
-                className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">— Ninguna —</option>
-                {categories
-                  ?.filter(c => c.id !== form.categoryId && !(c as any).parentId)
-                  .flatMap(parent => {
-                    const subs = categories.filter(
-                      c => (c as any).parentId === parent.id && c.id !== form.categoryId,
-                    );
-                    return [
-                      <option key={parent.id} value={parent.id}>{parent.name}</option>,
-                      ...subs.map(sub => (
-                        <option key={sub.id} value={sub.id}>　↳ {sub.name}</option>
-                      )),
-                    ];
-                  })}
-              </select>
-              <p className="text-xs font-sans-ui text-muted-foreground mt-1.5">
-                Etiqueta adicional visible en el artículo
-              </p>
-            </div>
+                  categoryId: Number(e.target.value),
+                }))
+              }
+              className="w-full px-3 py-2 text-sm font-sans text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors"
+            >
+              {categories
+                ?.filter((c) => !(c as any).parentId)
+                .flatMap((parent) => {
+                  const subs = categories.filter(
+                    (c) => (c as any).parentId === parent.id,
+                  );
+                  return [
+                    <option key={parent.id} value={parent.id}>
+                      {parent.name}
+                    </option>,
+                    ...subs.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        ↳ {sub.name}
+                      </option>
+                    )),
+                  ];
+                })}
+            </select>
+          </SidebarSection>
 
-            {/* Featured */}
-            <div className="bg-card border border-card-border rounded-lg p-4">
-              <label className="flex items-center gap-2.5 cursor-pointer">
+          {/* ── Categoría secundaria ─────────────────────────────── */}
+          <SidebarSection title="Categoría secundaria">
+            <select
+              value={form.secondaryCategoryId ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  secondaryCategoryId: e.target.value
+                    ? Number(e.target.value)
+                    : null,
+                }))
+              }
+              className="w-full px-3 py-2 text-sm font-sans text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors"
+            >
+              <option value="">— Ninguna —</option>
+              {categories
+                ?.filter(
+                  (c) => c.id !== form.categoryId && !(c as any).parentId,
+                )
+                .flatMap((parent) => {
+                  const subs = categories.filter(
+                    (c) =>
+                      (c as any).parentId === parent.id &&
+                      c.id !== form.categoryId,
+                  );
+                  return [
+                    <option key={parent.id} value={parent.id}>
+                      {parent.name}
+                    </option>,
+                    ...subs.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        ↳ {sub.name}
+                      </option>
+                    )),
+                  ];
+                })}
+            </select>
+          </SidebarSection>
+
+          {/* ── Destacado ─────────────────────────────────────────── */}
+          <SidebarSection title="">
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div className="relative">
                 <input
                   type="checkbox"
                   checked={form.featured}
-                  onChange={e => setForm(f => ({ ...f, featured: e.target.checked }))}
-                  className="w-4 h-4 accent-primary"
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      featured: e.target.checked,
+                    }))
+                  }
+                  className="sr-only"
                 />
-                <span className="font-sans-ui text-sm font-medium">Artículo destacado</span>
-              </label>
-              <p className="text-xs font-sans-ui text-muted-foreground mt-1.5 ml-6.5">
-                Aparece en la portada del sitio
-              </p>
-            </div>
-
-            {/* Cover image */}
-            <div className="bg-card border border-card-border rounded-lg p-4">
-              <div className="mb-3">
-                <h3 className="font-sans-ui text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Imagen de portada
-                </h3>
-                <p className="text-[11px] font-sans-ui text-muted-foreground/70 mt-0.5">
-                  Se muestra al compartir en WhatsApp, Facebook y Twitter
-                </p>
+                <div
+                  className={`w-9 h-5 rounded-full transition-colors ${
+                    form.featured ? "bg-gray-900" : "bg-gray-300"
+                  }`}
+                />
+                <div
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
+                    form.featured ? "translate-x-4" : ""
+                  }`}
+                />
               </div>
-              {form.coverImageUrl ? (
-                <div className="relative">
+              <span className="text-sm font-medium text-gray-700">
+                Artículo destacado
+              </span>
+            </label>
+          </SidebarSection>
+
+          {/* ── Imagen de portada ────────────────────────────────── */}
+          <SidebarSection title="Imagen de portada">
+            {form.coverImageUrl ? (
+              <div className="space-y-2">
+                <div className="relative rounded-lg overflow-hidden">
                   <img
                     src={form.coverImageUrl}
                     alt="Portada"
-                    className="w-full aspect-video object-cover rounded-md mb-2"
+                    className="w-full aspect-video object-cover"
                   />
                   <button
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, coverImageUrl: "", coverImageAlt: "" }))}
-                    className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
-                    title="Quitar imagen"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        coverImageUrl: "",
+                        coverImageAlt: "",
+                      }))
+                    }
+                    className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
                   >
-                    <X size={14} />
+                    <X size={12} />
                   </button>
-                  <input
-                    type="text"
-                    value={form.coverImageAlt}
-                    onChange={e => setForm(f => ({ ...f, coverImageAlt: e.target.value }))}
-                    placeholder="Texto alternativo (alt)..."
-                    className="w-full px-2.5 py-1.5 text-xs font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full py-5 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-md hover:bg-muted/50 transition-colors disabled:opacity-60"
-                  >
-                    <Upload size={18} className="text-muted-foreground" />
-                    <span className="text-xs font-sans-ui text-muted-foreground">
-                      {uploading ? "Subiendo..." : "Subir imagen"}
-                    </span>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-px bg-border" />
-                    <span className="text-[10px] font-sans-ui text-muted-foreground">o pega una URL</span>
-                    <div className="flex-1 h-px bg-border" />
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    onBlur={e => {
-                      const v = e.target.value.trim();
-                      if (v) setForm(f => ({ ...f, coverImageUrl: v }));
-                    }}
-                    className="w-full px-2.5 py-1.5 text-xs font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/50"
-                  />
+                <input
+                  type="text"
+                  value={form.coverImageAlt}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      coverImageAlt: e.target.value,
+                    }))
+                  }
+                  placeholder="Texto alternativo (alt)..."
+                  className="w-full px-3 py-2 text-xs font-sans text-gray-700 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 transition-colors placeholder-gray-300"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full py-6 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50/50 transition-colors disabled:opacity-50"
+                >
+                  <Upload size={18} className="text-gray-400" />
+                  <span className="text-xs text-gray-500 font-medium">
+                    {uploading ? "Subiendo…" : "Subir imagen"}
+                  </span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[10px] text-gray-400">
+                    o pega una URL
+                  </span>
+                  <div className="flex-1 h-px bg-gray-200" />
                 </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCoverUpload}
-              />
-            </div>
-          </div>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v) setForm((f) => ({ ...f, coverImageUrl: v }));
+                  }}
+                  className="w-full px-3 py-2 text-xs font-sans text-gray-700 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 transition-colors placeholder-gray-300"
+                />
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverUpload}
+            />
+          </SidebarSection>
         </div>
       </div>
     </AdminLayout>
+  );
+}
+
+// ── Componente helper para secciones del sidebar ─────────────────────────────
+function SidebarSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+      {title && (
+        <h3 className="text-[11px] font-sans font-semibold uppercase tracking-[0.12em] text-gray-400 mb-3">
+          {title}
+        </h3>
+      )}
+      {children}
+    </div>
   );
 }
