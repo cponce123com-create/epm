@@ -5,8 +5,10 @@ info:
   version: 0.1.0
   description: El Príncipe Mestizo - Citizen journalism platform API
 servers:
+  - url: /api/v1
+    description: Canonical API v1 path
   - url: /api
-    description: Base API path
+    description: Legacy (deprecated — será removido en v2)
 tags:
   - name: health
     description: Health operations

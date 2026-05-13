@@ -1,8 +1,37 @@
 import { Router } from "express";
+import { rateLimit } from "express-rate-limit";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
-// Dominios permitidos en el proxy de imágenes
+// ── Rate limiting específico para proxy (más estricto que el general) ────────
+const proxyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 30, // 30 requests por minuto por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones al proxy de imágenes." },
+});
+router.use("/proxy-image", proxyLimiter);
+
+// ── Límites ─────────────────────────────────────────────────────────────────
+const MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10 MB
+const FETCH_TIMEOUT_MS = 8_000; // 8 segundos
+const WESERV_TIMEOUT_MS = 10_000; // 10 segundos para el fallback
+
+// ── Tipos MIME de imagen permitidos ──────────────────────────────────────────
+const ALLOWED_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/svg+xml",
+  "image/bmp",
+  "image/tiff",
+]);
+
+// ── Dominios permitidos ──────────────────────────────────────────────────────
 const ALLOWED_IMAGE_HOSTS = new Set([
   "medium.com",
   "miro.medium.com",
@@ -50,7 +79,16 @@ function randomUA(): string {
 }
 
 function sleep(ms: number) {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Verifica que el Content-Type de la respuesta sea un tipo de imagen válido.
+ */
+function isValidImageContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const baseType = contentType.split(";")[0].trim().toLowerCase();
+  return ALLOWED_CONTENT_TYPES.has(baseType);
 }
 
 router.get("/proxy-image", async (req, res): Promise<void> => {
@@ -61,16 +99,16 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     return;
   }
 
-  const headerSets = [
+  const headerSets: Record<string, string>[] = [
     {
       "User-Agent": randomUA(),
-      "Referer": "https://medium.com/",
-      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      Referer: "https://medium.com/",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
     },
     {
       "User-Agent": randomUA(),
-      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
       "Sec-Fetch-Dest": "image",
       "Sec-Fetch-Mode": "no-cors",
@@ -78,8 +116,8 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     },
     {
       "User-Agent": randomUA(),
-      "Referer": "https://www.google.com/",
-      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      Referer: "https://www.google.com/",
+      Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     },
   ];
 
@@ -88,12 +126,57 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     try {
       const upstream = await fetch(raw, {
         headers: headerSets[i],
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
 
       if (upstream.ok) {
-        const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+        const rawContentType = upstream.headers.get("content-type");
+
+        // Verificar que la respuesta sea realmente una imagen
+        if (!isValidImageContentType(rawContentType)) {
+          logger.warn(
+            { url: raw, contentType: rawContentType },
+            "Proxy blocked non-image response",
+          );
+          res
+            .status(400)
+            .json({ error: "La URL no devolvió una imagen válida." });
+          return;
+        }
+
+        const contentType: string = rawContentType!;
+
+        // Verificar Content-Length antes de descargar
+        const contentLength = upstream.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_RESPONSE_SIZE) {
+          logger.warn(
+            { url: raw, contentLength },
+            "Proxy blocked oversized response",
+          );
+          res
+            .status(400)
+            .json({
+              error: "La imagen excede el tamaño máximo permitido (10 MB).",
+            });
+          return;
+        }
+
         const buffer = Buffer.from(await upstream.arrayBuffer());
+
+        // Verificar tamaño real del buffer
+        if (buffer.length > MAX_RESPONSE_SIZE) {
+          logger.warn(
+            { url: raw, size: buffer.length },
+            "Proxy blocked oversized buffer",
+          );
+          res
+            .status(400)
+            .json({
+              error: "La imagen excede el tamaño máximo permitido (10 MB).",
+            });
+          return;
+        }
+
         res.set("Content-Type", contentType);
         res.set("Cache-Control", "public, max-age=31536000, immutable");
         res.set("X-Content-Type-Options", "nosniff");
@@ -110,18 +193,38 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
     }
   }
 
-  // Fallback: usar un proxy de imágenes público como intermediario
-  // Render free tier IPs son bloqueadas por Cloudflare (Medium CDN)
+  // Fallback: usar images.weserv.nl como proxy intermediario
   try {
-    const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&default=-`;
+    const weservUrl = `https://images.weserv.nl/?url=${encodeURIComponent(raw)}&default=-&maxage=7d`;
     const weservResponse = await fetch(weservUrl, {
       headers: { "User-Agent": randomUA() },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(WESERV_TIMEOUT_MS),
     });
 
     if (weservResponse.ok) {
-      const contentType = weservResponse.headers.get("content-type") ?? "image/jpeg";
+      const rawContentType =
+        weservResponse.headers.get("content-type") ?? "image/jpeg";
+
+      if (!isValidImageContentType(rawContentType)) {
+        res.status(502).end();
+        return;
+      }
+
+      const contentType: string = rawContentType;
+
+      const contentLength = weservResponse.headers.get("content-length");
+      if (contentLength && parseInt(contentLength, 10) > MAX_RESPONSE_SIZE) {
+        res.status(502).end();
+        return;
+      }
+
       const buffer = Buffer.from(await weservResponse.arrayBuffer());
+
+      if (buffer.length > MAX_RESPONSE_SIZE) {
+        res.status(502).end();
+        return;
+      }
+
       res.set("Content-Type", contentType);
       res.set("Cache-Control", "public, max-age=604800");
       res.set("X-Content-Type-Options", "nosniff");

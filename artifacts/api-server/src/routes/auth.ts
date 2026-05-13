@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import { signToken } from "../lib/auth";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -15,20 +16,33 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   const { email, password } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
 
   if (!user) {
+    logger.warn({ email, reason: "user_not_found" }, "Login failed");
     res.status(401).json({ error: "Credenciales inválidas" });
     return;
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    logger.warn(
+      { email, userId: user.id, reason: "invalid_password" },
+      "Login failed",
+    );
     res.status(401).json({ error: "Credenciales inválidas" });
     return;
   }
 
-  const token = signToken({ userId: user.id, email: user.email, role: user.role });
+  logger.info({ userId: user.id, email, role: user.role }, "Login successful");
+  const token = signToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  });
 
   res.json({
     token,

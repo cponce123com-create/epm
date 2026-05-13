@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { safeError } from "../lib/safeError";
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get("/clima", async (_req, res): Promise<void> => {
 
     const response = await fetch(
       "https://api.open-meteo.com/v1/forecast?latitude=-11.12&longitude=-75.34&current=temperature_2m,weathercode&timezone=America%2FLima",
-      { signal: controller.signal }
+      { signal: controller.signal },
     );
     clearTimeout(timeout);
 
@@ -23,7 +24,7 @@ router.get("/clima", async (_req, res): Promise<void> => {
       throw new Error(`Open-Meteo responded with status ${response.status}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       current?: { temperature_2m?: number; weathercode?: number };
     };
 
@@ -38,15 +39,14 @@ router.get("/clima", async (_req, res): Promise<void> => {
     res.json({ temp: String(temp), emoji, fuente: "open-meteo" });
   } catch (err: unknown) {
     res.status(502).json({
-      error: "No se pudo obtener el clima",
-      detail: err instanceof Error ? err.message : "unknown",
+      error: safeError(err),
     });
   }
 });
 
 function weatherEmoji(code: number): string {
-  if (code === 0) return "☀️";              // despejado
-  if (code >= 1 && code <= 3) return "⛅";   // parcialmente nublado
+  if (code === 0) return "☀️"; // despejado
+  if (code >= 1 && code <= 3) return "⛅"; // parcialmente nublado
   if (code === 45 || code === 48) return "🌫️"; // neblina
   if ((code >= 51 && code <= 55) || (code >= 61 && code <= 65)) return "🌧️"; // lluvia
   if (code >= 71 && code <= 77) return "🌨️"; // nieve

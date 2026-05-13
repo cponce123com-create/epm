@@ -29,12 +29,18 @@ services:
         fromDatabase:
           name: epm-db
           property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
       - key: SESSION_SECRET
         generateValue: true
+      # ⚠️ SEGURIDAD: Configura ADMIN_EMAIL en el dashboard de Render.
+      # No guardes el email real en este archivo (visible en el repo).
       - key: ADMIN_EMAIL
-        value: elprincipemestizosr@gmail.com
+        value: ""
+      # ADMIN_PASSWORD se genera automáticamente. Para ver el valor:
+      # Render Dashboard → epm → Environment → ADMIN_PASSWORD → Reveal
       - key: ADMIN_PASSWORD
-        value: Hadrones456%
+        generateValue: true
       # Con frontend y backend unidos, el origen es el mismo servidor
       - key: FRONTEND_URL
         value: "https://elprincipemestizo.eu.cc"

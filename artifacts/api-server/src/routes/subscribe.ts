@@ -7,6 +7,32 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
+// RFC 5322 simplified: nombre@dominio.tld con validación básica de dominio
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function isValidEmail(email: string): boolean {
+  if (!EMAIL_RE.test(email)) return false;
+
+  // Rechazar emails con dominios peligrosos o temporales comunes
+  const domain = email.split("@")[1]?.toLowerCase() ?? "";
+  const blockedDomains = [
+    "example.com",
+    "test.com",
+    "localhost",
+    "mailinator.com",
+    "guerrillamail.com",
+    "10minutemail.com",
+    "tempmail.com",
+    "yopmail.com",
+  ];
+
+  if (blockedDomains.some((d) => domain === d || domain.endsWith("." + d))) {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * POST /api/subscribe/google
  * Recibe un token de Google Identity Services, lo verifica,
@@ -23,7 +49,7 @@ router.post("/subscribe/google", async (req, res): Promise<void> => {
   try {
     // Verificar el token con Google
     const verifyRes = await fetch(
-      `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${encodeURIComponent(token)}`
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${encodeURIComponent(token)}`,
     );
 
     if (!verifyRes.ok) {
@@ -59,7 +85,10 @@ router.post("/subscribe/google", async (req, res): Promise<void> => {
           active: true,
         })
         .where(eq(subscribersTable.id, existing.id));
-      res.json({ ok: true, message: "Ya estabas suscrito. Te hemos reactivado." });
+      res.json({
+        ok: true,
+        message: "Ya estabas suscrito. Te hemos reactivado.",
+      });
       return;
     }
 
@@ -71,7 +100,12 @@ router.post("/subscribe/google", async (req, res): Promise<void> => {
     });
 
     logger.info({ email: payload.email }, "New Google subscriber");
-    res.status(201).json({ ok: true, message: "¡Suscrito! Recibirás las noticias en tu correo." });
+    res
+      .status(201)
+      .json({
+        ok: true,
+        message: "¡Suscrito! Recibirás las noticias en tu correo.",
+      });
   } catch (err) {
     logger.error({ err }, "Google subscribe error");
     res.status(502).json({ error: "Error al verificar con Google." });
@@ -85,7 +119,7 @@ router.post("/subscribe/google", async (req, res): Promise<void> => {
 router.post("/subscribe/email", async (req, res): Promise<void> => {
   const { email } = req.body as { email?: string };
 
-  if (!email || typeof email !== "string" || !email.includes("@")) {
+  if (!email || typeof email !== "string" || !isValidEmail(email)) {
     res.status(400).json({ error: "Email válido requerido." });
     return;
   }
@@ -116,35 +150,50 @@ router.post("/subscribe/email", async (req, res): Promise<void> => {
   });
 
   logger.info({ email: normalized }, "New email subscriber");
-  res.status(201).json({ ok: true, message: "¡Suscrito! Recibirás las noticias en tu correo." });
+  res
+    .status(201)
+    .json({
+      ok: true,
+      message: "¡Suscrito! Recibirás las noticias en tu correo.",
+    });
 });
 
 /**
  * GET /api/admin/subscribers
  * Lista todos los suscriptores (solo superadmin).
  */
-router.get("/admin/subscribers", requireAuth, requireSuperAdmin, async (_req, res): Promise<void> => {
-  const subs = await db
-    .select()
-    .from(subscribersTable)
-    .orderBy(subscribersTable.subscribedAt);
+router.get(
+  "/admin/subscribers",
+  requireAuth,
+  requireSuperAdmin,
+  async (_req, res): Promise<void> => {
+    const subs = await db
+      .select()
+      .from(subscribersTable)
+      .orderBy(subscribersTable.subscribedAt);
 
-  res.json(subs);
-});
+    res.json(subs);
+  },
+);
 
 /**
  * DELETE /api/admin/subscribers/:id
  * Elimina un suscriptor (solo superadmin).
  */
-router.delete("/admin/subscribers/:id", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) {
-    res.status(400).json({ error: "ID inválido." });
-    return;
-  }
+router.delete(
+  "/admin/subscribers/:id",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
 
-  await db.delete(subscribersTable).where(eq(subscribersTable.id, id));
-  res.json({ ok: true });
-});
+    await db.delete(subscribersTable).where(eq(subscribersTable.id, id));
+    res.json({ ok: true });
+  },
+);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { safeError } from "../lib/safeError";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get("/tipo-cambio", async (_req, res): Promise<void> => {
           "User-Agent": "Mozilla/5.0 (compatible; EPM-Bot/1.0)",
           Accept: "text/plain,*/*",
         },
-      }
+      },
     );
     clearTimeout(timeout);
 
@@ -31,7 +32,10 @@ router.get("/tipo-cambio", async (_req, res): Promise<void> => {
 
     const text = await response.text();
     // Formato: fecha|compra|venta — tomamos la última línea no vacía
-    const lines = text.trim().split("\n").filter(l => l.includes("|"));
+    const lines = text
+      .trim()
+      .split("\n")
+      .filter((l) => l.includes("|"));
     if (lines.length === 0) {
       throw new Error("Formato SUNAT no reconocido");
     }
@@ -43,7 +47,7 @@ router.get("/tipo-cambio", async (_req, res): Promise<void> => {
     }
 
     const compra = parseFloat(parts[1]).toFixed(3);
-    const venta  = parseFloat(parts[2]).toFixed(3);
+    const venta = parseFloat(parts[2]).toFixed(3);
 
     // Cache de 2 horas (SUNAT actualiza una vez al día hábil)
     res.set("Cache-Control", "public, max-age=7200");
@@ -53,9 +57,9 @@ router.get("/tipo-cambio", async (_req, res): Promise<void> => {
     try {
       const fallback = await fetch(
         "https://api.exchangerate-api.com/v4/latest/USD",
-        { signal: AbortSignal.timeout(5000) }
+        { signal: AbortSignal.timeout(5000) },
       );
-      const data = await fallback.json() as { rates?: { PEN?: number } };
+      const data = (await fallback.json()) as { rates?: { PEN?: number } };
       const pen = data?.rates?.PEN;
       if (pen) {
         const venta = Number(pen).toFixed(3);
@@ -68,8 +72,7 @@ router.get("/tipo-cambio", async (_req, res): Promise<void> => {
     }
 
     res.status(502).json({
-      error: "No se pudo obtener el tipo de cambio",
-      detail: err instanceof Error ? err.message : "unknown",
+      error: safeError(err),
     });
   }
 });
