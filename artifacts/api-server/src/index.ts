@@ -8,6 +8,9 @@ import { sql } from "drizzle-orm";
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
+  console.error(
+    "FATAL: PORT environment variable is required but was not provided.",
+  );
   throw new Error(
     "PORT environment variable is required but was not provided.",
   );
