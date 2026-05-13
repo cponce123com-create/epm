@@ -14,7 +14,6 @@ services:
     # Compila primero el frontend (Vite), luego el backend (esbuild)
     # El frontend necesita BASE_PATH=/ y PORT solo para que vite.config.ts no lance error
     buildCommand: >
-      corepack enable pnpm &&
       pnpm install --no-frozen-lockfile &&
       PORT=3000 BASE_PATH=/ pnpm --filter @workspace/el-principe-mestizo run build &&
       pnpm --filter @workspace/api-server run build
