@@ -1,26 +1,7 @@
 import jwt from "jsonwebtoken";
 
-const rawSecret = process.env.JWT_SECRET;
-if (!rawSecret) {
-  console.error(
-    "FATAL: JWT_SECRET environment variable is required but was not provided.",
-  );
-  throw new Error(
-    "JWT_SECRET environment variable is required but was not provided.",
-  );
-}
-
-// Validar longitud mínima del secreto (32 caracteres = 256 bits de entropía)
-if (rawSecret.length < 32) {
-  console.error("FATAL: JWT_SECRET must be at least 32 characters long.");
-  throw new Error(
-    "JWT_SECRET must be at least 32 characters long. " +
-      "Generate one with: node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"",
-  );
-}
-
-// Constante tipada como string después de la validación
-const JWT_SECRET: string = rawSecret;
+// JWT_SECRET validation is handled in env-check.ts
+const JWT_SECRET: string = process.env.JWT_SECRET!;
 
 const JWT_ISSUER = process.env["FRONTEND_URL"] ?? "epm-api";
 const JWT_AUDIENCE = "epm-api";

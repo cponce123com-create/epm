@@ -1,26 +1,11 @@
-import "dotenv/config";
+import "./env-check"; // DEBE ser el primer import
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
 import { db, pool } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  console.error(
-    "FATAL: PORT environment variable is required but was not provided.",
-  );
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const port = Number(process.env["PORT"]!);
 
 // ── Graceful shutdown ───────────────────────────────────────────────────────
 const SHUTDOWN_TIMEOUT_MS = 10_000; // 10 segundos máximo
