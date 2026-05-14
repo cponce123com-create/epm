@@ -586,6 +586,60 @@ export default function RichEditor({ value, onChange }: Props) {
           setDragDropPreview(null);
           return false;
         },
+        paste: (_view, event: ClipboardEvent) => {
+          const items = event.clipboardData?.items;
+          if (!items) return false;
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.type.startsWith("image/")) {
+              event.preventDefault();
+              const file = item.getAsFile();
+              if (!file) continue;
+
+              setUploading(true);
+              setUploadProgress(0);
+              const progressInterval = setInterval(() => {
+                setUploadProgress((p) => Math.min(90, p + 10));
+              }, 200);
+
+              // Insert placeholder (data URL) immediately
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                editor
+                  ?.chain()
+                  .focus()
+                  .setImage({ src: dataUrl, alt: "Pegando…" })
+                  .run();
+              };
+              reader.onerror = () => {
+                clearInterval(progressInterval);
+                setUploading(false);
+              };
+              reader.readAsDataURL(file);
+
+              // Upload to server
+              uploadFile(file).then((url) => {
+                clearInterval(progressInterval);
+                setUploading(false);
+                if (url && editor) {
+                  const html = editor.getHTML();
+                  // Replace the first data:image URL with the real URL
+                  const finalHtml = html.replace(
+                    /src="data:image\/[^"]+"/,
+                    `src="${url}" alt="Pegado desde portapapeles"`,
+                  );
+                  if (finalHtml !== html) {
+                    editor.commands.setContent(finalHtml);
+                  }
+                }
+              });
+              return true;
+            }
+          }
+          return false;
+        },
       },
     },
   });
