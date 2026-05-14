@@ -82,6 +82,12 @@ async function initDb() {
       featured BOOLEAN NOT NULL DEFAULT FALSE,
       views INTEGER NOT NULL DEFAULT 0,
       reading_time INTEGER NOT NULL DEFAULT 1,
+      reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      reviewed_at TIMESTAMPTZ,
+      editorial_note TEXT NOT NULL DEFAULT '',
+      last_edited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      word_count INTEGER NOT NULL DEFAULT 0,
+      language VARCHAR(10) NOT NULL DEFAULT 'es',
       published_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -115,6 +121,17 @@ async function initDb() {
   // Ensure secondary_category_id exists on already-deployed databases
   await db.execute(sql`
     ALTER TABLE articles ADD COLUMN IF NOT EXISTS secondary_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
+  `);
+
+  // ── Migraciones progresivas de artículos ──────────────────────────────
+  logger.info("Running articles table migrations...");
+  await db.execute(sql`
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS editorial_note TEXT NOT NULL DEFAULT '';
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS last_edited_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS word_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE articles ADD COLUMN IF NOT EXISTS language VARCHAR(10) NOT NULL DEFAULT 'es';
   `);
 
   // ── Migraciones progresivas de usuarios ────────────────────────────────

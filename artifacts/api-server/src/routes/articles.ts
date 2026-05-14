@@ -628,42 +628,52 @@ router.patch(
   requireAuth,
   requireSuperAdmin,
   async (req, res): Promise<void> => {
-    const { ids, status } = req.body as { ids?: number[]; status?: string };
+    try {
+      const { ids, status } = req.body as { ids?: number[]; status?: string };
 
-    if (!Array.isArray(ids) || ids.length === 0) {
-      res.status(400).json({ error: "Se requiere un array de IDs." });
-      return;
-    }
-    if (status !== "draft" && status !== "published") {
-      res.status(400).json({ error: "Estado inválido. Usa 'draft' o 'published'." });
-      return;
-    }
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ error: "Se requiere un array de IDs." });
+        return;
+      }
+      if (status !== "draft" && status !== "published") {
+        res.status(400).json({ error: "Estado inválido. Usa 'draft' o 'published'." });
+        return;
+      }
 
-    const maxBatch = 100;
-    const batchIds = ids.slice(0, maxBatch);
+      const maxBatch = 100;
+      const batchIds = ids.slice(0, maxBatch);
 
-    const user = (req as any).user;
-    const now = new Date();
+      const user = (req as any).user;
+      const now = new Date();
 
-    const publishedAt =
-      status === "published" ? now : undefined;
+      const publishedAt =
+        status === "published" ? now : undefined;
 
-    await db
-      .update(articlesTable)
-      .set({
+      await db
+        .update(articlesTable)
+        .set({
+          status,
+          publishedAt,
+          updatedAt: now,
+          lastEditedBy: user.userId,
+        })
+        .where(inArray(articlesTable.id, batchIds));
+
+      logger.info(
+        { count: batchIds.length, status, byUserId: user.userId },
+        "Bulk status update",
+      );
+
+      res.json({
+        ok: true,
+        updated: batchIds.length,
         status,
-        publishedAt,
-        updatedAt: now,
-        lastEditedBy: user.userId,
-      })
-      .where(inArray(articlesTable.id, batchIds));
-
-    res.json({
-      ok: true,
-      updated: batchIds.length,
-      status,
-      message: `${batchIds.length} artículo(s) actualizado(s) a "${status}".`,
-    });
+        message: `${batchIds.length} artículo(s) actualizado(s) a "${status === "draft" ? "borrador" : "publicado"}".`,
+      });
+    } catch (err) {
+      logger.error({ err }, "Error in bulk status update");
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
   },
 );
 
