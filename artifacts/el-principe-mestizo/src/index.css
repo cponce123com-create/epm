@@ -589,25 +589,56 @@
 }
 @media (max-width: 1023px) { .col-divider { border-right: none; } }
 
-/* ── Imágenes en artículo: 2 columnas ────────────────────── */
+/* ── Imágenes en artículo: 2 columnas y single ─────────────── */
 .article-image-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin: 1.5rem 0;
+  margin: 1.8rem 0;
 }
 .article-image-grid img {
   width: 100%;
-  aspect-ratio: 4/3;
+  height: 100%;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
-  margin: 0;
+  margin: 0 !important;
   cursor: zoom-in;
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+.article-image-grid img:hover {
+  opacity: 0.92;
 }
 @media (max-width: 480px) {
   .article-image-grid {
     grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .article-image-grid img {
+    aspect-ratio: 16 / 9;
   }
 }
+
+/* ── Imágenes individuales (no agrupadas) ─────────────────── */
+.article-body p:has(> img:only-child) {
+  text-align: center;
+  margin: 1.8rem 0;
+}
+.article-body p:has(> img:only-child) img {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 500px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 3px;
+  margin: 0 auto;
+}
+
+/* ── Lightbox mejorado ────────────────────────────────────── */
+/* El lightbox se renderiza como fixed overlay en Article.tsx */
+/* Se usa backdrop-blur y transiciones suaves desde el JSX */
 
 /* ── Figure con caption estilo Medium ────────────────────── */
 .article-body .article-figure,
@@ -849,27 +880,6 @@
   .mobile-nav-grid a {
     font-size: 0.9rem;
     padding: 12px;
-  }
-}
-
-/* ── Imagen en cuadrícula de 2 columnas (artículo) ───────────── */
-.article-image-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin: 1.6rem 0;
-}
-.article-image-grid img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  margin: 0 !important;
-  cursor: zoom-in;
-  border-radius: 2px;
-}
-@media (max-width: 480px) {
-  .article-image-grid {
-    grid-template-columns: 1fr;
   }
 }
 
