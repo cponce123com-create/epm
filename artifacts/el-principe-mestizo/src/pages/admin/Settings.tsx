@@ -285,6 +285,7 @@ export default function Settings() {
         aboutText: s.aboutText ?? "",
         aboutPhotoUrl: s.aboutPhotoUrl ?? "",
         aboutRole: s.aboutRole ?? "",
+        aboutLandscapeUrl: s.aboutLandscapeUrl ?? "",
         adBanner1Url: s.adBanner1Url ?? "",
         adBanner1Link: s.adBanner1Link ?? "",
         adBanner1Alt: s.adBanner1Alt ?? "",
@@ -507,6 +508,14 @@ export default function Settings() {
                     </div>
                   </div>
                 )}
+                <div className="border-t border-border pt-4">
+                  <ImageUpload
+                    label="Paisaje de San Ramón"
+                    value={form.aboutLandscapeUrl}
+                    hint="Foto panorámica de San Ramón o la selva central. Aparece debajo de tu presentación. Recomendado: 1200×500 px."
+                    onChange={set("aboutLandscapeUrl")}
+                  />
+                </div>
               </div>
             )}
 

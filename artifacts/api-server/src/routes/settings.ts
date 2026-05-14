@@ -39,6 +39,7 @@ const SETTING_KEYS = [
   "about_text",
   "about_photo_url",
   "about_role",
+  "about_landscape_url",
   // Publicidad banners manuales
   "ad_banner_1_url",
   "ad_banner_1_link",
@@ -102,6 +103,7 @@ async function getAllSettings() {
     aboutText:          map["about_text"]           ?? "",
     aboutPhotoUrl:      map["about_photo_url"]      ?? "",
     aboutRole:          map["about_role"]           ?? "",
+    aboutLandscapeUrl:  map["about_landscape_url"]  ?? "",
     // Publicidad banners
     adBanner1Url:       map["ad_banner_1_url"]      ?? "",
     adBanner1Link:      map["ad_banner_1_link"]     ?? "",

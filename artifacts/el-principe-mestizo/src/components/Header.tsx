@@ -292,26 +292,12 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* DERECHA: Apoyar */}
+          {/* DERECHA: acciones */}
           <div className="epm-masthead-col" style={{ display: "flex", gap: 6, flex: "0 0 auto", justifyContent: "flex-end", alignItems: "center" }}>
             {/* Mobile search */}
             <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden"
               style={{ background: "transparent", border: "none", color: "rgba(244,240,231,0.7)", cursor: "pointer", padding: 6 }}
               aria-label="Buscar"><Search size={18} /></button>
-
-            {/* Apoyar Button: Hidden on very small screens, shown as icon on small, full on large */}
-            <Link href="/acerca-de" 
-              className="epm-mono"
-              style={{ 
-                background: "#7A1F1F", border: "none", color: "#fff", 
-                padding: "10px 12px", cursor: "pointer", fontSize: 11, fontWeight: 600, 
-                textDecoration: "none", display: "flex", alignItems: "center", 
-                fontFamily: "var(--app-font-sans)",
-                borderRadius: "2px"
-              }}>
-              <span className="hidden sm:inline">Apoyar →</span>
-              <span className="sm:hidden">Apoyar</span>
-            </Link>
           </div>
         </div>
 

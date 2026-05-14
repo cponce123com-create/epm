@@ -17,6 +17,7 @@ export default function About() {
   const aboutRole    = s?.aboutRole?.trim() || "Columnista independiente";
   const aboutText    = s?.aboutText?.trim() || "Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio de denuncia y reflexión sobre la gestión pública local — un ejercicio de comunicación ciudadana que nace de la convicción de que la verdad tiene que ser dicha, aunque incomode.";
   const aboutPhotoUrl = s?.aboutPhotoUrl?.trim() || "";
+  const aboutLandscapeUrl = s?.aboutLandscapeUrl?.trim() || "";
   const siteDescription = s?.siteDescription?.trim() || "El Príncipe Mestizo es un espacio de comunicación ciudadana, opinión y denuncia desde la selva central peruana.";
   const twitterUrl  = s?.twitterUrl || "";
   const facebookUrl = s?.facebookUrl || "";
@@ -128,6 +129,24 @@ export default function About() {
                   Ver artículos →
                 </Link>
               </div>
+
+              {/* Paisaje de San Ramón */}
+              {aboutLandscapeUrl && (
+                <div className="mt-10">
+                  <div className="relative rounded-lg overflow-hidden">
+                    <img
+                      src={aboutLandscapeUrl}
+                      alt="San Ramón, Chanchamayo — Selva central del Perú"
+                      className="w-full h-auto max-h-80 object-cover"
+                      style={{ objectPosition: "center 30%" }}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
+                    <p className="absolute bottom-3 left-4 text-xs text-white/80 font-sans-ui tracking-wide">
+                      San Ramón, Chanchamayo — Selva central del Perú
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Avatar — usa la foto del admin si existe */}
@@ -136,11 +155,11 @@ export default function About() {
                 <div className="relative">
                   <div className="absolute -inset-2 border-2 border-red-700 translate-x-2 translate-y-2" />
                   <div className="relative w-44 h-44 overflow-hidden">
-                    <OptimizedImage
+                    <img
                       src={aboutPhotoUrl}
                       alt={aboutTitle}
                       className="w-full h-full object-cover"
-                      optimizeWidth={400}
+                      style={{ objectPosition: "center top" }}
                     />
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-700" />
                   </div>
