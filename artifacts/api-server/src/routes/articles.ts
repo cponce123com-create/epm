@@ -414,7 +414,21 @@ router.put(
 
     const user = (req as any).user;
     const [existing] = await db
-      .select()
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        slug: articlesTable.slug,
+        summary: articlesTable.summary,
+        content: articlesTable.content,
+        categoryId: articlesTable.categoryId,
+        secondaryCategoryId: articlesTable.secondaryCategoryId,
+        authorId: articlesTable.authorId,
+        status: articlesTable.status,
+        featured: articlesTable.featured,
+        coverImageUrl: articlesTable.coverImageUrl,
+        coverImageAlt: articlesTable.coverImageAlt,
+        publishedAt: articlesTable.publishedAt,
+      })
       .from(articlesTable)
       .where(eq(articlesTable.id, id));
     if (!existing) {
@@ -685,7 +699,17 @@ router.patch(
 
     const user = (req as any).user;
     const [existing] = await db
-      .select()
+      .select({
+        id: articlesTable.id,
+        title: articlesTable.title,
+        slug: articlesTable.slug,
+        authorId: articlesTable.authorId,
+        status: articlesTable.status,
+        featured: articlesTable.featured,
+        publishedAt: articlesTable.publishedAt,
+        coverImageUrl: articlesTable.coverImageUrl,
+        coverImageAlt: articlesTable.coverImageAlt,
+      })
       .from(articlesTable)
       .where(eq(articlesTable.id, id));
     if (!existing) {
@@ -745,7 +769,11 @@ router.patch(
 
     const user = (req as any).user;
     const [existing] = await db
-      .select()
+      .select({
+        id: articlesTable.id,
+        authorId: articlesTable.authorId,
+        featured: articlesTable.featured,
+      })
       .from(articlesTable)
       .where(eq(articlesTable.id, id));
     if (!existing) {
