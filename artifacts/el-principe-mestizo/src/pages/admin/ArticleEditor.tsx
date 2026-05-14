@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, Save, Globe, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, Globe, Upload, X, CloudOff, CheckCircle2, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import AdminLayout from "@/components/admin/AdminLayout";
 import RichEditor from "@/components/admin/RichEditor";
@@ -205,6 +205,126 @@ export default function ArticleEditor() {
 
   const isSaving = createArticle.isPending || updateArticle.isPending;
 
+  // ── Autoguardado ────────────────────────────────────────────────────────
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const articleIdRef = useRef<number | null>(isEdit ? Number(id) : null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  const doAutoSave = useCallback(async (currentForm: FormState) => {
+    const articleId = articleIdRef.current;
+    if (!articleId) return;
+    if (
+      !currentForm.title.trim() ||
+      !currentForm.summary.trim() ||
+      !currentForm.content ||
+      currentForm.content === "<p></p>" ||
+      !currentForm.categoryId
+    ) return;
+
+    setAutoSaveStatus("saving");
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL ?? "";
+      const res = await fetch(`${apiUrl}/api/admin/articles/${articleId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: currentForm.title,
+          summary: currentForm.summary,
+          content: currentForm.content,
+          categoryId: currentForm.categoryId,
+          secondaryCategoryId: currentForm.secondaryCategoryId || null,
+          status: "draft" as const,
+          featured: currentForm.featured,
+          coverImageUrl: currentForm.coverImageUrl || null,
+          coverImageAlt: currentForm.coverImageAlt || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setAutoSaveStatus("saved");
+      queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
+    } catch {
+      setAutoSaveStatus("error");
+    }
+  }, [token, queryClient]);
+
+  // Debounce cada cambio de formulario → autoguardar a los 2 segundos
+  useEffect(() => {
+    if (!articleIdRef.current) return;
+    if (
+      !form.title.trim() ||
+      !form.summary.trim() ||
+      !form.content ||
+      form.content === "<p></p>" ||
+      !form.categoryId
+    ) return;
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => doAutoSave(form), 2000);
+
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [form, doAutoSave]);
+
+  const handleSave = async (publishStatus?: "draft" | "published") => {
+    const status = publishStatus ?? form.status;
+    if (!form.title.trim()) {
+      toast({ description: "El título es obligatorio.", variant: "destructive" });
+      return;
+    }
+    if (!form.summary.trim()) {
+      toast({ description: "El resumen es obligatorio.", variant: "destructive" });
+      return;
+    }
+    if (!form.content || form.content === "<p></p>") {
+      toast({ description: "El contenido es obligatorio.", variant: "destructive" });
+      return;
+    }
+    if (!form.categoryId) {
+      toast({ description: "Selecciona una categoría.", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+      title: form.title,
+      summary: form.summary,
+      content: form.content,
+      categoryId: form.categoryId,
+      secondaryCategoryId: form.secondaryCategoryId || null,
+      status,
+      featured: form.featured,
+      coverImageUrl: form.coverImageUrl || null,
+      coverImageAlt: form.coverImageAlt || null,
+    };
+
+    try {
+      if (isEdit && id) {
+        await updateArticle.mutateAsync({ id: Number(id), data: payload });
+      } else {
+        const result = await createArticle.mutateAsync({ data: payload });
+        const newId = (result as any)?.id;
+        if (newId) {
+          articleIdRef.current = newId;
+          window.history.replaceState(null, "", `/admin/articles/${newId}/edit`);
+        }
+      }
+      toast({
+        description: status === "published" ? "Artículo publicado." : "Borrador guardado.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
+      if (status === "published") {
+        setLocation("/admin/articles");
+      }
+    } catch {
+      toast({ description: "Error al guardar el artículo.", variant: "destructive" });
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="min-h-screen bg-[#FAFAFA]">
@@ -222,10 +342,34 @@ export default function ArticleEditor() {
               <span className="hidden sm:inline">Volver</span>
             </Link>
 
-            {/* Centro: nombre del blog */}
-            <span className="text-sm font-serif italic text-gray-400 select-none">
-              El Príncipe Mestizo
-            </span>
+            {/* Centro: nombre del blog + estado autoguardado */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-serif italic text-gray-400 select-none">
+                El Príncipe Mestizo
+              </span>
+              {articleIdRef.current && (
+                <span className="flex items-center gap-1 text-[10px] font-sans-ui text-gray-400">
+                  {autoSaveStatus === "saving" && (
+                    <>
+                      <Loader2 size={10} className="animate-spin text-yellow-500" />
+                      <span className="text-yellow-600">Guardando...</span>
+                    </>
+                  )}
+                  {autoSaveStatus === "saved" && (
+                    <>
+                      <CheckCircle2 size={10} className="text-green-500" />
+                      <span className="text-green-600">Guardado</span>
+                    </>
+                  )}
+                  {autoSaveStatus === "error" && (
+                    <>
+                      <CloudOff size={10} className="text-red-500" />
+                      <span className="text-red-500">Error al guardar</span>
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
 
             {/* Derecha: acciones */}
             <div className="flex items-center gap-2">
