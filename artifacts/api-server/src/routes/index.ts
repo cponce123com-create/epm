@@ -16,6 +16,10 @@ import tipoCambioRouter from "./tipoCambio";
 import climaRouter from "./clima";
 import adminNacionalRouter from "./adminNacional";
 import subscribeRouter from "./subscribe";
+import adminEditorsRouter from "./adminEditors";
+import adminReviewRouter from "./adminReview";
+import notificationsRouter from "./notifications";
+import revisionsRouter from "./revisions";
 
 const router: IRouter = Router();
 
@@ -36,5 +40,9 @@ router.use(tipoCambioRouter);
 router.use(climaRouter);
 router.use(adminNacionalRouter);
 router.use(subscribeRouter);
+router.use(adminEditorsRouter);
+router.use(adminReviewRouter);
+router.use(notificationsRouter);
+router.use(revisionsRouter);
 
 export default router;

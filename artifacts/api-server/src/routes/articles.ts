@@ -5,6 +5,7 @@ import {
   categoriesTable,
   usersTable,
   commentsTable,
+  articleRevisionsTable,
 } from "@workspace/db";
 import { eq, desc, ilike, and, or, ne, count, sql, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -421,15 +422,55 @@ router.put(
       return;
     }
 
-    // Solo el autor o un superadmin pueden editar/borrar
-    if (user.role !== "superadmin" && existing.authorId !== user.userId) {
-      res
-        .status(403)
-        .json({
-          error:
-            "No tienes permiso para realizar esta acción sobre este artículo",
-        });
+    // Solo el autor o admin/superadmin pueden editar
+    const canEdit =
+      user.role === "superadmin" ||
+      user.role === "admin" ||
+      (user.role === "author" && existing.authorId === user.userId);
+
+    if (!canEdit) {
+      res.status(403).json({
+        error: "No tienes permiso para editar este artículo",
+      });
       return;
+    }
+
+    // Author solo puede editar artículos en draft, in_review o approved (no published/archived)
+    if (
+      user.role === "author" &&
+      !["draft", "in_review", "approved"].includes(existing.status)
+    ) {
+      res.status(403).json({
+        error: `No puedes editar artículos en estado "${existing.status}". Contacta a un editor.`,
+      });
+      return;
+    }
+
+    // Author NO puede cambiar status a published — debe pasar por revisión
+    if (user.role === "author" && d.status === "published") {
+      res.status(403).json({
+        error:
+          "No puedes publicar directamente. Envía el artículo a revisión.",
+      });
+      return;
+    }
+
+    const contentChanged =
+      d.content !== undefined && d.content !== existing.content;
+
+    // Guardar revisión automática si el contenido cambió (no bloqueante)
+    if (contentChanged) {
+      try {
+        await db.insert(articleRevisionsTable).values({
+          articleId: id,
+          title: d.title ?? existing.title,
+          content: d.content ?? existing.content,
+          summary: d.summary ?? existing.summary,
+          savedBy: user.userId,
+        });
+      } catch (revErr) {
+        logger.warn({ revErr }, "Failed to save auto-revision (non-blocking)");
+      }
     }
 
     const updates: Record<string, unknown> = {};
@@ -443,6 +484,9 @@ router.put(
       const safeContent = sanitizeHtml(d.content);
       updates.content = safeContent;
       updates.readingTime = calcReadingTime(safeContent);
+      updates.wordCount = safeContent
+        ? safeContent.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length
+        : 0;
     }
     if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
     if (d.coverImageUrl !== undefined)
@@ -450,6 +494,8 @@ router.put(
     if (d.coverImageAlt !== undefined)
       updates.coverImageAlt = d.coverImageAlt ?? undefined;
     if (d.featured !== undefined) updates.featured = d.featured;
+    // Track last editor
+    updates.lastEditedBy = user.userId;
     if (d.status !== undefined) {
       updates.status = d.status;
       if (d.status === "published" && !existing.publishedAt) {

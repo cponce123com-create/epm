@@ -4,7 +4,13 @@ import { z } from "zod/v4";
 import { categoriesTable } from "./categories";
 import { usersTable } from "./users";
 
-export const articleStatusEnum = pgEnum("article_status", ["draft", "published"]);
+export const articleStatusEnum = pgEnum("article_status", [
+  "draft",
+  "in_review",
+  "approved",
+  "published",
+  "archived",
+]);
 
 export const articlesTable = pgTable("articles", {
   id: serial("id").primaryKey(),
@@ -15,17 +21,32 @@ export const articlesTable = pgTable("articles", {
   coverImageAlt: varchar("cover_image_alt", { length: 500 }),
   content: text("content").notNull().default(""),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
-  secondaryCategoryId: integer("secondary_category_id").references(() => categoriesTable.id, { onDelete: "set null" }),
+  secondaryCategoryId: integer("secondary_category_id").references(
+    () => categoriesTable.id,
+    { onDelete: "set null" },
+  ),
   authorId: integer("author_id").notNull().references(() => usersTable.id),
   status: articleStatusEnum("status").notNull().default("draft"),
   featured: boolean("featured").notNull().default(false),
   views: integer("views").notNull().default(0),
   readingTime: integer("reading_time").notNull().default(1),
+  // ── Nuevos campos editoriales ─────────────────────────────────────────
+  reviewedBy: integer("reviewed_by").references(() => usersTable.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  editorialNote: text("editorial_note").notNull().default(""),
+  lastEditedBy: integer("last_edited_by").references(() => usersTable.id, { onDelete: "set null" }),
+  wordCount: integer("word_count").notNull().default(0),
+  language: varchar("language", { length: 10 }).notNull().default("es"),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
-export const insertArticleSchema = createInsertSchema(articlesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertArticleSchema = createInsertSchema(articlesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 export type InsertArticle = z.infer<typeof insertArticleSchema>;
 export type Article = typeof articlesTable.$inferSelect;
+

@@ -19,6 +19,9 @@ import Settings from "@/pages/admin/Settings";
 import MediumImport from "@/pages/admin/MediumImport";
 import Nacional from "@/pages/admin/Nacional";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import Editors from "@/pages/admin/Editors";
+import ReviewQueue from "@/pages/admin/ReviewQueue";
+import MyProfile from "@/pages/admin/MyProfile";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -85,6 +88,15 @@ function Router() {
       </Route>
       <Route path="/admin/import-medium">
         {() => <ProtectedRoute component={MediumImport} />}
+      </Route>
+      <Route path="/admin/editors">
+        {() => <ProtectedRoute component={Editors} />}
+      </Route>
+      <Route path="/admin/review">
+        {() => <ProtectedRoute component={ReviewQueue} />}
+      </Route>
+      <Route path="/admin/profile">
+        {() => <ProtectedRoute component={MyProfile} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

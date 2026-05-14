@@ -31,6 +31,13 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
+  // Verificar que la cuenta esté activa
+  if (user.isActive === false) {
+    logger.warn({ email, userId: user.id, reason: "account_inactive" }, "Login blocked");
+    res.status(403).json({ error: "Tu cuenta ha sido desactivada. Contacta al administrador." });
+    return;
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     logger.warn(
@@ -40,6 +47,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Credenciales inválidas" });
     return;
   }
+
+  // Registrar último login
+  await db
+    .update(usersTable)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(usersTable.id, user.id));
 
   logger.info({ userId: user.id, email, role: user.role }, "Login successful");
   const token = signToken({

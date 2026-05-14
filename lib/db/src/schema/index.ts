@@ -4,3 +4,7 @@ export * from "./articles";
 export * from "./comments";
 export * from "./site_settings";
 export * from "./subscribers";
+export * from "./user_permissions";
+export * from "./article_revisions";
+export * from "./notifications";
+export * from "./tags";
