@@ -1,7 +1,6 @@
 import { Link } from "wouter";
 import { Facebook, Twitter, Youtube, Instagram } from "lucide-react";
 import { useGetPublicSettings } from "@workspace/api-client-react";
-import SubscribeButton from "@/components/SubscribeButton";
 
 function Crest({ size = 36, color = "#7A1F1F" }: { size?: number; color?: string }) {
   return (
@@ -154,27 +153,30 @@ export default function Footer() {
             </nav>
           </div>
 
-          {/* Publicidad / Apoyo */}
+          {/* Denuncias / Contacto */}
           <div>
-            <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 14, color: "rgba(244,240,231,0.4)" }}>
-              Suscríbete
+            <div className="epm-mono" style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 4, color: GRANATE }}>
+              ¿TIENES UNA DENUNCIA?
             </div>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 14 }}>
-              Recibí las noticias en tu correo. Sin spam, solo comunicación ciudadana.
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 9 }}>
+              Escribinos y publicamos tu historia. Tu identidad está protegida.
             </p>
-            <SubscribeButton />
-            <div style={{ marginTop: 18 }}>
-              <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 8 }}>
-                ¿Tienes un negocio en Chanchamayo? Anúnciate aquí.
-              </p>
-              {contactEmail && (
-                <a href={`mailto:${contactEmail}`}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "var(--app-font-mono)", color: GRANATE, textDecoration: "none", letterSpacing: "0.1em", transition: "opacity 0.15s" }}
-                  className="hover:opacity-75">
-                  Contáctanos →
-                </a>
-              )}
-            </div>
+            {contactEmail && (
+              <a
+                href={`mailto:${contactEmail}`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  background: GRANATE, color: "#fff",
+                  padding: "10px 18px", fontSize: 13, fontWeight: 600,
+                  textDecoration: "none", borderRadius: "2px",
+                  fontFamily: "var(--app-font-sans)",
+                  transition: "opacity 0.15s",
+                }}
+                className="hover:opacity-85"
+              >
+                {contactEmail} →
+              </a>
+            )}
           </div>
         </div>
 
