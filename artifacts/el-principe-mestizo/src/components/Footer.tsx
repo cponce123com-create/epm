@@ -160,7 +160,7 @@ export default function Footer() {
               Suscríbete
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(244,240,231,0.55)", marginBottom: 14 }}>
-              Recibí las noticias en tu correo. Sin spam, solo periodismo.
+              Recibí las noticias en tu correo. Sin spam, solo comunicación ciudadana.
             </p>
             <SubscribeButton />
             <div style={{ marginTop: 18 }}>

@@ -699,7 +699,7 @@ export default function Article() {
                 {article.authorName ?? "El Príncipe Mestizo"}
               </p>
               <p className="font-sans-ui text-xs text-gray-400">
-                Periodismo ciudadano desde la selva central
+                Comunicación ciudadana desde la selva central
               </p>
             </div>
           </div>

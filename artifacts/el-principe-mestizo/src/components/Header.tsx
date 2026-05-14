@@ -138,7 +138,7 @@ export default function Header() {
 
   /* ── Datos del strip superior ── */
   const today = format(new Date(), "EEEE · d 'de' MMMM 'de' yyyy", { locale: es }).toUpperCase();
-  const edicion = s?.edicionNumero ? `· EDICIÓN Nº ${s.edicionNumero} · AÑO ${s.anoNumero ?? "I"}` : "· PERIODISMO CIUDADANO";
+  const edicion = s?.edicionNumero ? `· EDICIÓN Nº ${s.edicionNumero} · AÑO ${s.anoNumero ?? "I"}` : "· COMUNICACIÓN CIUDADANA";
 
   /* ── Nav ── */
   const navLinks = [
@@ -261,9 +261,8 @@ export default function Header() {
             </div>
           </div>
 
-          {/* CENTRO: Crest · Logo + Título · Crest */}
+          {/* CENTRO: Logo + Título */}
           <div style={{ textAlign: "center", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 14 }}>
-            <span className="hidden sm:block"><Crest size={48} color="#7A1F1F" /></span>
             <Link href="/" style={{ textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center" }}>
               {logoUrl && !logoErr && (
                 <img
@@ -288,24 +287,18 @@ export default function Header() {
                 fontSize: 10, letterSpacing: "0.36em", textTransform: "uppercase",
                 marginTop: 10, color: "rgba(244,240,231,0.55)",
               }}>
-                Periodismo ciudadano · San Ramón · Chanchamayo · Perú
+                Comunicación ciudadana · San Ramón · Chanchamayo · Perú
               </div>
             </Link>
-            <span className="hidden sm:block"><Crest size={48} color="#7A1F1F" /></span>
           </div>
 
-          {/* DERECHA: Iniciar sesión + Apoyar */}
+          {/* DERECHA: Apoyar */}
           <div className="epm-masthead-col" style={{ display: "flex", gap: 6, flex: "0 0 auto", justifyContent: "flex-end", alignItems: "center" }}>
             {/* Mobile search */}
             <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden"
               style={{ background: "transparent", border: "none", color: "rgba(244,240,231,0.7)", cursor: "pointer", padding: 6 }}
               aria-label="Buscar"><Search size={18} /></button>
 
-            <Link href="/admin/login" className="hidden lg:flex epm-mono"
-              style={{ background: "transparent", border: "1px solid rgba(244,240,231,0.25)", color: "#F4F0E7", padding: "10px 14px", cursor: "pointer", fontSize: 12, textDecoration: "none", alignItems: "center" }}>
-              Iniciar sesión
-            </Link>
-            
             {/* Apoyar Button: Hidden on very small screens, shown as icon on small, full on large */}
             <Link href="/acerca-de" 
               className="epm-mono"

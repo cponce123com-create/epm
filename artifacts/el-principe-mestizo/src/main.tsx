@@ -10,7 +10,7 @@ if (apiUrl) {
 
 // ── Para los curiosos del inspector ──
 console.log(
-  "%c🛡️  NO!\n%cSi estás viendo esto, probablemente sabés lo que hacés.\nEste sitio corre sobre Express + React + PostgreSQL.\nNo hay secretos acá, solo periodismo ciudadano desde la selva.\n— El Príncipe Mestizo",
+  "%c🛡️  NO!\n%cSi estás viendo esto, probablemente sabés lo que hacés.\nEste sitio corre sobre Express + React + PostgreSQL.\nNo hay secretos acá, solo comunicación ciudadana desde la selva.\n— El Príncipe Mestizo",
   "font-size:2em;font-weight:bold;color:#7A1F1F;",
   "color:#888;font-style:italic;"
 );

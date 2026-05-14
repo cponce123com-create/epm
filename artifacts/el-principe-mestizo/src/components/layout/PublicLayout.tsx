@@ -44,7 +44,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <div>
               <h3 className="font-serif text-xl font-bold text-primary mb-4">El Príncipe Mestizo</h3>
               <p className="text-sm text-muted-foreground max-w-sm">
-                {settings?.siteDescription || "Periodismo ciudadano, opinión y denuncias desde San Ramón, Chanchamayo."}
+                {settings?.siteDescription || "Comunicación ciudadana, opinión y denuncias desde San Ramón, Chanchamayo."}
               </p>
             </div>
             <div>

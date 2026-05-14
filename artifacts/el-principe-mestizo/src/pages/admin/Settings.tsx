@@ -445,7 +445,7 @@ export default function Settings() {
                 })}
                 <div className="rounded-md bg-muted/50 border border-border p-3 text-xs font-sans-ui text-muted-foreground space-y-1">
                   <p className="font-semibold text-foreground">Ejemplo actual:</p>
-                  <p className="italic">San Ramón, Chanchamayo · Periodismo ciudadano independiente</p>
+                  <p className="italic">San Ramón, Chanchamayo · Comunicación ciudadana independiente</p>
                   <p className="font-semibold text-foreground mt-2">Puedes cambiarlo a:</p>
                   <p className="italic">San Ramón, Chanchamayo · Comunicador y columnista ciudadano</p>
                   <p className="italic">San Ramón, Chanchamayo · Opinión y denuncia ciudadana</p>

@@ -15,9 +15,9 @@ export default function About() {
   // Datos dinámicos desde el admin (con fallbacks elegantes)
   const aboutTitle   = s?.aboutTitle?.trim() || "El Príncipe Mestizo";
   const aboutRole    = s?.aboutRole?.trim() || "Columnista independiente";
-  const aboutText    = s?.aboutText?.trim() || "Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio de denuncia y reflexión sobre la gestión pública local — un ejercicio de periodismo ciudadano que nace de la convicción de que la verdad tiene que ser dicha, aunque incomode.";
+  const aboutText    = s?.aboutText?.trim() || "Soy columnista independiente desde San Ramón, Chanchamayo. Este blog es mi espacio de denuncia y reflexión sobre la gestión pública local — un ejercicio de comunicación ciudadana que nace de la convicción de que la verdad tiene que ser dicha, aunque incomode.";
   const aboutPhotoUrl = s?.aboutPhotoUrl?.trim() || "";
-  const siteDescription = s?.siteDescription?.trim() || "El Príncipe Mestizo es un espacio de periodismo ciudadano, opinión y denuncia desde la selva central peruana.";
+  const siteDescription = s?.siteDescription?.trim() || "El Príncipe Mestizo es un espacio de comunicación ciudadana, opinión y denuncia desde la selva central peruana.";
   const twitterUrl  = s?.twitterUrl || "";
   const facebookUrl = s?.facebookUrl || "";
 
