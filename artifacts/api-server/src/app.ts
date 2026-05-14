@@ -17,6 +17,52 @@ import { ogMiddleware } from "./lib/ogMiddleware";
 
 const app: Express = express();
 
+// ── robots.txt — PRIMERO, antes de cualquier middleware ─────────────────────
+// Facebookexternalhit y otros crawlers necesitan acceder sin restricciones.
+const ROBOTS_CONTENT = `User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://elprincipemestizo.eu.cc/sitemap.xml
+`;
+
+app.get("/robots.txt", (_req: Request, res: Response): void => {
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
+  res.send(ROBOTS_CONTENT);
+});
+
+// ── Bypass CORS for crawlers ────────────────────────────────────────────────
+// Facebookexternalhit no envía Origin header normalmente, pero si lo hace
+// y no está en CORS_ORIGINS, CORS respondería 403. Este middleware remueve
+// el Origin de requests de crawlers antes de que CORS los evalúe.
+const CRAWLER_UAS = [
+  "facebookexternalhit",
+  "twitterbot",
+  "whatsapp",
+  "linkedinbot",
+  "telegrambot",
+  "slackbot",
+  "discordbot",
+  "googlebot",
+  "bingbot",
+];
+
+app.use((req: Request, _res: Response, next: NextFunction): void => {
+  const ua = (req.headers["user-agent"] ?? "").toLowerCase();
+  const isCrawler = CRAWLER_UAS.some((c) => ua.indexOf(c.toLowerCase()) !== -1);
+  if (isCrawler) {
+    // Eliminar Origin para que CORS no lo bloquee
+    delete req.headers["origin"];
+  }
+  next();
+});
+
 // ── Logging ──────────────────────────────────────────────────────────────────
 app.use(
   pinoHttp({
