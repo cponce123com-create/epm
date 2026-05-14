@@ -116,6 +116,10 @@ async function getAllSettings() {
     adBanner3Alt:       map["ad_banner_3_alt"]      ?? "",
     // AdSense
     adsenseClient:      map["adsense_client"]       ?? "",
+    adSlot1Id:          map["ad_slot_1_id"]          ?? "",
+    adSlot2Id:          map["ad_slot_2_id"]          ?? "",
+    adSlot3Id:          map["ad_slot_3_id"]          ?? "",
+    adSlot4Id:          map["ad_slot_4_id"]          ?? "",
     // Publicidad directa
     adsMode:            map["ads_mode"]             ?? "disabled",
     adSlot1Image:       map["ad_slot_1_image"]      ?? "",

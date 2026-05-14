@@ -6,13 +6,6 @@ interface AdSlotProps {
   className?: string;
 }
 
-const AD_SLOT_IDS: Record<AdSlotProps["format"], string> = {
-  horizontal: "9012345678",
-  vertical: "9012345679",
-  rectangle: "9012345680",
-  leaderboard: "9012345681",
-};
-
 function Placeholder({ format }: { format: AdSlotProps["format"] }) {
   return (
     <div
@@ -41,6 +34,21 @@ function Placeholder({ format }: { format: AdSlotProps["format"] }) {
   );
 }
 
+// ── Carga el script de AdSense una sola vez ──────────────────────────────
+let adsenseScriptLoaded = false;
+
+function loadAdsenseScript(clientId: string) {
+  if (adsenseScriptLoaded) return;
+  adsenseScriptLoaded = true;
+
+  const script = document.createElement("script");
+  script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + clientId;
+  script.async = true;
+  script.crossOrigin = "anonymous";
+  script.setAttribute("data-ad-client", clientId);
+  document.head.appendChild(script);
+}
+
 export default function AdSlot({ format, className = "" }: AdSlotProps) {
   const { data: settings } = useGetPublicSettings();
   const adRef = useRef<HTMLDivElement>(null);
@@ -53,8 +61,23 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
   const isHorizontal = format === "horizontal" || format === "leaderboard";
   const adCode = isHorizontal ? (s?.adCode1 ?? "") : (s?.adCode2 ?? "");
 
-  // Hook de AdSense — debe estar en el nivel superior (NO dentro de if)
   const isAdsense = adsMode === "adsense" && !!adsenseClient;
+
+  // IDs de slot configurables desde admin
+  const slotMap: Record<string, string> = {
+    leaderboard: s?.adSlot1Id || "9012345678",
+    horizontal:  s?.adSlot2Id || "9012345679",
+    rectangle:   s?.adSlot3Id || "9012345680",
+    vertical:    s?.adSlot4Id || "9012345681",
+  };
+
+  // Cargar script de AdSense al montar si está en modo adsense
+  useEffect(() => {
+    if (!isAdsense) return;
+    loadAdsenseScript(adsenseClient);
+  }, [isAdsense, adsenseClient]);
+
+  // Push de AdSense para cada slot
   useEffect(() => {
     if (!isAdsense || pushed.current) return;
     pushed.current = true;
@@ -129,7 +152,7 @@ export default function AdSlot({ format, className = "" }: AdSlotProps) {
           className="adsbygoogle"
           style={{ display: "block" }}
           data-ad-client={adsenseClient}
-          data-ad-slot={AD_SLOT_IDS[format]}
+          data-ad-slot={slotMap[format]}
           data-ad-format={format === "leaderboard" || format === "horizontal" ? "horizontal" : "auto"}
           data-full-width-responsive="true"
         />

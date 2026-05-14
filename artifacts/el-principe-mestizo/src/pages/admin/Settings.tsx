@@ -302,6 +302,10 @@ export default function Settings() {
         adSlot2Image: s.adSlot2Image ?? "",
         adSlot2Link: s.adSlot2Link ?? "",
         adSlot2Alt: s.adSlot2Alt ?? "",
+        adSlot1Id: s.adSlot1Id ?? "",
+        adSlot2Id: s.adSlot2Id ?? "",
+        adSlot3Id: s.adSlot3Id ?? "",
+        adSlot4Id: s.adSlot4Id ?? "",
         adCode1: s.adCode1 ?? "",
         adCode2: s.adCode2 ?? "",
         metaKeywords: s.metaKeywords ?? "",
@@ -558,6 +562,30 @@ export default function Settings() {
                       placeholder: "ca-pub-xxxxxxxxxxxxxxxxx",
                       hint: "Ingresá tu ID de AdSense para habilitar anuncios automáticos.",
                     })}
+                    <div className="border-t border-border/50 pt-4 space-y-3">
+                      <h4 className="text-[11px] font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+                        IDs de slot (opcional)
+                      </h4>
+                      <p className="text-xs font-sans-ui text-muted-foreground">
+                        Si querés usar slots manuales en lugar de anuncios automáticos, ingresá los IDs que aparecen en tu panel de AdSense.
+                      </p>
+                      {field("adSlot1Id", "Slot líder (leaderboard / 728×90)", {
+                        placeholder: "ej: 1234567890",
+                        hint: "Se muestra en portada y entre artículos.",
+                      })}
+                      {field("adSlot2Id", "Slot horizontal (in-article / 728×90)", {
+                        placeholder: "ej: 1234567891",
+                        hint: "Se muestra dentro del artículo.",
+                      })}
+                      {field("adSlot3Id", "Slot rectángulo (sidebar / 300×250)", {
+                        placeholder: "ej: 1234567892",
+                        hint: "Se muestra en la barra lateral.",
+                      })}
+                      {field("adSlot4Id", "Slot vertical (sidebar / 160×600)", {
+                        placeholder: "ej: 1234567893",
+                        hint: "Se muestra en la barra lateral (formato vertical).",
+                      })}
+                    </div>
                   </div>
                 )}
 
