@@ -20,10 +20,17 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   const { email, password } = parsed.data;
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, email));
+  let user;
+  try {
+    [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email));
+  } catch (dbErr) {
+    logger.error({ err: dbErr, email }, "DB error during login query");
+    res.status(500).json({ error: "Error interno del servidor" });
+    return;
+  }
 
   if (!user) {
     logger.warn({ email, reason: "user_not_found" }, "Login failed");
@@ -38,7 +45,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  let valid: boolean;
+  try {
+    valid = await bcrypt.compare(password, user.passwordHash);
+  } catch (bcryptErr) {
+    logger.error({ err: bcryptErr, userId: user.id }, "bcrypt error during login");
+    res.status(500).json({ error: "Error interno del servidor" });
+    return;
+  }
+
   if (!valid) {
     logger.warn(
       { email, userId: user.id, reason: "invalid_password" },
@@ -55,11 +70,19 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, user.id));
 
   logger.info({ userId: user.id, email, role: user.role }, "Login successful");
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-  });
+  
+  let token: string;
+  try {
+    token = signToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (jwtErr) {
+    logger.error({ err: jwtErr, userId: user.id }, "JWT signing error during login");
+    res.status(500).json({ error: "Error interno del servidor" });
+    return;
+  }
 
   res.json({
     token,

@@ -51,6 +51,11 @@ async function initDb() {
       display_name TEXT,
       avatar_url TEXT,
       role TEXT NOT NULL DEFAULT 'author',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      last_login_at TIMESTAMPTZ,
+      bio TEXT NOT NULL DEFAULT '',
+      twitter_handle VARCHAR(100) NOT NULL DEFAULT '',
+      article_count INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS categories (
@@ -110,6 +115,16 @@ async function initDb() {
   // Ensure secondary_category_id exists on already-deployed databases
   await db.execute(sql`
     ALTER TABLE articles ADD COLUMN IF NOT EXISTS secondary_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
+  `);
+
+  // ── Migraciones progresivas de usuarios ────────────────────────────────
+  logger.info("Running user table migrations...");
+  await db.execute(sql`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS twitter_handle VARCHAR(100) NOT NULL DEFAULT '';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS article_count INTEGER NOT NULL DEFAULT 0;
   `);
 
   // ── Índices de rendimiento ────────────────────────────────────────────────
