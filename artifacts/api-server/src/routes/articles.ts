@@ -484,9 +484,6 @@ router.put(
       const safeContent = sanitizeHtml(d.content);
       updates.content = safeContent;
       updates.readingTime = calcReadingTime(safeContent);
-      updates.wordCount = safeContent
-        ? safeContent.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length
-        : 0;
     }
     if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
     if (d.coverImageUrl !== undefined)
