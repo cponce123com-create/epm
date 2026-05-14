@@ -247,8 +247,10 @@ export default function ArticleEditor() {
       if (status === "published") {
         setLocation("/admin/articles");
       }
-    } catch {
-      toast({ description: "Error al guardar el artículo.", variant: "destructive" });
+    } catch (err: any) {
+      const msg = err?.message ?? err?.data?.error ?? "Error al guardar el artículo.";
+      toast({ description: msg, variant: "destructive" });
+      console.error("Save error:", err);
     }
   };
 
