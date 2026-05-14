@@ -412,6 +412,8 @@ router.put(
       return;
     }
 
+    const d = parsed.data;
+
     const user = (req as any).user;
     const [existing] = await db
       .select({
@@ -488,7 +490,6 @@ router.put(
     }
 
     const updates: Record<string, unknown> = {};
-    const d = parsed.data;
     if (d.title !== undefined) {
       updates.title = d.title;
       updates.slug = makeSlug(d.title);
