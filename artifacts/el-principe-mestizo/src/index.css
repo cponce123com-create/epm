@@ -467,6 +467,7 @@
   line-height: 1.88;
   color: hsl(0 0% 13%);
   max-width: 720px;
+  margin: 0 auto;
 }
 .article-body p          { margin-bottom: 1.55rem; }
 .article-body h2 {
@@ -505,7 +506,9 @@
 .article-body a:hover    { color: hsl(355 80% 25%); }
 .article-body hr         { border: none; border-top: 1px solid hsl(var(--border)); margin: 2.8rem auto; max-width: 80px; }
 .article-body strong     { font-weight: 700; color: hsl(0 0% 6%); }
-.article-body img        { border-radius: 2px; margin: 1.6rem 0; width: 100%; }
+/* Imágenes: NO forzar ancho completo, preservar tamaño del editor */
+.article-body img        { border-radius: 2px; margin: 1.6rem 0; max-width: 100%; height: auto; display: block; }
+.article-body img[width]  { width: auto; }
 .article-body figcaption {
   font-family: var(--app-font-sans);
   font-size: 0.78rem;
