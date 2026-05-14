@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { PlusCircle, Pencil, Trash2, Globe, EyeOff, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Globe, EyeOff, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, FileDown, Loader2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAdminGetArticles, useAdminDeleteArticle, useAdminPublishArticle } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,8 @@ export default function ArticleList() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("publishedAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const { data: articles, isLoading } = useAdminGetArticles({ status: statusFilter });
   const deleteArticle = useAdminDeleteArticle();
@@ -87,6 +89,59 @@ export default function ArticleList() {
     return list;
   }, [articles, search, sortField, sortDir]);
 
+  // ── Lógica de selección ────────────────────────────────────────────────
+  const allIds = useMemo(() => filtered.map(a => a.id), [filtered]);
+  const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  };
+
+  const toggleOne = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  // ── Acción masiva ──────────────────────────────────────────────────────
+  const handleBulkStatus = async (newStatus: "draft" | "published") => {
+    if (selectedIds.size === 0) return;
+    const label = newStatus === "draft" ? "borradores" : "publicados";
+    if (!confirm(`¿Cambiar ${selectedIds.size} artículo(s) a "${label}"?`)) return;
+
+    setBulkLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL ?? "";
+      const token = localStorage.getItem("epm_token");
+      const res = await fetch(`${apiUrl}/api/admin/articles/bulk-status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: Array.from(selectedIds), status: newStatus }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      const data = await res.json();
+      toast({ description: data.message });
+      setSelectedIds(new Set());
+      invalidate();
+    } catch (err: any) {
+      toast({ description: err?.message ?? "Error al actualizar artículos", variant: "destructive" });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown size={12} className="opacity-40" />;
     return sortDir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} />;
@@ -131,7 +186,7 @@ export default function ArticleList() {
             ].map(f => (
               <button
                 key={String(f.value)}
-                onClick={() => setStatusFilter(f.value)}
+                onClick={() => { setStatusFilter(f.value); setSelectedIds(new Set()); }}
                 className={`px-3 py-1.5 text-xs font-sans-ui font-medium rounded-md border transition-colors ${
                   statusFilter === f.value
                     ? "bg-primary text-primary-foreground border-primary"
@@ -144,7 +199,41 @@ export default function ArticleList() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Barra de acciones masivas */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-muted/60 border border-border rounded-lg">
+            <CheckSquare size={16} className="text-primary" />
+            <span className="text-sm font-sans-ui font-medium">
+              {selectedIds.size} artículo{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+            </span>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => handleBulkStatus("draft")}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans-ui font-medium bg-yellow-100 text-yellow-800 rounded-md hover:bg-yellow-200 transition-colors disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+                Pasar a borradores
+              </button>
+              <button
+                onClick={() => handleBulkStatus("published")}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans-ui font-medium bg-green-100 text-green-800 rounded-md hover:bg-green-200 transition-colors disabled:opacity-50"
+              >
+                {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
+                Publicar
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 text-xs font-sans-ui text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabla */}
         <div className="bg-card border border-card-border rounded-lg overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center">
@@ -160,6 +249,15 @@ export default function ArticleList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
+                  <th className="w-10 px-3 py-3">
+                    <button
+                      onClick={toggleAll}
+                      className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                      title={allSelected ? "Deseleccionar todos" : "Seleccionar todos"}
+                    >
+                      {allSelected ? <CheckSquare size={15} /> : someSelected ? <Square size={15} className="opacity-50" /> : <Square size={15} />}
+                    </button>
+                  </th>
                   <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide">Título</th>
                   <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden md:table-cell">Categoría</th>
                   <th
@@ -188,8 +286,19 @@ export default function ArticleList() {
                 {filtered.map(article => {
                   const pubDate = article.publishedAt ? new Date(article.publishedAt) : null;
                   const creDate = new Date(article.createdAt);
+                  const isSelected = selectedIds.has(article.id);
                   return (
-                    <tr key={article.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                    <tr key={article.id} className={`border-b border-border last:border-0 transition-colors ${
+                      isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"
+                    }`}>
+                      <td className="px-3 py-3">
+                        <button
+                          onClick={() => toggleOne(article.id)}
+                          className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isSelected ? <CheckSquare size={15} className="text-primary" /> : <Square size={15} />}
+                        </button>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-sans-ui text-sm font-medium line-clamp-1">{article.title}</div>
                         {article.featured && (

@@ -622,6 +622,51 @@ router.delete(
   },
 );
 
+// ── Admin: bulk status update ──────────────────────────────────────────────
+router.patch(
+  "/admin/articles/bulk-status",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res): Promise<void> => {
+    const { ids, status } = req.body as { ids?: number[]; status?: string };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "Se requiere un array de IDs." });
+      return;
+    }
+    if (status !== "draft" && status !== "published") {
+      res.status(400).json({ error: "Estado inválido. Usa 'draft' o 'published'." });
+      return;
+    }
+
+    const maxBatch = 100;
+    const batchIds = ids.slice(0, maxBatch);
+
+    const user = (req as any).user;
+    const now = new Date();
+
+    const publishedAt =
+      status === "published" ? now : undefined;
+
+    await db
+      .update(articlesTable)
+      .set({
+        status,
+        publishedAt,
+        updatedAt: now,
+        lastEditedBy: user.userId,
+      })
+      .where(inArray(articlesTable.id, batchIds));
+
+    res.json({
+      ok: true,
+      updated: batchIds.length,
+      status,
+      message: `${batchIds.length} artículo(s) actualizado(s) a "${status}".`,
+    });
+  },
+);
+
 // Admin: toggle publish
 router.patch(
   "/admin/articles/:id/publish",
