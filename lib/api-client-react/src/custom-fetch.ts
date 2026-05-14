@@ -322,6 +322,30 @@ async function parseSuccessBody(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 401 / Session-expired interceptor
+// ---------------------------------------------------------------------------
+
+let _onUnauthorized: (() => void) | null = null;
+let _refreshToken: (() => Promise<string | null>) | null = null;
+let _isRefreshing = false;
+
+/**
+ * Register a callback that is invoked when a 401 response cannot be
+ * remedied via token refresh.  Typically triggers a logout + redirect.
+ */
+export function setOnUnauthorized(cb: (() => void) | null): void {
+  _onUnauthorized = cb;
+}
+
+/**
+ * Register an async function that attempts to refresh the expired token.
+ * Should return the new token string, or `null` if refresh failed.
+ */
+export function setRefreshToken(fn: (() => Promise<string | null>) | null): void {
+  _refreshToken = fn;
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -361,6 +385,41 @@ export async function customFetch<T = unknown>(
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });
+
+  // ── 401 interceptor: attempt token refresh, then retry ────────────────
+  if (response.status === 401 && !_isRefreshing) {
+    _isRefreshing = true;
+    try {
+      // If only _onUnauthorized is set (no refresh), trigger immediately
+      if (_onUnauthorized && !_refreshToken) {
+        _onUnauthorized();
+        _isRefreshing = false;
+        const errorData = await parseErrorBody(response, method);
+        throw new ApiError(response, errorData, requestInfo);
+      }
+
+      // Try refresh
+      if (_refreshToken && _onUnauthorized) {
+        const newToken = await _refreshToken();
+        if (newToken) {
+          // Retry the original request with the new token
+          headers.set("authorization", `Bearer ${newToken}`);
+          const retryResponse = await fetch(input, { ...init, method, headers });
+
+          if (retryResponse.ok) {
+            _isRefreshing = false;
+            return (await parseSuccessBody(retryResponse, responseType, requestInfo)) as T;
+          }
+        }
+
+        // Refresh failed or retry failed — session truly gone
+        _onUnauthorized();
+      }
+    } catch {
+      _onUnauthorized?.();
+    }
+    _isRefreshing = false;
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

@@ -25,13 +25,24 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: 1,
+      // No reintentar en errores 401 (sesión expirada)
+      retry: (failureCount, error) => {
+        if ((error as any)?.status === 401) return false;
+        return failureCount < 1;
+      },
     },
   },
 });
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isVerifying } = useAuth();
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen bg-[hsl(210_15%_10%)] flex items-center justify-center">
+        <div className="text-white font-sans-ui text-sm">Verificando sesión...</div>
+      </div>
+    );
+  }
   if (!isAuthenticated) return <Redirect to="/admin/login" />;
   return <Component />;
 }
