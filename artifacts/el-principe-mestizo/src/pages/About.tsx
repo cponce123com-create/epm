@@ -153,13 +153,13 @@ export default function About() {
             <div className="md:pt-4 flex flex-col items-center gap-3">
               {aboutPhotoUrl ? (
                 <div className="relative">
-                  <div className="absolute -inset-2 border-2 border-red-700 translate-x-2 translate-y-2" />
+                  <div className="absolute -inset-2 border-2 border-red-700" />
                   <div className="relative w-44 h-44 overflow-hidden">
                     <img
                       src={aboutPhotoUrl}
                       alt={aboutTitle}
                       className="w-full h-full object-cover"
-                      style={{ objectPosition: "center top" }}
+                      style={{ objectPosition: "center center" }}
                     />
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-700" />
                   </div>
