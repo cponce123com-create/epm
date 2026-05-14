@@ -494,8 +494,8 @@ router.put(
     if (d.coverImageAlt !== undefined)
       updates.coverImageAlt = d.coverImageAlt ?? undefined;
     if (d.featured !== undefined) updates.featured = d.featured;
-    // Track last editor
-    updates.lastEditedBy = user.userId;
+    // lastEditedBy se omite temporalmente hasta que la migración
+    // ALTER TABLE articles ADD COLUMN last_edited_by esté confirmada
     if (d.status !== undefined) {
       updates.status = d.status;
       if (d.status === "published" && !existing.publishedAt) {
@@ -655,7 +655,6 @@ router.patch(
           status,
           publishedAt,
           updatedAt: now,
-          lastEditedBy: user.userId,
         })
         .where(inArray(articlesTable.id, batchIds));
 
