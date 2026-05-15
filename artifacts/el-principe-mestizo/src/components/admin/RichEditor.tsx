@@ -28,6 +28,11 @@ import {
   RotateCcw,
   X,
   ExternalLink,
+  Pencil,
+  Trash2,
+  Expand,
+  ImageUp,
+  AlignStartVertical,
 } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
@@ -421,6 +426,217 @@ function VideoEmbedModal({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Image Options Popover (replaces simple lightbox)
+// ═══════════════════════════════════════════════════════════════════════════
+function ImageOptionsPopover({
+  src,
+  alt,
+  width,
+  align,
+  onUpdate,
+  onDelete,
+  onPreview,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  width: string | null;
+  align: string | null;
+  onUpdate: (attrs: { alt: string; width: string | null; align: string | null }) => void;
+  onDelete: () => void;
+  onPreview: () => void;
+  onClose: () => void;
+}) {
+  const [altText, setAltText] = useState(alt);
+  const [imgWidth, setImgWidth] = useState(width ?? "100%");
+  const [imgAlign, setImgAlign] = useState(align ?? "center");
+
+  const presetWidths = [
+    { label: "Pequeño", value: "300px" },
+    { label: "Mediano", value: "500px" },
+    { label: "Grande", value: "800px" },
+    { label: "Completo", value: "100%" },
+  ];
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const handleSave = () => {
+    onUpdate({
+      alt: altText,
+      width: imgWidth === "100%" ? null : imgWidth,
+      align: imgAlign === "center" ? null : imgAlign,
+    });
+    onClose();
+  };
+
+  const btnBase =
+    "px-2.5 py-1.5 text-xs font-sans-ui font-medium rounded-lg transition-all border";
+  const btnActive = "bg-gray-900 text-white border-gray-900";
+  const btnInactive = "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50";
+
+  return (
+    <div className="fixed inset-0 z-[9998] bg-black/20" onClick={onClose}>
+      <div
+        className="absolute z-[9999] bg-white rounded-xl shadow-2xl border border-gray-200 w-[380px] overflow-hidden"
+        style={{
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Preview thumbnail */}
+        <div className="relative bg-gray-100 h-40 flex items-center justify-center overflow-hidden">
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full max-h-full object-contain"
+          />
+          <button
+            type="button"
+            onClick={onPreview}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+            title="Vista previa con zoom"
+          >
+            <ZoomIn size={15} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Alt text */}
+          <div>
+            <label className="block text-[11px] font-sans-ui font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Texto alternativo (alt)
+            </label>
+            <input
+              type="text"
+              value={altText}
+              onChange={(e) => setAltText(e.target.value)}
+              placeholder="Describe la imagen..."
+              className="w-full px-3 py-2 text-sm font-sans-ui text-gray-800 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors placeholder-gray-300"
+            />
+          </div>
+
+          {/* Width presets */}
+          <div>
+            <label className="block text-[11px] font-sans-ui font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Tamaño
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {presetWidths.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setImgWidth(p.value)}
+                  className={`${btnBase} ${
+                    imgWidth === p.value ? btnActive : btnInactive
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Alignment */}
+          <div>
+            <label className="block text-[11px] font-sans-ui font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Alineación
+            </label>
+            <div className="flex gap-1.5">
+              {[
+                { label: "Izquierda", value: "left", icon: <AlignLeft size={14} /> },
+                { label: "Centro", value: "center", icon: <AlignCenter size={14} /> },
+                { label: "Derecha", value: "right", icon: <AlignRight size={14} /> },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setImgAlign(opt.value)}
+                  className={`${btnBase} flex items-center gap-1 ${
+                    imgAlign === opt.value ? btnActive : btnInactive
+                  }`}
+                  title={opt.label}
+                >
+                  {opt.icon}
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans-ui text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 size={14} />
+              Eliminar imagen
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-1.5 text-xs font-sans-ui text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-4 py-1.5 text-xs font-sans-ui font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Custom Image extension (supports width + alignment attributes)
+// ═══════════════════════════════════════════════════════════════════════════
+const CustomImage = Image.extend({
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: null },
+      title: { default: null },
+      width: { default: null },
+      "data-align": { default: null },
+    };
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const { width, "data-align": align, ...rest } = HTMLAttributes;
+    const style: string[] = [];
+    if (width) style.push(`width:${width};max-width:100%`);
+    if (align) style.push(`display:block;margin-${align === "left" ? "right" : align === "right" ? "left" : "0 auto"}:0`);
+    else style.push("display:block;margin:0 auto");
+    return [
+      "img",
+      {
+        ...rest,
+        style: style.join(";"),
+      },
+    ];
+  },
+  parseHTML() {
+    return [{ tag: "img[src]" }];
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Main Editor
 // ═══════════════════════════════════════════════════════════════════════════
 export default function RichEditor({ value, onChange }: Props) {
@@ -437,6 +653,13 @@ export default function RichEditor({ value, onChange }: Props) {
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(
     null,
   );
+  const [imageOptions, setImageOptions] = useState<{
+    src: string;
+    alt: string;
+    width: string | null;
+    align: string | null;
+    nodePos: number;
+  } | null>(null);
   const [linkPopover, setLinkPopover] = useState<{
     url: string;
     anchorEl: HTMLElement | null;
@@ -460,7 +683,7 @@ export default function RichEditor({ value, onChange }: Props) {
           rel: "noopener noreferrer",
         },
       }),
-      Image.configure({ inline: false }),
+      CustomImage,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: "Comienza a escribir…" }),
     ],
@@ -474,13 +697,17 @@ export default function RichEditor({ value, onChange }: Props) {
           "prose prose-lg max-w-none focus:outline-none min-h-[500px] " +
           "text-[17px] leading-[1.8] text-gray-800 font-serif",
       },
-      handleClickOn(_view, _pos, node, _nodePos, event) {
-        // Handle image click → open lightbox
+      handleClickOn(_view, pos, node, _nodePos, event) {
+        // Handle image click → open image options popover
         if (node.type.name === "image") {
           event.preventDefault();
-          setLightbox({
-            src: node.attrs.src as string,
-            alt: (node.attrs.alt as string | null) ?? "",
+          const attrs = node.attrs;
+          setImageOptions({
+            src: attrs.src as string,
+            alt: (attrs.alt as string | null) ?? "",
+            width: (attrs.width as string | null) ?? null,
+            align: (attrs["data-align"] as string | null) ?? null,
+            nodePos: _nodePos,
           });
           return true;
         }
@@ -838,6 +1065,43 @@ export default function RichEditor({ value, onChange }: Props) {
     setLinkPopover(null);
   }, [editor]);
 
+  // ── Image options handlers ─────────────────────────────────────────
+  const handleImageUpdate = useCallback(
+    (attrs: { alt: string; width: string | null; align: string | null }) => {
+      if (!editor || !imageOptions) return;
+      editor
+        .chain()
+        .focus()
+        .setNodeSelection(imageOptions.nodePos)
+        .updateAttributes("image", {
+          alt: attrs.alt,
+          width: attrs.width,
+          "data-align": attrs.align,
+        })
+        .run();
+    },
+    [editor, imageOptions],
+  );
+
+  const handleImageDelete = useCallback(() => {
+    if (!editor || !imageOptions) return;
+    editor
+      .chain()
+      .focus()
+      .setNodeSelection(imageOptions.nodePos)
+      .deleteSelection()
+      .run();
+    setImageOptions(null);
+  }, [editor, imageOptions]);
+
+  const handleImagePreview = useCallback(() => {
+    if (!imageOptions) return;
+    setLightbox({
+      src: imageOptions.src,
+      alt: imageOptions.alt,
+    });
+  }, [imageOptions]);
+
   if (!editor) return null;
 
   const separator = <div className="w-px h-5 bg-gray-200" />;
@@ -849,6 +1113,19 @@ export default function RichEditor({ value, onChange }: Props) {
           src={lightbox.src}
           alt={lightbox.alt}
           onClose={() => setLightbox(null)}
+        />
+      )}
+
+      {imageOptions && (
+        <ImageOptionsPopover
+          src={imageOptions.src}
+          alt={imageOptions.alt}
+          width={imageOptions.width}
+          align={imageOptions.align}
+          onUpdate={handleImageUpdate}
+          onDelete={handleImageDelete}
+          onPreview={handleImagePreview}
+          onClose={() => setImageOptions(null)}
         />
       )}
 
