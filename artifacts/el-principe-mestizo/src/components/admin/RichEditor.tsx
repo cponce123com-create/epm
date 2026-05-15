@@ -621,7 +621,6 @@ const CustomImage = Image.extend({
     const { width, "data-align": _align, ...rest } = HTMLAttributes;
     const style: string[] = [];
     if (width) style.push(`width:${width};max-width:100%`);
-    else style.push("width:100%;max-width:100%");
     style.push("display:block");
     const attrs: Record<string, string> = { ...rest };
     if (_align) {

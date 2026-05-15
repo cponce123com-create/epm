@@ -506,22 +506,17 @@
 .article-body a:hover    { color: hsl(355 80% 25%); }
 .article-body hr         { border: none; border-top: 1px solid hsl(var(--border)); margin: 2.8rem auto; max-width: 80px; }
 .article-body strong     { font-weight: 700; color: hsl(0 0% 6%); }
-/* Imágenes: por defecto full-width, respeta inline style del editor */
+/* Imágenes: respetan inline style del editor sin forzar tamaño */
 .article-body img {
   display: block;
-  width: 100%;
-  max-width: 100%;
   height: auto;
+  max-width: 100%;
   margin: 0 auto;
   border-radius: 3px;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
-/* Cuando el editor admin asigna un width inline, respetarlo */
-.article-body img[style*="width"] {
-  width: auto !important;
-}
-/* Cuando el editor asigna data-align, aplicarlo */
+/* data-align del editor admin */
 .article-body img[data-align="left"] {
   margin-left: 0 !important;
   margin-right: auto !important;
