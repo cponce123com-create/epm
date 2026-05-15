@@ -860,17 +860,32 @@ export default function RichEditor({ value, onChange }: Props) {
               uploadFile(file).then((url) => {
                 clearInterval(progressInterval);
                 setUploading(false);
-                if (url && editor) {
+                if (!editor) return;
+
+                // Regex to find the exact placeholder by its unique ID
+                const regex = new RegExp(
+                  `<img[^>]*data-placeholder-id="${escapeRegex(placeholderId)}"[^>]*>`,
+                );
+
+                if (url) {
+                  // Upload succeeded — replace placeholder with real URL
                   const html = editor.getHTML();
-                  // Replace the specific placeholder by its unique ID
-                  const regex = new RegExp(
-                    `<img[^>]*data-placeholder-id="${escapeRegex(placeholderId)}"[^>]*>`,
-                  );
                   const replacement = `<img src="${url}" alt="Imagen" />`;
                   const finalHtml = html.replace(regex, replacement);
                   if (finalHtml !== html) {
                     editor.commands.setContent(finalHtml);
                   }
+                } else {
+                  // Upload failed — remove the placeholder data URL
+                  // so no huge base64 stays in the content
+                  const html = editor.getHTML();
+                  const finalHtml = html.replace(regex, "");
+                  if (finalHtml !== html) {
+                    editor.commands.setContent(finalHtml);
+                  }
+                  alert(
+                    "No se pudo subir la imagen. Verifica tu conexión e inténtalo de nuevo.",
+                  );
                 }
               });
               return true;
