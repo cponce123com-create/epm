@@ -856,33 +856,46 @@ export default function RichEditor({ value, onChange }: Props) {
               };
               reader.readAsDataURL(file);
 
-              // Upload to server, then replace by unique placeholder ID
+              // Upload to server, then update the specific image node surgically
               uploadFile(file).then((url) => {
                 clearInterval(progressInterval);
                 setUploading(false);
                 if (!editor) return;
 
-                // Regex to find the exact placeholder by its unique ID
-                const regex = new RegExp(
-                  `<img[^>]*data-placeholder-id="${escapeRegex(placeholderId)}"[^>]*>`,
-                );
+                // Find the placeholder node by its unique ID in the document
+                let targetPos: number | null = null;
+                editor.state.doc.descendants((node, pos) => {
+                  if (
+                    node.type.name === "image" &&
+                    node.attrs["data-placeholder-id"] === placeholderId
+                  ) {
+                    targetPos = pos;
+                    return false; // stop searching
+                  }
+                });
+
+                if (targetPos === null) return; // no matching placeholder
 
                 if (url) {
-                  // Upload succeeded — replace placeholder with real URL
-                  const html = editor.getHTML();
-                  const replacement = `<img src="${url}" alt="Imagen" />`;
-                  const finalHtml = html.replace(regex, replacement);
-                  if (finalHtml !== html) {
-                    editor.commands.setContent(finalHtml);
-                  }
+                  // Upload succeeded — update just this node's attributes
+                  editor
+                    .chain()
+                    .focus()
+                    .setNodeSelection(targetPos)
+                    .updateAttributes("image", {
+                      src: url,
+                      alt: "Imagen",
+                      "data-placeholder-id": null, // remove the marker
+                    })
+                    .run();
                 } else {
-                  // Upload failed — remove the placeholder data URL
-                  // so no huge base64 stays in the content
-                  const html = editor.getHTML();
-                  const finalHtml = html.replace(regex, "");
-                  if (finalHtml !== html) {
-                    editor.commands.setContent(finalHtml);
-                  }
+                  // Upload failed — remove the placeholder node entirely
+                  editor
+                    .chain()
+                    .focus()
+                    .setNodeSelection(targetPos)
+                    .deleteSelection()
+                    .run();
                   alert(
                     "No se pudo subir la imagen. Verifica tu conexión e inténtalo de nuevo.",
                   );
