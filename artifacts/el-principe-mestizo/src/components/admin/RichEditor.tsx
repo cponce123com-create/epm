@@ -618,18 +618,23 @@ const CustomImage = Image.extend({
     };
   },
   renderHTML({ node, HTMLAttributes }) {
-    const { width, "data-align": align, ...rest } = HTMLAttributes;
+    const { width, "data-align": _align, ...rest } = HTMLAttributes;
     const style: string[] = [];
     if (width) style.push(`width:${width};max-width:100%`);
-    if (align) style.push(`display:block;margin-${align === "left" ? "right" : align === "right" ? "left" : "0 auto"}:0`);
-    else style.push("display:block;margin:0 auto");
-    return [
-      "img",
-      {
-        ...rest,
-        style: style.join(";"),
-      },
-    ];
+    else style.push("width:100%;max-width:100%");
+    style.push("display:block");
+    const attrs: Record<string, string> = { ...rest };
+    if (_align) {
+      attrs["data-align"] = _align;
+      // CSS maneja la alineación vía selector [data-align]
+      if (_align === "left") style.push("margin-left:0;margin-right:auto");
+      else if (_align === "right") style.push("margin-left:auto;margin-right:0");
+      else style.push("margin:0 auto");
+    } else {
+      style.push("margin:0 auto");
+    }
+    attrs.style = style.join(";");
+    return ["img", attrs];
   },
   parseHTML() {
     return [{ tag: "img[src]" }];
