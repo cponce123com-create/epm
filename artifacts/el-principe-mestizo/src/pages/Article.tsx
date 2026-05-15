@@ -429,6 +429,11 @@ function useArticleImageGrid(
       for (const p of group) {
         const img = p.querySelector("img");
         if (img) {
+          // Strip inline width/height so CSS object-fit:cover controls sizing
+          img.removeAttribute("width");
+          img.removeAttribute("height");
+          img.style.width = "";
+          img.style.height = "";
           grid.appendChild(img);
         }
         p.remove();
