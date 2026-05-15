@@ -506,9 +506,29 @@
 .article-body a:hover    { color: hsl(355 80% 25%); }
 .article-body hr         { border: none; border-top: 1px solid hsl(var(--border)); margin: 2.8rem auto; max-width: 80px; }
 .article-body strong     { font-weight: 700; color: hsl(0 0% 6%); }
-/* Imágenes: NO forzar ancho completo, preservar tamaño del editor */
-.article-body img        { border-radius: 2px; margin: 1.6rem 0; max-width: 100%; height: auto; display: block; }
-.article-body img[width]  { width: auto; }
+/* Imágenes: full-width, centradas, cubiertas */
+.article-body img {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 300px;
+  aspect-ratio: 8 / 5;
+  object-fit: cover;
+  object-position: center;
+  margin: 0 auto !important;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.article-body figure.kg-image-card,
+.article-body p:has(> img:only-child) {
+  display: block;
+  max-width: 800px;
+  margin: 1.8rem auto;
+  text-align: center;
+  position: relative;
+}
 .article-body figcaption {
   font-family: var(--app-font-sans);
   font-size: 0.78rem;
@@ -589,25 +609,44 @@
 }
 @media (max-width: 1023px) { .col-divider { border-right: none; } }
 
-/* ── Single images — centered + justified ──────────────────── */
-.article-body p:has(> img:only-child) {
-  text-align: center;
-  margin: 1.8rem 0;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
+/* ── Single images — full-width, centered ──────────────────── */
+
+/* Expand toggle button (Medium-style) */
+.article-body .epm-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+  line-height: 1;
 }
-.article-body p:has(> img:only-child) img {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 300px;
-  aspect-ratio: 8 / 5;
-  object-fit: cover;
-  object-position: center;
-  cursor: zoom-in;
-  border-radius: 3px;
-  margin: 0;
+
+.article-body .kg-image-card:hover .epm-expand-btn,
+.article-body p:has(> img:only-child):hover .epm-expand-btn {
+  opacity: 1;
+}
+
+/* Expanded state — show image at natural size */
+.article-body .kg-image-card.epm-expanded .kg-image,
+.article-body p.epm-expanded img {
+  width: auto !important;
+  max-width: 100% !important;
+  min-height: auto !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
 }
 
 /* ── Lightbox mejorado ────────────────────────────────────── */

@@ -396,6 +396,42 @@ function useStripInlineDimensions(
   }, [contentRef, ready]);
 }
 
+// ── Hook: toggle expandir/contraer imagen (Medium-style) ──
+function useArticleImageExpand(
+  contentRef: React.RefObject<HTMLDivElement | null>,
+  ready: boolean,
+) {
+  useEffect(() => {
+    if (!ready) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const wrappers = container.querySelectorAll<HTMLElement>(
+      "p:has(> img:only-child), figure.kg-image-card",
+    );
+
+    wrappers.forEach((wrapper) => {
+      if (wrapper.querySelector(".epm-expand-btn")) return;
+
+      const btn = document.createElement("button");
+      btn.className = "epm-expand-btn";
+      btn.innerHTML = "⤢";
+      btn.title = "Expandir imagen";
+      btn.setAttribute("aria-label", "Alternar tamaño de imagen");
+
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        wrapper.classList.toggle("epm-expanded");
+        const expanded = wrapper.classList.contains("epm-expanded");
+        btn.innerHTML = expanded ? "⤡" : "⤢";
+        btn.title = expanded ? "Contraer imagen" : "Expandir imagen";
+      });
+
+      wrapper.appendChild(btn);
+    });
+  }, [contentRef, ready]);
+}
+
 // ── Hook: mejora imágenes del cuerpo ─────────────────────────────────────
 function useArticleBodyImages(
   contentRef: React.RefObject<HTMLDivElement | null>,
@@ -512,10 +548,11 @@ export default function Article() {
     );
   }, [article?.content, API_BASE]);
 
-  // Order: strip inline dimensions, then loading/fallback, then lightbox
+  // Order: strip inline dimensions, loading/fallback, expand toggle, then lightbox
   useStripInlineDimensions(contentRef, contentReady);
   useArticleImageLoading(contentRef, contentReady);
   useArticleBodyImages(contentRef, contentReady);
+  useArticleImageExpand(contentRef, contentReady);
   const { lightbox, closeLightbox, openLightbox } =
     useArticleLightbox(contentRef);
 
