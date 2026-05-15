@@ -377,8 +377,8 @@ function useArticleImageLoading(
   }, [contentRef, ready]);
 }
 
-// ── Hook: agrupa imágenes consecutivas en filas de 2 ─────────────────────
-function useArticleImageGrid(
+// ── Hook: elimina atributos inline width/height del editor ──
+function useStripInlineDimensions(
   contentRef: React.RefObject<HTMLDivElement | null>,
   ready: boolean,
 ) {
@@ -387,58 +387,12 @@ function useArticleImageGrid(
     const container = contentRef.current;
     if (!container) return;
 
-    const allP = Array.from(
-      container.querySelectorAll<HTMLParagraphElement>("p"),
-    );
-    const imgOnlyP = allP.filter((p) => {
-      const real = Array.from(p.childNodes).filter(
-        (n) =>
-          !(
-            n.nodeType === Node.TEXT_NODE &&
-            (n.textContent ?? "").trim() === ""
-          ),
-      );
-      return real.length === 1 && (real[0] as Element).tagName === "IMG";
+    const imgs = container.querySelectorAll<HTMLImageElement>("img");
+    imgs.forEach((img) => {
+      // Strip inline width/height so CSS controls sizing uniformly
+      if (img.hasAttribute("width")) img.removeAttribute("width");
+      if (img.hasAttribute("height")) img.removeAttribute("height");
     });
-
-    if (imgOnlyP.length < 2) return;
-
-    const groups: HTMLParagraphElement[][] = [];
-    let run: HTMLParagraphElement[] = [];
-
-    for (let i = 0; i < imgOnlyP.length; i++) {
-      const p = imgOnlyP[i];
-      if (run.length === 0) {
-        run.push(p);
-      } else {
-        const sib: Element | null = run[run.length - 1].nextElementSibling;
-        if (sib === p) {
-          run.push(p);
-        } else {
-          if (run.length >= 2) groups.push(run);
-          run = [p];
-        }
-      }
-    }
-    if (run.length >= 2) groups.push(run);
-
-    for (const group of groups) {
-      const grid = document.createElement("div");
-      grid.className = "article-image-grid";
-      group[0].parentNode?.insertBefore(grid, group[0]);
-      for (const p of group) {
-        const img = p.querySelector("img");
-        if (img) {
-          // Strip inline width/height so CSS object-fit:cover controls sizing
-          img.removeAttribute("width");
-          img.removeAttribute("height");
-          img.style.width = "";
-          img.style.height = "";
-          grid.appendChild(img);
-        }
-        p.remove();
-      }
-    }
   }, [contentRef, ready]);
 }
 
@@ -455,7 +409,13 @@ function useArticleBodyImages(
     const imgs = container.querySelectorAll<HTMLImageElement>("img");
     imgs.forEach((img, i) => {
       img.setAttribute("referrerpolicy", "no-referrer");
-      if (i > 0) img.setAttribute("loading", "lazy");
+      img.setAttribute("decoding", "async");
+      if (i === 0) {
+        img.setAttribute("fetchpriority", "high");
+        img.removeAttribute("loading");
+      } else {
+        img.setAttribute("loading", "lazy");
+      }
       if (!img.dataset.fallbackSet) {
         img.dataset.fallbackSet = "1";
         img.addEventListener("error", function onErr() {
@@ -552,8 +512,8 @@ export default function Article() {
     );
   }, [article?.content, API_BASE]);
 
-  // Order: grid first, then image loading, then lightbox
-  useArticleImageGrid(contentRef, contentReady);
+  // Order: strip inline dimensions, then loading/fallback, then lightbox
+  useStripInlineDimensions(contentRef, contentReady);
   useArticleImageLoading(contentRef, contentReady);
   useArticleBodyImages(contentRef, contentReady);
   const { lightbox, closeLightbox, openLightbox } =

@@ -589,54 +589,25 @@
 }
 @media (max-width: 1023px) { .col-divider { border-right: none; } }
 
-/* ── Imágenes en artículo: 2 columnas y single ─────────────── */
-
-/* Grid: 2+ consecutive images — 800×500 crop ratio */
-.article-image-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 1.8rem 0;
-}
-.article-image-grid img {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 8 / 5;
-  object-fit: cover;
-  object-position: center;
-  margin: 0 !important;
-  cursor: zoom-in;
-  border-radius: 3px;
-  transition: opacity 0.15s;
-}
-.article-image-grid img:hover {
-  opacity: 0.92;
-}
-@media (max-width: 640px) {
-  .article-image-grid {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .article-image-grid img {
-    aspect-ratio: 8 / 5;
-  }
-}
-
-/* ── Single images — 800×500 max, object-fit: cover ─── */
+/* ── Single images — centered + justified ──────────────────── */
 .article-body p:has(> img:only-child) {
   text-align: center;
   margin: 1.8rem 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .article-body p:has(> img:only-child) img {
-  display: inline-block;
+  display: block;
   width: 100%;
-  max-width: 800px;
-  height: 500px;
+  height: auto;
+  min-height: 300px;
+  aspect-ratio: 8 / 5;
   object-fit: cover;
   object-position: center;
   cursor: zoom-in;
   border-radius: 3px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 /* ── Lightbox mejorado ────────────────────────────────────── */
