@@ -615,6 +615,7 @@ const CustomImage = Image.extend({
       title: { default: null },
       width: { default: null },
       "data-align": { default: null },
+      "data-placeholder-id": { default: null },
     };
   },
   renderHTML({ node, HTMLAttributes }) {
@@ -649,6 +650,7 @@ export default function RichEditor({ value, onChange }: Props) {
   const gridInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const placeholderCounterRef = useRef(0);
 
   const [uploading, setUploading] = useState(false);
   const [uploadingGrid, setUploadingGrid] = useState(false);
@@ -828,6 +830,10 @@ export default function RichEditor({ value, onChange }: Props) {
               const file = item.getAsFile();
               if (!file) continue;
 
+              // Generate a unique placeholder ID so each upload
+              // replaces its own image — no race condition.
+              const placeholderId = `upload-${Date.now()}-${++placeholderCounterRef.current}`;
+
               setUploading(true);
               setUploadProgress(0);
               const progressInterval = setInterval(() => {
@@ -841,7 +847,7 @@ export default function RichEditor({ value, onChange }: Props) {
                 editor
                   ?.chain()
                   .focus()
-                  .setImage({ src: dataUrl, alt: "Pegando…" })
+                  .setImage({ src: dataUrl, alt: "Pegando…", "data-placeholder-id": placeholderId })
                   .run();
               };
               reader.onerror = () => {
@@ -850,17 +856,18 @@ export default function RichEditor({ value, onChange }: Props) {
               };
               reader.readAsDataURL(file);
 
-              // Upload to server
+              // Upload to server, then replace by unique placeholder ID
               uploadFile(file).then((url) => {
                 clearInterval(progressInterval);
                 setUploading(false);
                 if (url && editor) {
                   const html = editor.getHTML();
-                  // Replace the first data:image URL with the real URL
-                  const finalHtml = html.replace(
-                    /src="data:image\/[^"]+"/,
-                    `src="${url}" alt="Pegado desde portapapeles"`,
+                  // Replace the specific placeholder by its unique ID
+                  const regex = new RegExp(
+                    `<img[^>]*data-placeholder-id="${escapeRegex(placeholderId)}"[^>]*>`,
                   );
+                  const replacement = `<img src="${url}" alt="Imagen" />`;
+                  const finalHtml = html.replace(regex, replacement);
                   if (finalHtml !== html) {
                     editor.commands.setContent(finalHtml);
                   }
