@@ -116,7 +116,40 @@ async function initDb() {
       google_id TEXT UNIQUE,
       active BOOLEAN NOT NULL DEFAULT TRUE,
       subscribed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+      );
+      CREATE TABLE IF NOT EXISTS article_revisions (
+      id SERIAL PRIMARY KEY,
+      article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      title VARCHAR(500) NOT NULL,
+      content TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      saved_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      saved_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(50) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      related_article_id INTEGER REFERENCES articles(id) ON DELETE SET NULL,
+      is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS user_permissions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      permission VARCHAR(100) NOT NULL,
+      granted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, permission)
+      );
+      CREATE TABLE IF NOT EXISTS tags (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      slug TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
   `);
   // Ensure secondary_category_id exists on already-deployed databases
   await db.execute(sql`

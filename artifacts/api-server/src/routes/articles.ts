@@ -13,6 +13,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import { sanitizeHtml } from "../lib/sanitize";
+import { safeError } from "../lib/safeError";
 import { logger } from "../lib/logger";
 import {
   AdminCreateArticleBody,
@@ -401,140 +402,148 @@ router.put(
   "/admin/articles/:id",
   requireAuth,
   async (req, res): Promise<void> => {
-    const rawId = Array.isArray(req.params.id)
-      ? req.params.id[0]
-      : req.params.id;
-    const id = parseInt(rawId, 10);
+    try {
+      const rawId = Array.isArray(req.params.id)
+        ? req.params.id[0]
+        : req.params.id;
+      const id = parseInt(rawId, 10);
 
-    const parsed = AdminUpdateArticleBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
+      const parsed = AdminUpdateArticleBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: parsed.error.message });
+        return;
+      }
 
-    const d = parsed.data;
+      const d = parsed.data;
 
-    const user = (req as any).user;
-    const [existing] = await db
-      .select({
-        id: articlesTable.id,
-        title: articlesTable.title,
-        slug: articlesTable.slug,
-        summary: articlesTable.summary,
-        content: articlesTable.content,
-        categoryId: articlesTable.categoryId,
-        secondaryCategoryId: articlesTable.secondaryCategoryId,
-        authorId: articlesTable.authorId,
-        status: articlesTable.status,
-        featured: articlesTable.featured,
-        coverImageUrl: articlesTable.coverImageUrl,
-        coverImageAlt: articlesTable.coverImageAlt,
-        publishedAt: articlesTable.publishedAt,
-      })
-      .from(articlesTable)
-      .where(eq(articlesTable.id, id));
-    if (!existing) {
-      res.status(404).json({ error: "Article not found" });
-      return;
-    }
+      const user = (req as any).user;
+      const [existing] = await db
+        .select({
+          id: articlesTable.id,
+          title: articlesTable.title,
+          slug: articlesTable.slug,
+          summary: articlesTable.summary,
+          content: articlesTable.content,
+          categoryId: articlesTable.categoryId,
+          secondaryCategoryId: articlesTable.secondaryCategoryId,
+          authorId: articlesTable.authorId,
+          status: articlesTable.status,
+          featured: articlesTable.featured,
+          coverImageUrl: articlesTable.coverImageUrl,
+          coverImageAlt: articlesTable.coverImageAlt,
+          publishedAt: articlesTable.publishedAt,
+        })
+        .from(articlesTable)
+        .where(eq(articlesTable.id, id));
+      if (!existing) {
+        res.status(404).json({ error: "Article not found" });
+        return;
+      }
 
-    // Solo el autor o admin/superadmin pueden editar
-    const canEdit =
-      user.role === "superadmin" ||
-      user.role === "admin" ||
-      (user.role === "author" && existing.authorId === user.userId);
+      // Solo el autor o admin/superadmin pueden editar
+      const canEdit =
+        user.role === "superadmin" ||
+        user.role === "admin" ||
+        (user.role === "author" && existing.authorId === user.userId);
 
-    if (!canEdit) {
-      res.status(403).json({
-        error: "No tienes permiso para editar este artículo",
-      });
-      return;
-    }
-
-    // Author solo puede editar artículos en draft, in_review o approved (no published/archived)
-    if (
-      user.role === "author" &&
-      !["draft", "in_review", "approved"].includes(existing.status)
-    ) {
-      res.status(403).json({
-        error: `No puedes editar artículos en estado "${existing.status}". Contacta a un editor.`,
-      });
-      return;
-    }
-
-    // Author NO puede cambiar status a published — debe pasar por revisión
-    if (user.role === "author" && d.status === "published") {
-      res.status(403).json({
-        error:
-          "No puedes publicar directamente. Envía el artículo a revisión.",
-      });
-      return;
-    }
-
-    const contentChanged =
-      d.content !== undefined && d.content !== existing.content;
-
-    // Guardar revisión automática si el contenido cambió (no bloqueante)
-    if (contentChanged) {
-      try {
-        await db.insert(articleRevisionsTable).values({
-          articleId: id,
-          title: d.title ?? existing.title,
-          content: d.content ?? existing.content,
-          summary: d.summary ?? existing.summary,
-          savedBy: user.userId,
+      if (!canEdit) {
+        res.status(403).json({
+          error: "No tienes permiso para editar este artículo",
         });
-      } catch (revErr) {
-        logger.warn({ revErr }, "Failed to save auto-revision (non-blocking)");
+        return;
       }
-    }
 
-    const updates: Record<string, unknown> = {};
-    if (d.title !== undefined) {
-      updates.title = d.title;
-      updates.slug = makeSlug(d.title);
-    }
-    if (d.summary !== undefined) updates.summary = sanitizeHtml(d.summary);
-    if (d.content !== undefined) {
-      const safeContent = sanitizeHtml(d.content);
-      updates.content = safeContent;
-      updates.readingTime = calcReadingTime(safeContent);
-    }
-    if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
-    if (d.coverImageUrl !== undefined)
-      updates.coverImageUrl = d.coverImageUrl ?? undefined;
-    if (d.coverImageAlt !== undefined)
-      updates.coverImageAlt = d.coverImageAlt ?? undefined;
-    if (d.featured !== undefined) updates.featured = d.featured;
-    // lastEditedBy se omite temporalmente hasta que la migración
-    // ALTER TABLE articles ADD COLUMN last_edited_by esté confirmada
-    if (d.status !== undefined) {
-      updates.status = d.status;
-      if (d.status === "published" && !existing.publishedAt) {
-        updates.publishedAt = new Date();
+      // Author solo puede editar artículos en draft, in_review o approved (no published/archived)
+      if (
+        user.role === "author" &&
+        !["draft", "in_review", "approved"].includes(existing.status)
+      ) {
+        res.status(403).json({
+          error: `No puedes editar artículos en estado "${existing.status}". Contacta a un editor.`,
+        });
+        return;
       }
+
+      // Author NO puede cambiar status a published — debe pasar por revisión
+      if (user.role === "author" && d.status === "published") {
+        res.status(403).json({
+          error:
+            "No puedes publicar directamente. Envía el artículo a revisión.",
+        });
+        return;
+      }
+
+      const contentChanged =
+        d.content !== undefined && d.content !== existing.content;
+
+      // Guardar revisión automática si el contenido cambió (no bloqueante)
+      if (contentChanged) {
+        try {
+          await db.insert(articleRevisionsTable).values({
+            articleId: id,
+            title: d.title ?? existing.title,
+            content: d.content ?? existing.content,
+            summary: d.summary ?? existing.summary,
+            savedBy: user.userId,
+          });
+        } catch (revErr) {
+          logger.warn({ revErr }, "Failed to save auto-revision (non-blocking)");
+        }
+      }
+
+      const updates: Record<string, unknown> = {};
+      if (d.title !== undefined) {
+        updates.title = d.title;
+        updates.slug = makeSlug(d.title);
+      }
+      if (d.summary !== undefined) updates.summary = sanitizeHtml(d.summary);
+      if (d.content !== undefined) {
+        const safeContent = sanitizeHtml(d.content);
+        updates.content = safeContent;
+        updates.readingTime = calcReadingTime(safeContent);
+      }
+      if (d.categoryId !== undefined) updates.categoryId = d.categoryId;
+      if (d.secondaryCategoryId !== undefined) {
+        updates.secondaryCategoryId = d.secondaryCategoryId;
+      }
+      if (d.coverImageUrl !== undefined)
+        updates.coverImageUrl = d.coverImageUrl ?? undefined;
+      if (d.coverImageAlt !== undefined)
+        updates.coverImageAlt = d.coverImageAlt ?? undefined;
+      if (d.featured !== undefined) updates.featured = d.featured;
+      if (d.status !== undefined) {
+        updates.status = d.status;
+        if (d.status === "published" && !existing.publishedAt) {
+          updates.publishedAt = new Date();
+        }
+      }
+      // Registrar quién editó por última vez
+      updates.lastEditedBy = user.userId;
+
+      await db
+        .update(articlesTable)
+        .set(updates as Partial<typeof existing>)
+        .where(eq(articlesTable.id, id));
+
+      const [full] = await db
+        .select(articleSelect)
+        .from(articlesTable)
+        .leftJoin(
+          categoriesTable,
+          eq(articlesTable.categoryId, categoriesTable.id),
+        )
+        .leftJoin(
+          secondaryCategoriesTable,
+          eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id),
+        )
+        .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+        .where(eq(articlesTable.id, id));
+
+      res.json(formatArticle(full as ArticleRow));
+    } catch (err) {
+      logger.error({ err, articleId: req.params.id }, "Error updating article");
+      res.status(500).json({ error: safeError(err) });
     }
-
-    await db
-      .update(articlesTable)
-      .set(updates as Partial<typeof existing>)
-      .where(eq(articlesTable.id, id));
-
-    const [full] = await db
-      .select(articleSelect)
-      .from(articlesTable)
-      .leftJoin(
-        categoriesTable,
-        eq(articlesTable.categoryId, categoriesTable.id),
-      )
-      .leftJoin(
-        secondaryCategoriesTable,
-        eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id),
-      )
-      .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
-      .where(eq(articlesTable.id, id));
-
-    res.json(formatArticle(full as ArticleRow));
   },
 );
 
