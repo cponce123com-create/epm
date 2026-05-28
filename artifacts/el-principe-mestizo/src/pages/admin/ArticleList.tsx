@@ -7,7 +7,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAdminGetArticles, useAdminDeleteArticle, useAdminPublishArticle, useGetCategories } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type SortField = "publishedAt" | "createdAt" | "views";
 type SortDir = "asc" | "desc";
 

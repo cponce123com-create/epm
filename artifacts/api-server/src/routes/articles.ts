@@ -17,6 +17,7 @@ import { makeSlug, calcReadingTime } from "../lib/slugify";
 import { sanitizeHtml } from "../lib/sanitize";
 import { safeError } from "../lib/safeError";
 import { logger } from "../lib/logger";
+import { logAudit, auditCtx } from "../lib/audit";
 import {
   AdminCreateArticleBody,
   AdminUpdateArticleBody,
@@ -931,6 +932,62 @@ router.get("/articles/preview/:slug", requireAuth, async (req: Request, res: Res
   }
 
   res.json(formatArticle(article as ArticleRow));
+});
+
+// ── Duplicate article ───────────────────────────────────────────────────────
+router.post("/admin/articles/:id/duplicate", requireAuth, async (req, res): Promise<void> => {
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId, 10);
+  const user = (req as any).user;
+
+  const [original] = await db
+    .select({
+      id: articlesTable.id,
+      title: articlesTable.title,
+      summary: articlesTable.summary,
+      content: articlesTable.content,
+      categoryId: articlesTable.categoryId,
+      secondaryCategoryId: articlesTable.secondaryCategoryId,
+      coverImageUrl: articlesTable.coverImageUrl,
+      coverImageAlt: articlesTable.coverImageAlt,
+      featured: articlesTable.featured,
+    })
+    .from(articlesTable)
+    .where(eq(articlesTable.id, id));
+
+  if (!original) {
+    res.status(404).json({ error: "Artículo no encontrado" });
+    return;
+  }
+
+  const newTitle = original.title + " (copia)";
+  const [copy] = await db
+    .insert(articlesTable)
+    .values({
+      title: newTitle,
+      slug: makeSlug(newTitle),
+      summary: original.summary,
+      content: original.content,
+      categoryId: original.categoryId,
+      secondaryCategoryId: original.secondaryCategoryId,
+      coverImageUrl: original.coverImageUrl,
+      coverImageAlt: original.coverImageAlt,
+      featured: original.featured,
+      status: "draft",
+      authorId: user.userId,
+      readingTime: calcReadingTime(original.content),
+    })
+    .returning({ id: articlesTable.id, slug: articlesTable.slug, title: articlesTable.title });
+
+  logAudit({
+    action: "CREATE",
+    targetType: "article",
+    targetId: copy.id,
+    newValues: { duplicatedFrom: id, title: copy.title },
+    ...auditCtx(req),
+  });
+
+  res.status(201).json(copy);
 });
 
 export default router;
