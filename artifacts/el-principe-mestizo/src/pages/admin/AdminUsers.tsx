@@ -3,6 +3,7 @@ import { Users, UserPlus, Trash2, Shield, ShieldCheck, ShieldAlert } from "lucid
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { ROLE_LABELS, type UserRole } from "@/hooks/useRole";
 
 interface UserData {
   id: number;
@@ -10,20 +11,20 @@ interface UserData {
   displayName: string | null;
   role: string;
   avatarUrl: string | null;
+  isActive: boolean;
+  articleCount: number;
   createdAt: string;
 }
 
 const ROLE_ICON: Record<string, React.ReactNode> = {
   superadmin: <ShieldAlert size={14} />,
   admin: <ShieldCheck size={14} />,
-  author: <Shield size={14} />,
+  editor: <Shield size={14} />,
+  writer: <Shield size={14} />,
+  reader: <Shield size={14} />,
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  superadmin: "Superadmin",
-  admin: "Admin",
-  author: "Autor",
-};
+const ALL_ROLES: UserRole[] = ["superadmin", "admin", "editor", "writer", "reader"];
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -33,7 +34,7 @@ export default function AdminUsers() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newName, setNewName] = useState("");
-  const [newRole, setNewRole] = useState("author");
+  const [newRole, setNewRole] = useState("writer");
   const [creating, setCreating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
