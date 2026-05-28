@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import { signToken, verifyTokenSignature } from "../lib/auth";
 import { requireAuth } from "../middlewares/requireAuth";
+import { loginLimiter } from "../middlewares/rateLimit";
 import { logger } from "../lib/logger";
 import { logAudit, auditCtx } from "../lib/audit";
 
@@ -13,7 +14,7 @@ const router: IRouter = Router();
 
 const REFRESH_GRACE_MS = 24 * 60 * 60 * 1000; // 24h para refrescar
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginLimiter, async (req, res): Promise<void> => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

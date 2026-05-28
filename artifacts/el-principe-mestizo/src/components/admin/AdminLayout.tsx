@@ -20,11 +20,16 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { useInactivity } from "@/hooks/useInactivity";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [location] = useLocation();
   const { logout, user, token } = useAuth();
+  const { showWarning, dismissWarning } = useInactivity(() => {
+    logout();
+    window.location.href = "/admin/login";
+  }, 30 * 60 * 1000);
 
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -140,6 +145,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <main className="flex-1 overflow-y-auto p-4 md:p-8">{children}</main>
       </div>
+
+      {/* Inactivity warning modal */}
+      {showWarning && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl text-center">
+            <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl font-bold">!</span>
+            </div>
+            <h3 className="font-sans-ui text-sm font-semibold mb-1">Sesión por expirar</h3>
+            <p className="font-sans-ui text-xs text-muted-foreground mb-4">
+              Por inactividad, tu sesión se cerrará en menos de 1 minuto.
+            </p>
+            <button
+              onClick={dismissWarning}
+              className="w-full px-4 py-2 text-sm font-sans-ui bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Seguir navegando
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
