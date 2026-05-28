@@ -1,7 +1,11 @@
 import { Link } from "wouter";
-import { FileText, MessageSquare, Eye, PenSquare, PlusCircle } from "lucide-react";
+import { FileText, MessageSquare, Eye, PenSquare, PlusCircle, TrendingUp } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAdminGetStats, useGetMostRead, useAdminGetComments } from "@workspace/api-client-react";
+
+// Lazy-load recharts (code splitting)
+const ViewsChart = lazy(() => import("@/components/admin/ViewsChart"));
 
 export default function Dashboard() {
   const { data: stats } = useAdminGetStats();
@@ -21,15 +25,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-display text-2xl font-bold">Dashboard</h1>
-            <p className="text-sm font-sans-ui text-muted-foreground mt-1">Bienvenido al panel de El Príncipe Mestizo</p>
+            <p className="text-sm font-sans-ui text-muted-foreground mt-1">
+              Panel de control de <strong>El Príncipe Mestizo</strong>
+            </p>
           </div>
-          <Link
-            href="/admin/articles/new"
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-sans-ui text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-          >
-            <PlusCircle size={16} />
-            Nuevo artículo
-          </Link>
         </div>
 
         {/* Stat cards */}
@@ -48,9 +47,9 @@ export default function Dashboard() {
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Most read */}
-          <div className="bg-card border border-card-border rounded-lg p-5">
+          <div className="lg:col-span-2 bg-card border border-card-border rounded-lg p-5">
             <h2 className="font-display font-semibold text-base mb-4">Lo más leído</h2>
             {!mostRead || mostRead.length === 0 ? (
               <p className="text-sm font-sans-ui text-muted-foreground">Sin datos aún.</p>
@@ -59,7 +58,7 @@ export default function Dashboard() {
                 {mostRead.slice(0, 5).map((article, i) => (
                   <li key={article.id} className="flex items-start gap-3">
                     <span className="font-display text-xl font-bold text-muted-foreground/30 w-5 shrink-0">{i + 1}</span>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <Link
                         href={`/admin/articles/${article.id}/edit`}
                         className="text-sm font-sans-ui font-medium hover:text-primary transition-colors line-clamp-2"
@@ -67,6 +66,9 @@ export default function Dashboard() {
                         {article.title}
                       </Link>
                       <p className="text-xs text-muted-foreground font-sans-ui mt-0.5">{article.views ?? 0} visitas</p>
+                    </div>
+                    <div className="bg-muted text-muted-foreground text-[10px] font-sans-ui font-semibold px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap">
+                      <TrendingUp size={10} /> {i === 0 ? "TOP" : `#${i + 1}`}
                     </div>
                   </li>
                 ))}
@@ -93,6 +95,18 @@ export default function Dashboard() {
               </ul>
             )}
           </div>
+        </div>
+
+        {/* Views chart (lazy loaded) */}
+        <div className="bg-card border border-card-border rounded-lg p-5">
+          <h2 className="font-display font-semibold text-base mb-4">Vistas por día (últimos 30 días)</h2>
+          <Suspense fallback={
+            <div className="h-48 flex items-center justify-center">
+              <div className="text-sm font-sans-ui text-muted-foreground">Cargando gráfico...</div>
+            </div>
+          }>
+            <ViewsChart />
+          </Suspense>
         </div>
       </div>
     </AdminLayout>

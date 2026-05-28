@@ -29,6 +29,7 @@ const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
 const Editors = lazy(() => import("@/pages/admin/Editors"));
 const ReviewQueue = lazy(() => import("@/pages/admin/ReviewQueue"));
 const MyProfile = lazy(() => import("@/pages/admin/MyProfile"));
+const AuditLogs = lazy(() => import("@/pages/admin/AuditLogs"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,6 +132,9 @@ function Router() {
       </Route>
       <Route path="/admin/profile">
         {() => <ProtectedRoute component={MyProfile} />}
+      </Route>
+      <Route path="/admin/audit-logs">
+        {() => <ProtectedRoute component={AuditLogs} />}
       </Route>
       <Route component={NotFound} />
     </Switch>
