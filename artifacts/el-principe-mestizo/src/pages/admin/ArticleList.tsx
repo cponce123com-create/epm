@@ -2,24 +2,41 @@ import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { PlusCircle, Pencil, Trash2, Globe, EyeOff, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, FileDown, Loader2 } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Globe, EyeOff, Search, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square, FileDown, Loader2, Copy, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAdminGetArticles, useAdminDeleteArticle, useAdminPublishArticle } from "@workspace/api-client-react";
+import { useAdminGetArticles, useAdminDeleteArticle, useAdminPublishArticle, useGetCategories } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 type SortField = "publishedAt" | "createdAt" | "views";
 type SortDir = "asc" | "desc";
 
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
+function getToken(): string | null {
+  try {
+    const stored = localStorage.getItem("epm-auth");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return parsed.state?.token ?? null;
+    }
+  } catch { /* */ }
+  return null;
+}
+
 export default function ArticleList() {
   const [statusFilter, setStatusFilter] = useState<"published" | "draft" | undefined>(undefined);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<number | undefined>(undefined);
   const [sortField, setSortField] = useState<SortField>("publishedAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
 
   const { data: articles, isLoading } = useAdminGetArticles({ status: statusFilter });
+  const { data: categories } = useGetCategories();
   const deleteArticle = useAdminDeleteArticle();
   const publishArticle = useAdminPublishArticle();
   const queryClient = useQueryClient();
@@ -35,6 +52,21 @@ export default function ArticleList() {
       toast({ description: "Artículo eliminado." });
     } catch {
       toast({ description: "Error al eliminar el artículo.", variant: "destructive" });
+    }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/admin/articles/${id}/duplicate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      toast({ description: "Artículo duplicado como borrador." });
+      invalidate();
+    } catch {
+      toast({ description: "Error al duplicar.", variant: "destructive" });
     }
   };
 
@@ -61,7 +93,6 @@ export default function ArticleList() {
     if (!articles) return [];
     let list = [...articles];
 
-    // Búsqueda en vivo
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(a =>
@@ -70,7 +101,10 @@ export default function ArticleList() {
       );
     }
 
-    // Ordenamiento
+    if (categoryFilter) {
+      list = list.filter(a => a.categoryId === categoryFilter || (a as any).secondaryCategoryId === categoryFilter);
+    }
+
     list.sort((a, b) => {
       let aVal: number, bVal: number;
       if (sortField === "views") {
@@ -87,10 +121,12 @@ export default function ArticleList() {
     });
 
     return list;
-  }, [articles, search, sortField, sortDir]);
+  }, [articles, search, sortField, sortDir, categoryFilter]);
 
-  // ── Lógica de selección ────────────────────────────────────────────────
-  const allIds = useMemo(() => filtered.map(a => a.id), [filtered]);
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  const allIds = useMemo(() => paginated.map(a => a.id), [paginated]);
   const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
   const someSelected = selectedIds.size > 0 && !allSelected;
 
@@ -104,25 +140,19 @@ export default function ArticleList() {
 
   const toggleOne = (id: number) => {
     const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setSelectedIds(next);
   };
 
-  // ── Acción masiva ──────────────────────────────────────────────────────
   const handleBulkStatus = async (newStatus: "draft" | "published") => {
     if (selectedIds.size === 0) return;
     const label = newStatus === "draft" ? "borradores" : "publicados";
     if (!confirm(`¿Cambiar ${selectedIds.size} artículo(s) a "${label}"?`)) return;
-
     setBulkLoading(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL ?? "";
-      const token = localStorage.getItem("epm_token");
-      const res = await fetch(`${apiUrl}/api/admin/articles/bulk-status`, {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/admin/articles/bulk-status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -147,14 +177,17 @@ export default function ArticleList() {
     return sortDir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} />;
   };
 
+  const siteUrl = import.meta.env.VITE_SITE_URL ?? window.location.origin;
+
   return (
     <AdminLayout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-display text-2xl font-bold">Artículos</h1>
             <p className="text-sm font-sans-ui text-muted-foreground mt-0.5">
-              {filtered.length} de {articles?.length ?? 0} artículos
+              {filtered.length} artículo{filtered.length !== 1 ? "s" : ""}
+              {page > 1 && ` — Página ${page}`}
             </p>
           </div>
           <Link
@@ -174,11 +207,11 @@ export default function ArticleList() {
               type="text"
               placeholder="Buscar por título o categoría..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               className="w-full pl-9 pr-4 py-2 text-sm font-sans-ui border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {[
               { label: "Todos", value: undefined },
               { label: "Publicados", value: "published" as const },
@@ -186,7 +219,7 @@ export default function ArticleList() {
             ].map(f => (
               <button
                 key={String(f.value)}
-                onClick={() => { setStatusFilter(f.value); setSelectedIds(new Set()); }}
+                onClick={() => { setStatusFilter(f.value); setSelectedIds(new Set()); setPage(1); }}
                 className={`px-3 py-1.5 text-xs font-sans-ui font-medium rounded-md border transition-colors ${
                   statusFilter === f.value
                     ? "bg-primary text-primary-foreground border-primary"
@@ -196,6 +229,16 @@ export default function ArticleList() {
                 {f.label}
               </button>
             ))}
+            <select
+              value={categoryFilter ?? ""}
+              onChange={e => { setCategoryFilter(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
+              className="px-3 py-1.5 text-xs font-sans-ui border border-border rounded-md bg-background"
+            >
+              <option value="">Todas las categorías</option>
+              {categories?.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -239,7 +282,7 @@ export default function ArticleList() {
             <div className="p-8 text-center">
               <div className="text-sm font-sans-ui text-muted-foreground">Cargando...</div>
             </div>
-          ) : !filtered.length ? (
+          ) : !paginated.length ? (
             <div className="p-8 text-center">
               <p className="font-sans-ui text-sm text-muted-foreground">
                 {search ? `Sin resultados para "${search}"` : "No hay artículos."}
@@ -250,32 +293,16 @@ export default function ArticleList() {
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   <th className="w-10 px-3 py-3">
-                    <button
-                      onClick={toggleAll}
-                      className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                      title={allSelected ? "Deseleccionar todos" : "Seleccionar todos"}
-                    >
+                    <button onClick={toggleAll} className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" title={allSelected ? "Deseleccionar todos" : "Seleccionar todos"}>
                       {allSelected ? <CheckSquare size={15} /> : someSelected ? <Square size={15} className="opacity-50" /> : <Square size={15} />}
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide">Título</th>
                   <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden md:table-cell">Categoría</th>
-                  <th
-                    className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("publishedAt")}
-                  >
+                  <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-foreground select-none" onClick={() => handleSort("publishedAt")}>
                     <span className="flex items-center gap-1">Publicación <SortIcon field="publishedAt" /></span>
                   </th>
-                  <th
-                    className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("createdAt")}
-                  >
-                    <span className="flex items-center gap-1">Creación <SortIcon field="createdAt" /></span>
-                  </th>
-                  <th
-                    className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("views")}
-                  >
+                  <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide hidden lg:table-cell cursor-pointer hover:text-foreground select-none" onClick={() => handleSort("views")}>
                     <span className="flex items-center gap-1">Vistas <SortIcon field="views" /></span>
                   </th>
                   <th className="text-left px-4 py-3 font-sans-ui font-medium text-xs text-muted-foreground uppercase tracking-wide">Estado</th>
@@ -283,41 +310,31 @@ export default function ArticleList() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(article => {
+                {paginated.map(article => {
                   const pubDate = article.publishedAt ? new Date(article.publishedAt) : null;
-                  const creDate = new Date(article.createdAt);
                   const isSelected = selectedIds.has(article.id);
                   return (
                     <tr key={article.id} className={`border-b border-border last:border-0 transition-colors ${
                       isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"
                     }`}>
                       <td className="px-3 py-3">
-                        <button
-                          onClick={() => toggleOne(article.id)}
-                          className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                        >
+                        <button onClick={() => toggleOne(article.id)} className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
                           {isSelected ? <CheckSquare size={15} className="text-primary" /> : <Square size={15} />}
                         </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-sans-ui text-sm font-medium line-clamp-1">{article.title}</div>
-                        {article.featured && (
-                          <span className="text-xs text-yellow-600 font-sans-ui">★ Destacado</span>
-                        )}
+                        {article.featured && <span className="text-xs text-yellow-600 font-sans-ui">★ Destacado</span>}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <span
-                          className="inline-block text-xs px-2 py-0.5 rounded text-white font-sans-ui"
-                          style={{ backgroundColor: article.category?.color ?? "#333" }}
-                        >
-                          {article.category?.name ?? "—"}
-                        </span>
+                        {article.category && (
+                          <span className="inline-block text-xs px-2 py-0.5 rounded text-white font-sans-ui" style={{ backgroundColor: article.category.color ?? "#333" }}>
+                            {article.category.name}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground font-sans-ui">
                         {pubDate ? format(pubDate, "d MMM yyyy", { locale: es }) : "—"}
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground font-sans-ui">
-                        {format(creDate, "d MMM yyyy", { locale: es })}
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground font-sans-ui">
                         {(article.views ?? 0).toLocaleString()}
@@ -331,6 +348,15 @@ export default function ArticleList() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          <a
+                            href={`${siteUrl}/articulo/${article.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title="Ver en sitio"
+                          >
+                            <Eye size={15} />
+                          </a>
                           <button
                             onClick={() => handlePublishToggle(article.id, article.status === "published")}
                             className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
@@ -345,6 +371,13 @@ export default function ArticleList() {
                           >
                             <Pencil size={15} />
                           </Link>
+                          <button
+                            onClick={() => handleDuplicate(article.id)}
+                            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title="Duplicar"
+                          >
+                            <Copy size={15} />
+                          </button>
                           <button
                             onClick={() => handleDelete(article.id, article.title)}
                             className="p-1.5 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
@@ -361,6 +394,43 @@ export default function ArticleList() {
             </table>
           )}
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-sans-ui text-muted-foreground">Por página:</span>
+              <select
+                value={perPage}
+                onChange={e => { setPerPage(Number(e.target.value)); setPage(1); }}
+                className="text-xs font-sans-ui border border-input rounded-md px-2 py-1 bg-background"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-sans-ui border border-input rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} /> Anterior
+              </button>
+              <span className="text-sm font-sans-ui text-muted-foreground">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-sans-ui border border-input rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

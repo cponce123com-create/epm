@@ -198,6 +198,24 @@ export default function ArticleEditor() {
     };
   }, [form, doAutoSave]);
 
+  // ── Atajos de teclado ─────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl+S → Guardar borrador
+      if ((e.ctrlKey || e.metaKey) && e.key === "s" && !e.shiftKey) {
+        e.preventDefault();
+        handleSave("draft");
+      }
+      // Ctrl+Shift+P → Publicar
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        handleSave("published");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [form, isEdit, id]);
+
   const handleSave = async (publishStatus?: "draft" | "published") => {
     const status = publishStatus ?? form.status;
     if (!form.title.trim()) {
