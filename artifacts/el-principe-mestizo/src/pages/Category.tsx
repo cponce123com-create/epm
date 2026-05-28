@@ -23,7 +23,6 @@ export default function Category() {
 
   const catName = category?.name ?? slug;
   const catDesc = category?.description ?? '';
-  const catColor = category?.color ?? "#C0392B";
 
   return (
     <div className="min-h-screen bg-background">
