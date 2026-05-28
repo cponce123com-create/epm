@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useCookieConsent } from "./useCookieConsent";
 
-const GA_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
+const GA_ID = (import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined) || "G-4MLM87CG82";
 
 declare global {
   interface Window {
