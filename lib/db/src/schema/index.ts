@@ -13,3 +13,4 @@ export * from "./reported_comments";
 export * from "./user_follows_category";
 export * from "./audit_logs";
 export * from "./user_invitations";
+export * from "./contacts";

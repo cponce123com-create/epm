@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { lazy, Suspense } from "react";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 
 // ── Lazy-loaded public routes (code splitting) ─────────────────────────────
 const Home = lazy(() => import("@/pages/Home"));
@@ -13,6 +14,8 @@ const Article = lazy(() => import("@/pages/Article"));
 const Category = lazy(() => import("@/pages/Category"));
 const Search = lazy(() => import("@/pages/Search"));
 const About = lazy(() => import("@/pages/About"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const ContactPage = lazy(() => import("@/pages/ContactPage"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Lazy-loaded admin pages (code splitting)
@@ -91,6 +94,8 @@ function Router() {
       <Route path="/categoria/:slug" component={Category} />
       <Route path="/buscar" component={Search} />
       <Route path="/acerca-de" component={About} />
+      <Route path="/privacidad" component={Privacy} />
+      <Route path="/contacto" component={ContactPage} />
       <Route path="/admin/login">
         {() => <AdminFallback component={Login} />}
       </Route>
@@ -159,6 +164,7 @@ function App() {
           <AuthProvider>
             <Router />
             <Toaster />
+            <CookieConsentBanner />
           </AuthProvider>
         </WouterRouter>
       </QueryClientProvider>

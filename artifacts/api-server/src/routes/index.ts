@@ -23,6 +23,7 @@ import revisionsRouter from "./revisions";
 import sitemapRouter from "./sitemap";
 import auditRouter from "./audit";
 import adminViewsChartRouter from "./adminViewsChart";
+import contactRouter from "./contact";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(revisionsRouter);
 router.use(sitemapRouter);
 router.use(auditRouter);
 router.use(adminViewsChartRouter);
+router.use(contactRouter);
 
 export default router;
