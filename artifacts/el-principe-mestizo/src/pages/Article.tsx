@@ -19,18 +19,45 @@ import { normalizeMaybeProtocolRelativeUrl } from "@/lib/image";
 import { Helmet } from "react-helmet-async";
 
 // ── Hook para metatags Open Graph ──────────────────────────────────────────
-function ArticleMetaTags({ article, siteSettings }: {
-  article: { title: string; summary?: string | null; coverImageUrl?: string | null; slug: string };
+function ArticleMetaTags({ article, siteSettings, authorName, publishedAt, updatedAt }: {
+  article: { title: string; summary?: string | null; coverImageUrl?: string | null; slug: string; id: number };
   siteSettings: any;
+  authorName?: string;
+  publishedAt?: string | null;
+  updatedAt?: string | null;
 }) {
   const siteName = siteSettings?.siteName ?? "El Príncipe Mestizo";
   const siteUrlRaw = siteSettings?.siteUrl ?? window.location.origin;
   const siteUrl = siteUrlRaw.replace(/\/+$/, "");
   const fallbackImg = siteSettings?.ogImage ?? "";
+  const logoUrl = siteSettings?.logoUrl ?? "";
   const title = article.title;
   const desc = article.summary ?? "";
   const image = article.coverImageUrl || fallbackImg;
   const canonicalUrl = `${siteUrl}/articulo/${article.slug}`;
+
+  // JSON-LD Schema.org NewsArticle
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: title,
+    description: desc,
+    url: canonicalUrl,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+    image: image ? [image] : undefined,
+    datePublished: publishedAt ?? undefined,
+    dateModified: updatedAt ?? publishedAt ?? undefined,
+    author: {
+      "@type": "Person",
+      name: authorName ?? "El Príncipe Mestizo",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: siteName,
+      logo: logoUrl ? { "@type": "ImageObject", url: logoUrl } : undefined,
+    },
+    ...(siteSettings?.siteDescription ? { description: siteSettings.siteDescription } : {}),
+  };
 
   return (
     <Helmet>
@@ -51,6 +78,7 @@ function ArticleMetaTags({ article, siteSettings }: {
       <meta name="twitter:description" content={desc} />
       {image && <meta name="twitter:image" content={image} />}
       <link rel="canonical" href={canonicalUrl} />
+      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
     </Helmet>
   );
   }
@@ -587,6 +615,13 @@ export default function Article() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ArticleMetaTags
+        article={article}
+        siteSettings={siteSettings}
+        authorName={article.authorName}
+        publishedAt={article.publishedAt}
+        updatedAt={article.updatedAt}
+      />
       {lightbox && (
         <Lightbox
           images={lightbox.images}

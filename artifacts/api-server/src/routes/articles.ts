@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   db,
   articlesTable,
@@ -6,8 +6,10 @@ import {
   usersTable,
   commentsTable,
   articleRevisionsTable,
+  articleViewsTable,
 } from "@workspace/db";
-import { eq, desc, ilike, and, or, ne, count, sql, inArray } from "drizzle-orm";
+import { eq, desc, ilike, and, or, ne, count, sql, inArray, gte, gt } from "drizzle-orm";
+import crypto from "crypto";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
@@ -824,5 +826,111 @@ router.patch(
     res.json(formatArticle(full as ArticleRow));
   },
 );
+
+// ── Popular articles (last 7 days) ──────────────────────────────────────────
+router.get("/articles/popular", async (_req: Request, res: Response): Promise<void> => {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const popular = await db
+    .select({
+      id: articlesTable.id,
+      title: articlesTable.title,
+      slug: articlesTable.slug,
+      summary: articlesTable.summary,
+      coverImageUrl: articlesTable.coverImageUrl,
+      categoryId: articlesTable.categoryId,
+      categoryName: categoriesTable.name,
+      categorySlug: categoriesTable.slug,
+      categoryColor: categoriesTable.color,
+      views: sql<number>`count(${articleViewsTable.id})::int`,
+    })
+    .from(articlesTable)
+    .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(articleViewsTable, eq(articlesTable.id, articleViewsTable.articleId))
+    .where(
+      and(
+        eq(articlesTable.status, "published"),
+        gte(articleViewsTable.viewedAt, sevenDaysAgo),
+      ),
+    )
+    .groupBy(articlesTable.id, categoriesTable.name, categoriesTable.slug, categoriesTable.color)
+    .orderBy(desc(sql`count(${articleViewsTable.id})`))
+    .limit(5);
+
+  res.json(popular.map((a) => ({
+    id: a.id,
+    title: a.title,
+    slug: a.slug,
+    summary: a.summary,
+    coverImageUrl: a.coverImageUrl,
+    category: a.categoryId
+      ? { id: a.categoryId, name: a.categoryName, slug: a.categorySlug, color: a.categoryColor }
+      : null,
+    views: a.views,
+  })));
+});
+
+// ── Track article view ───────────────────────────────────────────────────────
+router.post("/articles/:slug/view", async (req: Request, res: Response): Promise<void> => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+
+  const [article] = await db
+    .select({ id: articlesTable.id })
+    .from(articlesTable)
+    .where(eq(articlesTable.slug, slug));
+
+  if (!article) {
+    res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+  const ipHash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
+
+  // Upsert: insert view record, skip if duplicate (same ip + article + day)
+  try {
+    await db.insert(articleViewsTable).values({
+      articleId: article.id,
+      ipHash,
+    });
+  } catch {
+    // Duplicate (unique constraint) — silently ignore
+  }
+
+  res.json({ ok: true });
+});
+
+// ── Preview article (requires auth, shows any status) ────────────────────────
+router.get("/articles/preview/:slug", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+  const user = (req as any).user;
+
+  const [article] = await db
+    .select(articleSelect)
+    .from(articlesTable)
+    .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+    .leftJoin(secondaryCategoriesTable, eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id))
+    .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+    .where(eq(articlesTable.slug, slug));
+
+  if (!article) {
+    res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  // Solo el autor o admin/superadmin pueden ver preview
+  const canPreview =
+    user.role === "superadmin" ||
+    user.role === "admin" ||
+    article.authorId === user.userId;
+
+  if (!canPreview) {
+    res.status(403).json({ error: "No tienes permiso para ver este artículo" });
+    return;
+  }
+
+  res.json(formatArticle(article as ArticleRow));
+});
 
 export default router;

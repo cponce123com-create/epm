@@ -8,3 +8,6 @@ export * from "./user_permissions";
 export * from "./article_revisions";
 export * from "./notifications";
 export * from "./tags";
+export * from "./article_views";
+export * from "./reported_comments";
+export * from "./user_follows_category";
