@@ -236,7 +236,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  type TabId = "general" | "header" | "visual" | "about" | "ads" | "social" | "footer" | "seo";
+  type TabId = "general" | "header" | "visual" | "about" | "ads" | "social" | "footer" | "seo" | "smtp";
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [saving, setSaving] = useState(false);
 

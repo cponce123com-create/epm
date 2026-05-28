@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { db, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -9,7 +9,15 @@ const router: IRouter = Router();
 
 const UpdateSettingBody = z.object({
   key: z.string().min(1, "key es requerido"),
-  value: z.string().min(1, "value es requerido"),
+  value: z.string().min(0, "value es requerido"),
+});
+
+const TestSmtpBody = z.object({
+  host: z.string().min(1),
+  port: z.coerce.number().int().positive(),
+  user: z.string(),
+  pass: z.string(),
+  to: z.string().email(),
 });
 
 // Todos los campos de configuración permitidos
@@ -28,6 +36,7 @@ const SETTING_KEYS = [
   // SEO / Open Graph
   "og_image",
   "meta_keywords",
+  "google_verification",
   // Redes sociales
   "twitter_url",
   "facebook_url",
@@ -69,6 +78,11 @@ const SETTING_KEYS = [
   // Publicidad por código HTML/JS
   "ad_code_1",
   "ad_code_2",
+  // SMTP
+  "smtp_host",
+  "smtp_port",
+  "smtp_user",
+  "smtp_pass",
 ] as const;
 
 async function getAllSettings() {
@@ -92,6 +106,7 @@ async function getAllSettings() {
     // SEO / Open Graph
     ogImage:            map["og_image"]             ?? "",
     metaKeywords:       map["meta_keywords"]        ?? "",
+    googleVerification: map["google_verification"]  ?? "",
     // Redes sociales
     twitterUrl:         map["twitter_url"]          ?? "",
     facebookUrl:        map["facebook_url"]         ?? "",
@@ -137,6 +152,11 @@ async function getAllSettings() {
     // Código HTML/JS
     adCode1:            map["ad_code_1"]            ?? "",
     adCode2:            map["ad_code_2"]            ?? "",
+    // SMTP
+    smtpHost:           map["smtp_host"]            ?? "",
+    smtpPort:           map["smtp_port"]            ?? "587",
+    smtpUser:           map["smtp_user"]            ?? "",
+    smtpPass:           map["smtp_pass"]            ?? "",
   };
 }
 
@@ -171,6 +191,41 @@ router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): 
     });
 
   res.json({ ok: true });
+});
+
+// ── POST /admin/settings/test-smtp — prueba de conexión SMTP ─────────────
+router.post("/admin/settings/test-smtp", requireAuth, requireSuperAdmin, async (req: Request, res: Response): Promise<void> => {
+  const parsed = TestSmtpBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Campos inválidos. Se requiere: host, port, user, pass, to." });
+    return;
+  }
+
+  const { host, port, user, pass, to } = parsed.data;
+
+  try {
+    // Intentar conectar usando nodemailer (si está instalado)
+    let transporter;
+    try {
+      const nodemailer = await import("nodemailer");
+      transporter = nodemailer.default.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000,
+      });
+    } catch {
+      res.status(500).json({ error: "nodemailer no está instalado. Corre 'pnpm add nodemailer'." });
+      return;
+    }
+
+    await transporter.verify();
+    res.json({ ok: true, message: `Conexión SMTP exitosa a ${host}:${port}.` });
+  } catch (err: any) {
+    res.status(400).json({ error: `Error SMTP: ${err?.message ?? "desconocido"}` });
+  }
 });
 
 export default router;
