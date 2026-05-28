@@ -4,6 +4,7 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
+import compression from "compression";
 import cors from "cors";
 import helmet from "helmet";
 import path from "path";
@@ -12,10 +13,14 @@ import { fileURLToPath } from "url";
 import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
+import sitemapRouter from "./routes/sitemap";
 import { logger } from "./lib/logger";
 import { ogMiddleware } from "./lib/ogMiddleware";
 
 const app: Express = express();
+
+// ── Compresión gzip/Brotli ───────────────────────────────────────────────────
+app.use(compression({ threshold: 1024 }));
 
 // ── robots.txt — PRIMERO, antes de cualquier middleware ─────────────────────
 // Facebookexternalhit y otros crawlers necesitan acceder sin restricciones.
@@ -170,19 +175,36 @@ app.use(
             ]
           : ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https:"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://res.cloudinary.com",
+          "https://*.cloudinary.com",
+          "https://img.youtube.com",
+          "https://*.ytimg.com",
+          "https://www.google.com",
+          "https://pagead2.googlesyndication.com",
+          "https://*.doubleclick.net",
+          "https://www.gstatic.com",
+          "https:",
+        ],
         connectSrc: [
           "'self'",
           "https://api.open-meteo.com",
           "https://www.sunat.gob.pe",
           "https://api.exchangerate-api.com",
           "https://www.googleapis.com",
+          "https://*.cloudinary.com",
+          "https://res.cloudinary.com",
         ],
-        fontSrc: ["'self'"],
-        frameSrc: ["'self'"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        frameSrc: ["'self'", "https://www.youtube.com", "https://player.vimeo.com"],
+        frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
+        upgradeInsecureRequests: [],
       },
     },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
@@ -196,6 +218,10 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // ── Rutas de API ──────────────────────────────────────────────────────────────
 // /api/v1  — versión canónica
 // /api     — retrocompatibilidad (deprecado, se eliminará en v2)
+
+// Sitemap también en raíz (para robots.txt)
+app.use("/sitemap.xml", sitemapRouter);
+
 app.use("/api/v1", router);
 app.use("/api", router);
 

@@ -1,10 +1,16 @@
 import { Router, type IRouter } from "express";
+import { z } from "zod";
 import { db, siteSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 
 const router: IRouter = Router();
+
+const UpdateSettingBody = z.object({
+  key: z.string().min(1, "key es requerido"),
+  value: z.string().min(1, "value es requerido"),
+});
 
 // Todos los campos de configuración permitidos
 const SETTING_KEYS = [
@@ -148,12 +154,13 @@ router.get("/admin/settings", requireAuth, async (_req, res): Promise<void> => {
 
 // ── PUT admin — guarda un campo a la vez ──────────────────────────────────
 router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const { key, value } = req.body as { key: string; value: string };
-
-  if (!key || typeof value !== "string") {
-    res.status(400).json({ error: "key and value are required" });
+  const parsed = UpdateSettingBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "key y value son requeridos" });
     return;
   }
+
+  const { key, value } = parsed.data;
 
   await db
     .insert(siteSettingsTable)

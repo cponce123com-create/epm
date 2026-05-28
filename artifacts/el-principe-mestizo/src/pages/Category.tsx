@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams } from "wouter";
+import { Helmet } from "react-helmet-async";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -20,8 +21,19 @@ export default function Category() {
   const category = categories?.find(c => c.slug === slug);
   const catColor = category?.color ?? "#C0392B";
 
+  const catName = category?.name ?? slug;
+  const catDesc = category?.description ?? '';
+  const catColor = category?.color ?? "#C0392B";
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{catName} · El Príncipe Mestizo</title>
+        <meta name="description" content={catDesc || `Artículos de ${catName} · El Príncipe Mestizo`} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary" />
+      </Helmet>
+
       <Header />
 
       {/* Banda de categoría */}

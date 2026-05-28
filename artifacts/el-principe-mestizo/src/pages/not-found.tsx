@@ -1,11 +1,17 @@
 import { Link } from "wouter";
 import { ArrowLeft, Search } from "lucide-react";
 import Header from "@/components/Header";
+import { Helmet } from "react-helmet-async";
 import Footer from "@/components/Footer";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <Helmet>
+        <title>404 · Página no encontrada · El Príncipe Mestizo</title>
+        <meta name="description" content="La página que buscas no existe o fue eliminada." />
+      </Helmet>
+
       <Header />
       <main className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="text-center max-w-md animate-fade-in-up">

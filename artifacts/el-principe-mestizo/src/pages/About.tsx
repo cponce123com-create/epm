@@ -1,6 +1,7 @@
 import { Twitter, Facebook, MapPin, Pen, Eye, Shield, Quote } from "lucide-react";
 import { Link } from "wouter";
 import Header from "@/components/Header";
+import { Helmet } from "react-helmet-async";
 import Footer from "@/components/Footer";
 import OptimizedImage from "@/components/OptimizedImage";
 import { useGetPublicSettings, useGetArticles } from "@workspace/api-client-react";
@@ -46,6 +47,11 @@ export default function About() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Acerca de · El Príncipe Mestizo</title>
+        <meta name="description" content="Conoce más sobre El Príncipe Mestizo, periodismo ciudadano desde San Ramón, Chanchamayo (Perú)." />
+      </Helmet>
+
         <Header />
         <div className="max-w-5xl mx-auto px-4 py-24 text-center">
           <div className="animate-pulse space-y-4">

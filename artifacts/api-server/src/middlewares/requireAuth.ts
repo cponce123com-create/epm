@@ -1,6 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../lib/auth";
 
+export interface AuthenticatedUser {
+  userId: number;
+  email: string;
+  role: string;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
+}
+
 export function requireAuth(
   req: Request,
   res: Response,
@@ -15,7 +25,7 @@ export function requireAuth(
   try {
     const payload = verifyToken(token);
     // Mapear a la forma que las rutas esperan (userId, email, role)
-    (req as any).user = {
+    (req as AuthenticatedRequest).user = {
       userId: payload.sub,
       email: payload.email,
       role: payload.role,

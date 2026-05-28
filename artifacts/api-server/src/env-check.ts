@@ -23,6 +23,15 @@ process.on("unhandledRejection", (reason) => {
 // ANTES de que cualquier otro módulo se evalúe.
 
 const REQUIRED_VARS = ["PORT", "DATABASE_URL", "JWT_SECRET"] as const;
+const OPTIONAL_VARS = [
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+  "NODE_ENV",
+  "CORS_ORIGINS",
+  "ADMIN_EMAIL",
+  "ADMIN_PASSWORD",
+] as const;
 
 const missing: string[] = [];
 

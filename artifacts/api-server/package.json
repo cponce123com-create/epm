@@ -16,6 +16,7 @@
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.0.0",
     "cloudinary": "^2.9.0",
+    "compression": "^1.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "dompurify": "^3.4.2",
@@ -31,11 +32,13 @@
     "multer": "^2.1.1",
     "pino": "^9",
     "pino-http": "^10",
-    "slugify": "^1.6.9"
+    "slugify": "^1.6.9",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.5",
     "@types/bcryptjs": "^3.0.0",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

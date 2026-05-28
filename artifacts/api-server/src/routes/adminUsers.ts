@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { db, usersTable } from "@workspace/db";
 import { eq, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -8,26 +9,33 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
+const userRoleEnum = z.enum(["superadmin", "admin", "author"]);
+
+const CreateUserBody = z.object({
+  email: z.string().email("Email inválido"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  displayName: z.string().min(1).max(255).optional(),
+  role: userRoleEnum.optional(),
+});
+
+const UpdateUserRoleBody = z.object({
+  role: userRoleEnum,
+});
+
 // Crear un nuevo usuario (Solo Superadmin)
 router.post(
   "/admin/users",
   requireAuth,
   requireSuperAdmin,
   async (req, res): Promise<void> => {
-    const { email, password, displayName, role } = req.body as {
-      email?: string;
-      password?: string;
-      displayName?: string;
-      role?: string;
-    };
-
-    if (!email || !password) {
-      res.status(400).json({ error: "Email y contraseña son requeridos." });
+    const parsed = CreateUserBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
       return;
     }
 
-    const validRoles = ["superadmin", "admin", "author"];
-    const finalRole = validRoles.includes(role ?? "") ? role! : "author";
+    const { email, password, displayName, role } = parsed.data;
+    const finalRole = role ?? "author";
 
     const existing = await db
       .select({ id: usersTable.id })
@@ -96,12 +104,17 @@ router.patch(
   requireSuperAdmin,
   async (req, res): Promise<void> => {
     const id = parseInt(String(req.params.id), 10);
-    const { role } = req.body as { role: "superadmin" | "admin" | "author" };
+    if (isNaN(id)) {
+      res.status(400).json({ error: "ID inválido" });
+      return;
+    }
 
-    if (!["superadmin", "admin", "author"].includes(role)) {
+    const parsed = UpdateUserRoleBody.safeParse(req.body);
+    if (!parsed.success) {
       res.status(400).json({ error: "Rol inválido" });
       return;
     }
+    const { role } = parsed.data;
 
     // Evitar que el superadmin se quite a sí mismo el rol si es el único (opcional pero recomendado)
     // Por ahora permitimos cambios, asumiendo que el usuario sabe lo que hace.

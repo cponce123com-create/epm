@@ -3,6 +3,7 @@ import { useSearch } from "wouter";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Helmet } from "react-helmet-async";
 import { Search as SearchIcon } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -28,6 +29,11 @@ export default function Search() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{debouncedQuery ? `Búsqueda: ${debouncedQuery} · El Príncipe Mestizo` : "Buscar · El Príncipe Mestizo"}</title>
+        <meta name="description" content="Buscar artículos en El Príncipe Mestizo" />
+      </Helmet>
+
       <Header />
       <div className="max-w-3xl mx-auto px-4 py-10">
         <h1 className="font-display text-2xl font-bold mb-6">Buscar artículos</h1>

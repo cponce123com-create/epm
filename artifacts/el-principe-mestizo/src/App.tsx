@@ -1,28 +1,33 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
+import { HelmetProvider, Helmet } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
+import { lazy, Suspense } from "react";
 
 import Home from "@/pages/Home";
 import Article from "@/pages/Article";
 import Category from "@/pages/Category";
 import Search from "@/pages/Search";
 import About from "@/pages/About";
-import Login from "@/pages/admin/Login";
-import Dashboard from "@/pages/admin/Dashboard";
-import ArticleList from "@/pages/admin/ArticleList";
-import ArticleEditor from "@/pages/admin/ArticleEditor";
-import Comments from "@/pages/admin/Comments";
-import Categories from "@/pages/admin/Categories";
-import Settings from "@/pages/admin/Settings";
-import MediumImport from "@/pages/admin/MediumImport";
-import Nacional from "@/pages/admin/Nacional";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import Editors from "@/pages/admin/Editors";
-import ReviewQueue from "@/pages/admin/ReviewQueue";
-import MyProfile from "@/pages/admin/MyProfile";
 import NotFound from "@/pages/not-found";
+
+// Lazy-loaded admin pages (code splitting)
+const Login = lazy(() => import("@/pages/admin/Login"));
+const Dashboard = lazy(() => import("@/pages/admin/Dashboard"));
+const ArticleList = lazy(() => import("@/pages/admin/ArticleList"));
+const ArticleEditor = lazy(() => import("@/pages/admin/ArticleEditor"));
+const Comments = lazy(() => import("@/pages/admin/Comments"));
+const Categories = lazy(() => import("@/pages/admin/Categories"));
+const Settings = lazy(() => import("@/pages/admin/Settings"));
+const MediumImport = lazy(() => import("@/pages/admin/MediumImport"));
+const Nacional = lazy(() => import("@/pages/admin/Nacional"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const Editors = lazy(() => import("@/pages/admin/Editors"));
+const ReviewQueue = lazy(() => import("@/pages/admin/ReviewQueue"));
+const MyProfile = lazy(() => import("@/pages/admin/MyProfile"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +37,12 @@ const queryClient = new QueryClient({
       retry: (failureCount, error) => {
         if ((error as any)?.status === 401) return false;
         return failureCount < 1;
+      },
+    },
+    mutations: {
+      onError: (error: any) => {
+        const msg = error?.message || error?.error || "Error inesperado";
+        toast.error(msg, { duration: 5000 });
       },
     },
   },
@@ -47,7 +58,27 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     );
   }
   if (!isAuthenticated) return <Redirect to="/admin/login" />;
-  return <Component />;
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground font-sans-ui text-sm">Cargando...</div>
+      </div>
+    }>
+      <Component />
+    </Suspense>
+  );
+}
+
+function AdminFallback({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground font-sans-ui text-sm">Cargando...</div>
+      </div>
+    }>
+      <Component />
+    </Suspense>
+  );
 }
 
 function Router() {
@@ -58,7 +89,9 @@ function Router() {
       <Route path="/categoria/:slug" component={Category} />
       <Route path="/buscar" component={Search} />
       <Route path="/acerca-de" component={About} />
-      <Route path="/admin/login" component={Login} />
+      <Route path="/admin/login">
+        {() => <AdminFallback component={Login} />}
+      </Route>
       <Route path="/admin/dashboard">
         {() => <ProtectedRoute component={Dashboard} />}
       </Route>
@@ -105,14 +138,26 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <AuthProvider>
-          <Router />
-          <Toaster />
-        </AuthProvider>
-      </WouterRouter>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <Helmet>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="theme-color" content="#15140F" />
+        <meta name="application-name" content="El Príncipe Mestizo" />
+        <meta property="og:locale" content="es_PE" />
+        <meta name="twitter:site" content="@elprincipemestizo" />
+        <meta name="twitter:creator" content="@elprincipemestizo" />
+        <link rel="canonical" href={import.meta.env.VITE_SITE_URL ?? window.location.origin} />
+      </Helmet>
+      <QueryClientProvider client={queryClient}>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AuthProvider>
+            <Router />
+            <Toaster />
+          </AuthProvider>
+        </WouterRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 }
 

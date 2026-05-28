@@ -16,62 +16,45 @@ import AdSlot from "@/components/AdSlot";
 import { useGetArticleBySlug, useGetRelatedArticles, useGetPublicSettings } from "@workspace/api-client-react";
 import OptimizedImage from "@/components/OptimizedImage";
 import { normalizeMaybeProtocolRelativeUrl } from "@/lib/image";
+import { Helmet } from "react-helmet-async";
 
 // ── Hook para metatags Open Graph ──────────────────────────────────────────
-function useArticleMetaTags(
-  article: {
-    title: string;
-    summary?: string | null;
-    coverImageUrl?: string | null;
-    slug: string;
-    authorName?: string | null;
-  } | null,
-  siteSettings: any,
-) {
-  useEffect(() => {
-    if (!article) return;
-    const siteName = siteSettings?.siteName ?? "El Príncipe Mestizo";
-    const siteUrl = siteSettings?.siteUrl ?? window.location.origin;
-    const fallbackImg = siteSettings?.ogImage ?? "";
-    const title = article.title;
-    const description = article.summary ?? "";
-    const image = article.coverImageUrl || fallbackImg;
-    const url = `${siteUrl}/articulo/${article.slug}`;
+function ArticleMetaTags({ article, siteSettings }: {
+  article: { title: string; summary?: string | null; coverImageUrl?: string | null; slug: string };
+  siteSettings: any;
+}) {
+  const siteName = siteSettings?.siteName ?? "El Príncipe Mestizo";
+  const siteUrlRaw = siteSettings?.siteUrl ?? window.location.origin;
+  const siteUrl = siteUrlRaw.replace(/\/+$/, "");
+  const fallbackImg = siteSettings?.ogImage ?? "";
+  const title = article.title;
+  const desc = article.summary ?? "";
+  const image = article.coverImageUrl || fallbackImg;
+  const canonicalUrl = `${siteUrl}/articulo/${article.slug}`;
 
-    const setMeta = (selector: string, attr: string, content: string) => {
-      let el = document.querySelector<HTMLMetaElement>(selector);
-      if (!el) {
-        el = document.createElement("meta");
-        const match = selector.match(/\[(\w+)="([^"]+)"\]/);
-        if (match) el.setAttribute(match[1], match[2]);
-        document.head.appendChild(el);
-      }
-      el.setAttribute(attr, content);
-    };
+  return (
+    <Helmet>
+      <title>{`${title} — ${siteName}`}</title>
+      <meta name="description" content={desc} />
+      <meta property="og:type" content="article" />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={desc} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:site_name" content={siteName} />
+      <meta property="og:locale" content="es_PE" />
+      {image && <meta property="og:image" content={image} />}
+      {image && <meta property="og:image:width" content="1200" />}
+      {image && <meta property="og:image:height" content="630" />}
+      {image && <meta property="og:image:alt" content={title} />}
+      <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={desc} />
+      {image && <meta name="twitter:image" content={image} />}
+      <link rel="canonical" href={canonicalUrl} />
+    </Helmet>
+  );
+  }
 
-    document.title = `${title} — ${siteName}`;
-    setMeta('meta[name="description"]', "content", description);
-    setMeta('meta[property="og:type"]', "content", "article");
-    setMeta('meta[property="og:title"]', "content", title);
-    setMeta('meta[property="og:description"]', "content", description);
-    setMeta('meta[property="og:url"]', "content", url);
-    setMeta('meta[property="og:site_name"]', "content", siteName);
-    if (image) {
-      setMeta('meta[property="og:image"]', "content", image);
-      setMeta('meta[property="og:image:width"]', "content", "1200");
-      setMeta('meta[property="og:image:height"]', "content", "630");
-      setMeta('meta[property="og:image:alt"]', "content", title);
-    }
-    setMeta('meta[name="twitter:card"]', "content", image ? "summary_large_image" : "summary");
-    setMeta('meta[name="twitter:title"]', "content", title);
-    setMeta('meta[name="twitter:description"]', "content", description);
-    if (image) setMeta('meta[name="twitter:image"]', "content", image);
-
-    return () => { document.title = siteName; };
-  }, [article, siteSettings]);
-}
-
-// ── Lightbox con navegación entre imágenes ──────────────────────────────────
 function Lightbox({
   images,
   initialIndex,
@@ -556,11 +539,12 @@ export default function Article() {
   const { lightbox, closeLightbox, openLightbox } =
     useArticleLightbox(contentRef);
 
-  useArticleMetaTags(article ?? null, siteSettings);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
+      <ArticleMetaTags article={article} siteSettings={siteSettings} />
+
         <Header />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
           <SkeletonArticle />

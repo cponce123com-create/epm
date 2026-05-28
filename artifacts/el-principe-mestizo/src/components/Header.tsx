@@ -302,7 +302,7 @@ export default function Header() {
         </div>
 
         {/* ── NAV DESKTOP (dentro del masthead, debajo del título) ── */}
-        <nav className="hidden lg:flex" style={{
+        <nav role="navigation" aria-label="Secciones" className="hidden lg:flex" style={{
           justifyContent: "center", gap: 36,
           paddingTop: 20,
           borderTop: "1px solid rgba(244,240,231,0.1)",
@@ -392,7 +392,7 @@ export default function Header() {
         transition: "max-height 0.3s ease",
         background: "#1D1B16",
       }} className="lg:hidden">
-        <nav style={{ padding: "8px 0" }}>
+        <nav role="navigation" aria-label="Navegación principal" style={{ padding: "8px 0" }}>
           {navLinks.map(link => (
             <Link key={link.href} href={link.href}
               className="epm-mobile-nav-link"
@@ -423,7 +423,7 @@ export default function Header() {
               <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, color: "#F4F0E7" }}>Secciones</span>
               <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", color: "#F4F0E7", cursor: "pointer" }}><X size={18} /></button>
             </div>
-            <nav style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+            <nav role="navigation" aria-label="Secciones" style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
               {navLinks.map(link => (
                 <Link key={link.href} href={link.href}
                   onClick={() => setMenuOpen(false)}

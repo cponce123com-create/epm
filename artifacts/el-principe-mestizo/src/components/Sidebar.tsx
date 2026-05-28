@@ -184,6 +184,7 @@ export default function Sidebar() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 px-3 py-2.5 rounded transition-colors"
                 style={{ background: "#1877F2", color: "#fff" }}
+                aria-label="Síguenos en Facebook"
                 onMouseEnter={e => (e.currentTarget.style.background = "#1565d8")}
                 onMouseLeave={e => (e.currentTarget.style.background = "#1877F2")}
               >
@@ -201,6 +202,7 @@ export default function Sidebar() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 px-3 py-2.5 rounded transition-colors"
                 style={{ background: "#000", color: "#fff" }}
+                aria-label="Síguenos en Twitter / X"
                 onMouseEnter={e => (e.currentTarget.style.background = "#1a1a1a")}
                 onMouseLeave={e => (e.currentTarget.style.background = "#000")}
               >

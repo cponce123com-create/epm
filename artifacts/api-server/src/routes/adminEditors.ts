@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { z } from "zod";
 import { db, usersTable, userPermissionsTable, articlesTable } from "@workspace/db";
 import { eq, and, sql, count, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -9,6 +10,35 @@ import { logger } from "../lib/logger";
 import { safeError } from "../lib/safeError";
 
 const router: IRouter = Router();
+
+const validRolesEnum = z.enum(["author", "admin", "superadmin"]);
+
+const CreateEditorBody = z.object({
+  email: z.string().email("Email inválido"),
+  displayName: z.string().min(1, "displayName es requerido").max(255),
+  role: validRolesEnum.optional(),
+});
+
+const UpdateEditorBody = z.object({
+  displayName: z.string().min(1).max(255).optional(),
+  role: validRolesEnum.optional(),
+  bio: z.string().max(2000).optional(),
+  twitterHandle: z.string().max(255).optional(),
+  isActive: z.boolean().optional(),
+});
+
+const validPerms = [
+  "publish_own",
+  "edit_others",
+  "delete_own",
+  "manage_comments",
+  "import_articles",
+  "upload_images",
+] as const;
+
+const GrantPermissionBody = z.object({
+  permission: z.enum(validPerms),
+});
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,24 +83,14 @@ router.post(
   requireRole("admin", "superadmin"),
   async (req, res): Promise<void> => {
     try {
-      const { email, displayName, role } = req.body as {
-        email?: string;
-        displayName?: string;
-        role?: string;
-      };
-
-      if (!email || !displayName) {
-        res.status(400).json({ error: "email y displayName son requeridos" });
+      const parsed = CreateEditorBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Datos inválidos", details: parsed.error.flatten() });
         return;
       }
 
-      // Validar rol
-      const validRoles = ["author", "admin", "superadmin"];
+      const { email, displayName, role } = parsed.data;
       const targetRole = role ?? "author";
-      if (!validRoles.includes(targetRole)) {
-        res.status(400).json({ error: `Rol inválido: ${targetRole}` });
-        return;
-      }
 
       // Solo superadmin puede crear admins o superadmins
       const currentUser = (req as any).user;
@@ -143,14 +163,14 @@ router.put(
         return;
       }
 
+      const parsed = UpdateEditorBody.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Datos inválidos", details: parsed.error.flatten() });
+        return;
+      }
+
       const currentUser = (req as any).user;
-      const body = req.body as {
-        displayName?: string;
-        role?: string;
-        bio?: string;
-        twitterHandle?: string;
-        isActive?: boolean;
-      };
+      const body = parsed.data;
 
       const updates: Record<string, any> = {};
 
@@ -300,22 +320,15 @@ router.post(
         return;
       }
 
-      const { permission } = req.body as { permission?: string };
-      const validPerms = [
-        "publish_own",
-        "edit_others",
-        "delete_own",
-        "manage_comments",
-        "import_articles",
-        "upload_images",
-      ];
-
-      if (!permission || !validPerms.includes(permission)) {
+      const parsed = GrantPermissionBody.safeParse(req.body);
+      if (!parsed.success) {
         res.status(400).json({
           error: `Permiso inválido. Válidos: ${validPerms.join(", ")}`,
         });
         return;
       }
+
+      const { permission } = parsed.data;
 
       const currentUser = (req as any).user;
       const [perm] = await db

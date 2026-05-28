@@ -25,6 +25,8 @@ export default function OptimizedImage({
   priority = false,
   loading,
   decoding,
+  width,
+  height,
   onError,
   ...rest
 }: Props) {
@@ -48,6 +50,8 @@ export default function OptimizedImage({
     <img
       {...rest}
       src={finalSrc}
+      width={width}
+      height={height}
       loading={priority ? "eager" : (loading ?? "lazy")}
       decoding={decoding ?? "async"}
       onError={(e) => {

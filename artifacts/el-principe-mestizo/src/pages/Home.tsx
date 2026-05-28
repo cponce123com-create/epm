@@ -11,6 +11,7 @@ import OptimizedImage from "@/components/OptimizedImage";
 import AdSlot from "@/components/AdSlot";
 import BackToTop from "@/components/BackToTop";
 import { useGetFeaturedArticles, useGetArticles, useGetCategories } from "@workspace/api-client-react";
+import { Helmet } from "react-helmet-async";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /* ── Encabezado de sección estilo impreso ─────────────────── */
@@ -90,6 +91,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--epm-paper)" }}>
+      <Helmet>
+        <title>El Príncipe Mestizo · Comunicación ciudadana desde la selva central</title>
+        <meta name="description" content="Periodismo ciudadano desde San Ramón, Chanchamayo (Perú). Opinión, denuncia e investigación." />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 pb-12">

@@ -20,6 +20,7 @@ import adminEditorsRouter from "./adminEditors";
 import adminReviewRouter from "./adminReview";
 import notificationsRouter from "./notifications";
 import revisionsRouter from "./revisions";
+import sitemapRouter from "./sitemap";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(adminEditorsRouter);
 router.use(adminReviewRouter);
 router.use(notificationsRouter);
 router.use(revisionsRouter);
+router.use(sitemapRouter);
 
 export default router;

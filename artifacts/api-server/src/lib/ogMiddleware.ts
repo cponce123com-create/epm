@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, articlesTable, siteSettingsTable } from "@workspace/db";
+import { db, articlesTable, categoriesTable, siteSettingsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -71,9 +71,9 @@ async function getSiteSettings(): Promise<{
   }
 }
 
-// ── SSR HTML render ──────────────────────────────────────────────────────────
+// ── SSR HTML render for articles ─────────────────────────────────────────────
 
-async function renderOgHtml(
+async function renderArticleOgHtml(
   slug: string,
   frontendUrl: string,
 ): Promise<string | null> {
@@ -149,11 +149,66 @@ async function renderOgHtml(
   }
 }
 
+// ── SSR HTML render for category pages ────────────────────────────────────────
+
+async function renderCategoryOgHtml(
+  slug: string,
+  frontendUrl: string,
+): Promise<string | null> {
+  try {
+    const [category] = await db
+      .select({ name: categoriesTable.name, description: categoriesTable.description })
+      .from(categoriesTable)
+      .where(eq(categoriesTable.slug, slug));
+
+    if (!category) return null;
+
+    const settings = await getSiteSettings();
+    const baseUrl = (settings.siteUrl || frontendUrl).replace(/\/+$/, "");
+    const canonicalUrl = `${baseUrl}/categoria/${slug}`;
+
+    const name = escHtml(category.name);
+    const description = escHtml(category.description ?? `Artículos de ${category.name}`);
+    const siteName = escHtml(settings.siteName);
+    const safeUrl = escHtml(canonicalUrl);
+
+    const html =
+    `<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n  <title>${name} \u2014 ${siteName}</title>\n  <meta name="description" content="${description}" />\n  <meta property="og:type"        content="website" />\n  <meta property="og:title"       content="${name}" />\n  <meta property="og:description" content="${description}" />\n  <meta property="og:url"         content="${safeUrl}" />\n  <meta property="og:site_name"   content="${siteName}" />\n  <meta property="og:locale"      content="es_PE" />\n  <meta name="twitter:card"       content="summary" />\n  <meta name="twitter:title"      content="${name}" />\n  <meta name="twitter:description" content="${description}" />\n  <link rel="canonical" href="${safeUrl}" />\n</head>\n<body></body>\n</html>`;
+
+    return html;
+  } catch (err) {
+    logger.error({ err, slug }, "OG category render error");
+    return null;
+  }
+}
+
+// ── SSR HTML render for home page ────────────────────────────────────────────
+
+async function renderHomeOgHtml(frontendUrl: string): Promise<string> {
+  const settings = await getSiteSettings();
+  const baseUrl = (settings.siteUrl || frontendUrl).replace(/\/+$/, "");
+  const siteName = escHtml(settings.siteName);
+  const description = escHtml(settings.siteDescription);
+  const ogImage = settings.ogImage ? escHtml(settings.ogImage) : "";
+  const safeUrl = escHtml(baseUrl);
+
+  const imageMetaTags = ogImage
+    ? `\n  <meta property="og:image" content="${ogImage}" />\n  <meta name="twitter:card" content="summary_large_image" />`
+    : '\n  <meta name="twitter:card" content="summary" />';
+
+  const html =
+    `<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8" />\n  <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n  <title>${siteName}</title>\n  <meta name="description" content="${description}" />\n  <meta property="og:type"        content="website" />\n  <meta property="og:title"       content="${siteName}" />\n  <meta property="og:description" content="${description}" />\n  <meta property="og:url"         content="${safeUrl}" />\n  <meta property="og:site_name"   content="${siteName}" />\n  <meta property="og:locale"      content="es_PE" />` +
+    imageMetaTags +
+    `\n  <meta name="twitter:title"       content="${siteName}" />\n  <meta name="twitter:description" content="${description}" />\n  <link rel="canonical" href="${safeUrl}" />\n</head>\n<body></body>\n</html>`;
+
+  return html;
+}
+
 // ── Middleware ───────────────────────────────────────────────────────────────
 
 /**
- * Intercepts *only* crawler requests to /articulo/:slug and serves
- * server-rendered Open Graph meta tags.
+ * Intercepts crawler requests and serves server-rendered HTML with
+ * Open Graph meta tags for articles, categories, and the home page.
  *
  * Real users and other routes pass through to the SPA without any overhead.
  */
@@ -162,15 +217,6 @@ export async function ogMiddleware(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // Only intercept article paths
-  const match = req.path.match(/^\/articulo\/([^/?]+)/);
-  if (!match) {
-    return next();
-  }
-
-  const slug = match[1];
-  if (!slug) return next();
-
   // Only serve SSR for crawlers — real users get the SPA
   if (!isCrawler(req)) {
     return next();
@@ -179,15 +225,31 @@ export async function ogMiddleware(
   const FALLBACK_URL =
     process.env["FRONTEND_URL"] ?? "https://elprincipemestizo.eu.cc";
 
-  const html = await renderOgHtml(slug, FALLBACK_URL);
+  let html: string | null = null;
+
+  // Article path: /articulo/:slug
+  const articleMatch = req.path.match(/^\/articulo\/([^/?]+)/);
+  if (articleMatch) {
+    html = await renderArticleOgHtml(articleMatch[1], FALLBACK_URL);
+  }
+
+  // Category path: /categoria/:slug
+  const categoryMatch = req.path.match(/^\/categoria\/([^/?]+)/);
+  if (!html && categoryMatch) {
+    html = await renderCategoryOgHtml(categoryMatch[1], FALLBACK_URL);
+  }
+
+  // Home page: /
+  if (!html && (req.path === "/" || req.path === "")) {
+    html = await renderHomeOgHtml(FALLBACK_URL);
+  }
 
   if (!html) {
-    // Article not found or error — let SPA handle the 404
     return next();
   }
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  // Cache SSR page for 5 minutes — crawlers are infrequent
-  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
+  // Cache SSR for 1 hour — crawlers revisit infrequently
+  res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
   res.send(html);
 }
