@@ -1,4 +1,4 @@
-import { useMemo, useState, type ImgHTMLAttributes } from "react";
+import { useMemo, useState, type ImgHTMLAttributes, useId } from "react";
 import { isMediumImageUrl, toCloudinaryDeliveryUrl } from "@/lib/image";
 
 type Props = ImgHTMLAttributes<HTMLImageElement> & {
@@ -10,12 +10,38 @@ type Props = ImgHTMLAttributes<HTMLImageElement> & {
 // Base URL del API — en producción es la URL de Render, en dev es vacío (proxy de Vite)
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
+const SRC_BREAKPOINTS = [400, 800, 1200];
+
 function toProxyUrl(url: string): string {
   return `${API_BASE}/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
 function isProxyUrl(url: string): boolean {
   return url.includes("/api/proxy-image");
+}
+
+function resolveSrc(source: string): string {
+  if (isProxyUrl(source) && source.startsWith("/api/")) {
+    return `${API_BASE}${source}`;
+  }
+  const routed = isMediumImageUrl(source) ? toProxyUrl(source) : source;
+  return toCloudinaryDeliveryUrl(routed, { width: undefined });
+}
+
+function buildCloudinarySrcset(source: string): string | undefined {
+  try {
+    const normalized = source.startsWith("//") ? `https:${source}` : source;
+    const url = new URL(normalized);
+    if (!url.hostname.includes("res.cloudinary.com")) return undefined;
+
+    const base = normalized.replace(/\/upload\//, "/upload/");
+    const sizes = SRC_BREAKPOINTS.map(
+      (w) => `${base.replace(/\/upload\//, `/upload/f_auto,q_auto,c_limit,w_${w}/`)} ${w}w`,
+    );
+    return sizes.join(", ");
+  } catch {
+    return undefined;
+  }
 }
 
 export default function OptimizedImage({
@@ -31,25 +57,24 @@ export default function OptimizedImage({
   ...rest
 }: Props) {
   const [failed, setFailed] = useState(false);
+  const id = useId();
 
-  const finalSrc = useMemo(() => {
+  const { finalSrc, srcSet } = useMemo(() => {
     const source = typeof src === "string" ? src : "";
     const base = failed ? (fallbackSrc ?? source) : source;
 
-    // Si ya es una URL proxy relativa (/api/proxy-image?...), añadir el API_BASE
-    if (isProxyUrl(base) && base.startsWith("/api/")) {
-      return `${API_BASE}${base}`;
-    }
+    const resolved = resolveSrc(base);
+    const ss = buildCloudinarySrcset(resolved);
 
-    // Rutar URLs de Medium CDN a través del proxy
-    const routed = isMediumImageUrl(base) ? toProxyUrl(base) : base;
-    return toCloudinaryDeliveryUrl(routed, { width: optimizeWidth });
-  }, [failed, fallbackSrc, optimizeWidth, src]);
+    return { finalSrc: resolved, srcSet: ss };
+  }, [failed, fallbackSrc, src]);
 
   return (
     <img
       {...rest}
       src={finalSrc}
+      srcSet={srcSet}
+      sizes={srcSet ? "(max-width: 400px) 400px, (max-width: 800px) 800px, 1200px" : undefined}
       width={width}
       height={height}
       loading={priority ? "eager" : (loading ?? "lazy")}

@@ -7,12 +7,13 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { Redirect } from "wouter";
 import { lazy, Suspense } from "react";
 
-import Home from "@/pages/Home";
-import Article from "@/pages/Article";
-import Category from "@/pages/Category";
-import Search from "@/pages/Search";
-import About from "@/pages/About";
-import NotFound from "@/pages/not-found";
+// ── Lazy-loaded public routes (code splitting) ─────────────────────────────
+const Home = lazy(() => import("@/pages/Home"));
+const Article = lazy(() => import("@/pages/Article"));
+const Category = lazy(() => import("@/pages/Category"));
+const Search = lazy(() => import("@/pages/Search"));
+const About = lazy(() => import("@/pages/About"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Lazy-loaded admin pages (code splitting)
 const Login = lazy(() => import("@/pages/admin/Login"));
