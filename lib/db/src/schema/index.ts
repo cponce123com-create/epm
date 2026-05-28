@@ -11,3 +11,5 @@ export * from "./tags";
 export * from "./article_views";
 export * from "./reported_comments";
 export * from "./user_follows_category";
+export * from "./audit_logs";
+export * from "./user_invitations";

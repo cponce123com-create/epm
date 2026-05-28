@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 // JWT_SECRET validation is handled in env-check.ts
 const JWT_SECRET: string = process.env.JWT_SECRET!;
@@ -13,6 +15,7 @@ export interface JwtPayload {
   sub: number; // userId (RFC 7519 standard claim)
   email: string;
   role: string;
+  tokenVersion: number;
   iss?: string;
   aud?: string;
   iat?: number;
@@ -23,6 +26,7 @@ interface SignPayload {
   userId: number;
   email: string;
   role: string;
+  tokenVersion: number;
 }
 
 export function signToken(payload: SignPayload): string {
@@ -31,6 +35,7 @@ export function signToken(payload: SignPayload): string {
       sub: payload.userId,
       email: payload.email,
       role: payload.role,
+      tokenVersion: payload.tokenVersion,
     },
     JWT_SECRET,
     {
@@ -69,7 +74,7 @@ export function verifyTokenSignature(token: string): JwtPayload | null {
   }
 }
 
-export function verifyToken(token: string): JwtPayload {
+export async function verifyToken(token: string): Promise<JwtPayload> {
   const payload = jwt.verify(token, JWT_SECRET, {
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
@@ -83,6 +88,20 @@ export function verifyToken(token: string): JwtPayload {
     payload.iat > Math.floor(Date.now() / 1000) + CLOCK_TOLERANCE_SEC
   ) {
     throw new jwt.JsonWebTokenError("token issued in the future");
+  }
+
+  // Verificar tokenVersion contra la BD (invalidate on role change)
+  const [user] = await db
+    .select({ tokenVersion: usersTable.tokenVersion })
+    .from(usersTable)
+    .where(eq(usersTable.id, payload.sub));
+
+  if (!user) {
+    throw new jwt.JsonWebTokenError("user not found");
+  }
+
+  if (payload.tokenVersion !== user.tokenVersion) {
+    throw new jwt.JsonWebTokenError("token revoked (session invalidated)");
   }
 
   return payload;

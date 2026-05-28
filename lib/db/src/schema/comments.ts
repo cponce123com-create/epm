@@ -10,9 +10,11 @@ export const commentsTable = pgTable("comments", {
   authorEmail: varchar("author_email", { length: 255 }),
   content: text("content").notNull(),
   approved: boolean("approved").notNull().default(false),
+  reported: boolean("reported").notNull().default(false),
+  reportReason: text("report_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const insertCommentSchema = createInsertSchema(commentsTable).omit({ id: true, createdAt: true, approved: true });
+export const insertCommentSchema = createInsertSchema(commentsTable).omit({ id: true, createdAt: true, approved: true, reported: true });
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type Comment = typeof commentsTable.$inferSelect;

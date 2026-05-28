@@ -35,6 +35,7 @@ export const articlesTable = pgTable("articles", {
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   editorialNote: text("editorial_note").notNull().default(""),
   lastEditedBy: integer("last_edited_by").references(() => usersTable.id, { onDelete: "set null" }),
+  publishAt: timestamp("publish_at", { withTimezone: true }),
   wordCount: integer("word_count").notNull().default(0),
   language: varchar("language", { length: 10 }).notNull().default("es"),
   publishedAt: timestamp("published_at", { withTimezone: true }),

@@ -21,6 +21,7 @@ import adminReviewRouter from "./adminReview";
 import notificationsRouter from "./notifications";
 import revisionsRouter from "./revisions";
 import sitemapRouter from "./sitemap";
+import auditRouter from "./audit";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(adminReviewRouter);
 router.use(notificationsRouter);
 router.use(revisionsRouter);
 router.use(sitemapRouter);
+router.use(auditRouter);
 
 export default router;

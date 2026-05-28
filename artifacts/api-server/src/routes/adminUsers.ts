@@ -2,14 +2,15 @@ import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db, usersTable } from "@workspace/db";
-import { eq, ne } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 import { logger } from "../lib/logger";
+import { logAudit, auditCtx } from "../lib/audit";
 
 const router: IRouter = Router();
 
-const userRoleEnum = z.enum(["superadmin", "admin", "author"]);
+const userRoleEnum = z.enum(["superadmin", "admin", "editor", "writer", "reader"]);
 
 const CreateUserBody = z.object({
   email: z.string().email("Email inválido"),
@@ -35,7 +36,7 @@ router.post(
     }
 
     const { email, password, displayName, role } = parsed.data;
-    const finalRole = role ?? "author";
+    const finalRole = role ?? "writer";
 
     const existing = await db
       .select({ id: usersTable.id })
@@ -53,7 +54,7 @@ router.post(
         email,
         passwordHash,
         displayName: displayName || email.split("@")[0],
-        role: finalRole as "superadmin" | "admin" | "author",
+        role: finalRole as "superadmin" | "admin" | "editor" | "writer" | "reader",
       })
       .returning({
         id: usersTable.id,
@@ -72,6 +73,14 @@ router.post(
       "User created by admin",
     );
 
+    logAudit({
+      ...auditCtx(req),
+      action: "CREATE",
+      targetType: "user",
+      targetId: user.id,
+      newValues: { email: user.email, role: user.role },
+    });
+
     res.status(201).json(user);
   },
 );
@@ -89,6 +98,8 @@ router.get(
         displayName: usersTable.displayName,
         role: usersTable.role,
         avatarUrl: usersTable.avatarUrl,
+        isActive: usersTable.isActive,
+        articleCount: usersTable.articleCount,
         createdAt: usersTable.createdAt,
       })
       .from(usersTable);
@@ -116,9 +127,6 @@ router.patch(
     }
     const { role } = parsed.data;
 
-    // Evitar que el superadmin se quite a sí mismo el rol si es el único (opcional pero recomendado)
-    // Por ahora permitimos cambios, asumiendo que el usuario sabe lo que hace.
-
     const [targetUser] = await db
       .select({
         id: usersTable.id,
@@ -128,7 +136,19 @@ router.patch(
       .from(usersTable)
       .where(eq(usersTable.id, id));
 
-    await db.update(usersTable).set({ role }).where(eq(usersTable.id, id));
+    if (!targetUser) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
+
+    // Incrementar tokenVersion para invalidar sesiones anteriores
+    await db
+      .update(usersTable)
+      .set({
+        role,
+        tokenVersion: sql`${usersTable.tokenVersion} + 1`,
+      })
+      .where(eq(usersTable.id, id));
 
     const byUser = (req as any).user;
     logger.info(
@@ -142,7 +162,16 @@ router.patch(
       "User role changed",
     );
 
-    res.json({ ok: true });
+    logAudit({
+      ...auditCtx(req),
+      action: "ROLE_CHANGE",
+      targetType: "user",
+      targetId: id,
+      oldValues: { role: targetUser.role },
+      newValues: { role },
+    });
+
+    res.json({ ok: true, message: `Rol actualizado a "${role}". Sesiones anteriores invalidadas.` });
   },
 );
 
@@ -161,20 +190,33 @@ router.delete(
     }
 
     const [targetUser] = await db
-      .select({ id: usersTable.id, email: usersTable.email })
+      .select({ id: usersTable.id, email: usersTable.email, role: usersTable.role })
       .from(usersTable)
       .where(eq(usersTable.id, id));
+
+    if (!targetUser) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
 
     await db.delete(usersTable).where(eq(usersTable.id, id));
 
     logger.info(
       {
         deletedUserId: id,
-        deletedEmail: targetUser?.email,
+        deletedEmail: targetUser.email,
         byUserId: user.userId,
       },
       "User deleted by admin",
     );
+
+    logAudit({
+      ...auditCtx(req),
+      action: "DELETE",
+      targetType: "user",
+      targetId: id,
+      oldValues: { email: targetUser.email, role: targetUser.role },
+    });
 
     res.json({ ok: true });
   },

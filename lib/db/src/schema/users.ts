@@ -2,7 +2,13 @@ import { pgTable, serial, varchar, text, boolean, integer, timestamp, pgEnum } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const userRoleEnum = pgEnum("user_role", ["superadmin", "admin", "author"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "superadmin",
+  "admin",
+  "editor",
+  "writer",
+  "reader",
+]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,7 +16,8 @@ export const usersTable = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   displayName: varchar("display_name", { length: 255 }).notNull().default("El Príncipe Mestizo"),
   avatarUrl: varchar("avatar_url", { length: 512 }),
-  role: userRoleEnum("role").notNull().default("author"),
+  role: userRoleEnum("role").notNull().default("reader"),
+  tokenVersion: integer("token_version").notNull().default(0),
   bio: text("bio").notNull().default(""),
   twitterHandle: varchar("twitter_handle", { length: 100 }).notNull().default(""),
   articleCount: integer("article_count").notNull().default(0),

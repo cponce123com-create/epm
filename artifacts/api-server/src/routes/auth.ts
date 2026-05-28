@@ -7,6 +7,7 @@ import { LoginBody } from "@workspace/api-zod";
 import { signToken, verifyTokenSignature } from "../lib/auth";
 import { requireAuth } from "../middlewares/requireAuth";
 import { logger } from "../lib/logger";
+import { logAudit, auditCtx } from "../lib/audit";
 
 const router: IRouter = Router();
 
@@ -70,19 +71,28 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .where(eq(usersTable.id, user.id));
 
   logger.info({ userId: user.id, email, role: user.role }, "Login successful");
-  
+
   let token: string;
   try {
     token = signToken({
       userId: user.id,
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
     });
   } catch (jwtErr) {
     logger.error({ err: jwtErr, userId: user.id }, "JWT signing error during login");
     res.status(500).json({ error: "Error interno del servidor" });
     return;
   }
+
+  logAudit({
+    ...auditCtx(req),
+    userId: user.id,
+    action: "LOGIN",
+    targetType: "user",
+    targetId: user.id,
+  });
 
   res.json({
     token,
@@ -96,7 +106,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/auth/logout", async (_req, res): Promise<void> => {
+router.post("/auth/logout", async (req, res): Promise<void> => {
+  const ctx = auditCtx(req);
+  if (ctx.userId) {
+    logAudit({ ...ctx, action: "LOGOUT", targetType: "user", targetId: ctx.userId });
+  }
   res.json({ ok: true });
 });
 
@@ -144,6 +158,7 @@ router.post("/auth/refresh", async (req, res): Promise<void> => {
       displayName: usersTable.displayName,
       avatarUrl: usersTable.avatarUrl,
       role: usersTable.role,
+      tokenVersion: usersTable.tokenVersion,
     })
     .from(usersTable)
     .where(eq(usersTable.id, payload.sub));
@@ -157,6 +172,7 @@ router.post("/auth/refresh", async (req, res): Promise<void> => {
     userId: user.id,
     email: user.email,
     role: user.role,
+    tokenVersion: user.tokenVersion ?? 0,
   });
 
   logger.info(

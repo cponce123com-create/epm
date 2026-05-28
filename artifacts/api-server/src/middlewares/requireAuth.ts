@@ -11,11 +11,11 @@ export interface AuthenticatedRequest extends Request {
   user: AuthenticatedUser;
 }
 
-export function requireAuth(
+export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -23,7 +23,7 @@ export function requireAuth(
   }
   const token = authHeader.slice(7);
   try {
-    const payload = verifyToken(token);
+    const payload = await verifyToken(token);
     // Mapear a la forma que las rutas esperan (userId, email, role)
     (req as AuthenticatedRequest).user = {
       userId: payload.sub,
