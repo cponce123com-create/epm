@@ -37,6 +37,8 @@ export default function ArticleEditor() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [loadingArticle, setLoadingArticle] = useState(isEdit);
+  const [loadError, setLoadError] = useState("");
 
   const [form, setForm] = useState<FormState>({
     title: "",
@@ -50,15 +52,19 @@ export default function ArticleEditor() {
     coverImageAlt: "",
   });
 
-  // For editing: find the article in admin list (returns Article[] not paginated)
+  // For editing: try hook first, fallback to direct fetch
   const { data: adminArticles } = useAdminGetArticles(
     {},
-    {
-      // @ts-expect-error - enabled prop may not be in the hook types
-      enabled: isEdit,
-    },
+    { query: { enabled: isEdit } },
   );
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
+
+  // Direct fetch fallback (for when the hook doesn't return the article)
+  const { data: articleBySlug } = useGetArticleBySlug(
+    // @ts-expect-error
+    id,
+    { query: { enabled: false } }, // we use direct fetch as fallback
+  );
 
   const { data: categories } = useGetCategories();
   const createArticle = useAdminCreateArticle();
