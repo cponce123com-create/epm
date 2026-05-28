@@ -1,18 +1,18 @@
-const SENTRY_DSN = process.env.SENTRY_DSN;
+const SENTRY_DSN = process.env.SENTRY_DSN || "https://7ab4646ead14853e82bcb877570a21ca@o4511469778960384.ingest.us.sentry.io/4511469787217920";
 
 let initialized = false;
 
 export function initSentryBackend() {
-  if (initialized || !SENTRY_DSN) return;
+  if (initialized) return;
   initialized = true;
 
   try {
-    // Dynamic import to avoid crash if not installed
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Sentry = require("@sentry/node");
     Sentry.init({
       dsn: SENTRY_DSN,
       environment: process.env.NODE_ENV ?? "production",
+      sendDefaultPii: true,
       tracesSampleRate: 0.1,
     });
     console.log("[Sentry] Backend initialized");
