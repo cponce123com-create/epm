@@ -1,4 +1,6 @@
 import "./env-check"; // DEBE ser el primer import
+import { initSentryBackend } from "./lib/sentry";
+initSentryBackend();
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
