@@ -16,7 +16,6 @@ import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
 import { logger } from "./lib/logger";
 import { ogMiddleware } from "./lib/ogMiddleware";
-import crypto from "node:crypto";
 import cookieParser from "cookie-parser";
 
 const app: Express = express();
@@ -143,18 +142,9 @@ const loginLimiter = rateLimit({
 app.use("/api/auth/login", loginLimiter);
 app.use("/api", apiLimiter);
 
-// ── Middleware de nonce CSP (debe ir ANTES de Helmet) ─────────────────────
-// Genera un nonce por request para scripts inline seguros.
-app.use((req: Request, res: Response, next: NextFunction): void => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (res as any).locals.cspNonce = crypto.randomBytes(16).toString("hex");
-  next();
-});
-
 // ── Cabeceras de seguridad (Helmet) ──────────────────────────────────────────
-// CSP con nonces para scripts inline (SSR). En producción se permite
-// 'unsafe-inline' para Sentry (error tracking/replay) que inyecta scripts
-// inline dinámicamente sin nonce. Sin 'unsafe-inline' Sentry no funciona.
+// CSP: 'unsafe-inline' necesario para Sentry (error tracking/replay) que
+// inyecta scripts inline dinámicamente. Sin 'unsafe-inline' Sentry no funciona.
 const isProduction = process.env["NODE_ENV"] === "production";
 
 app.use(
@@ -167,9 +157,6 @@ app.use(
               "'self'",
               "'unsafe-inline'",
               "https://pagead2.googlesyndication.com",
-              (_req: Request, res: Response) =>
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                `'nonce-${(res as any).locals.cspNonce}'`,
             ]
           : ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
