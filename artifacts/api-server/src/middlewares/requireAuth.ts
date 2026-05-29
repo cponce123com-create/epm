@@ -16,12 +16,20 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Intentar obtener token del header Authorization primero, luego de la cookie
+  let token: string | undefined;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else if (req.cookies?.access_token) {
+    token = req.cookies.access_token;
+  }
+
+  if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const token = authHeader.slice(7);
+
   try {
     const payload = await verifyToken(token);
     // Mapear a la forma que las rutas esperan (userId, email, role)

@@ -95,6 +95,14 @@ router.post("/auth/login", loginLimiter, async (req, res): Promise<void> => {
     targetId: user.id,
   });
 
+  // Establecer cookie HttpOnly
+  res.cookie("access_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 2 * 60 * 60 * 1000, // 2h
+  });
+
   res.json({
     token,
     user: {
@@ -112,6 +120,12 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
   if (ctx.userId) {
     logAudit({ ...ctx, action: "LOGOUT", targetType: "user", targetId: ctx.userId });
   }
+  // Limpiar cookie HttpOnly
+  res.clearCookie("access_token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  });
   res.json({ ok: true });
 });
 
@@ -187,6 +201,14 @@ router.post("/auth/refresh", async (req, res): Promise<void> => {
     { userId: user.id, email: user.email },
     "Token refreshed successfully",
   );
+
+  // Establecer cookie HttpOnly
+  res.cookie("access_token", newToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 2 * 60 * 60 * 1000, // 2h
+  });
 
   res.json({
     token: newToken,

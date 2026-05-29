@@ -16,6 +16,7 @@ import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
 import { logger } from "./lib/logger";
 import { ogMiddleware } from "./lib/ogMiddleware";
+import cookieParser from "cookie-parser";
 
 const app: Express = express();
 
