@@ -179,6 +179,32 @@ async function initDb() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS article_count INTEGER NOT NULL DEFAULT 0;
   `);
 
+  // ── Tablas: RSS Aggregator, Daily Briefing, Summaries ─────────────────────
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS external_headlines (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      link TEXT NOT NULL,
+      source VARCHAR(255) NOT NULL,
+      source_bias VARCHAR(50),
+      summary TEXT,
+      pub_date TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS daily_briefings (
+      id SERIAL PRIMARY KEY,
+      briefing_date DATE NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS article_summaries (
+      id SERIAL PRIMARY KEY,
+      article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   // ── Índices de rendimiento ────────────────────────────────────────────────
   logger.info("Creating database indexes...");
   await db.execute(sql`
@@ -215,6 +241,19 @@ async function initDb() {
     -- Subscribers: búsqueda por email
     CREATE INDEX IF NOT EXISTS idx_subscribers_email
       ON subscribers (email);
+
+    -- External Headlines: búsqueda por fecha
+    CREATE INDEX IF NOT EXISTS idx_external_pubdate_desc
+      ON external_headlines (pub_date DESC);
+    -- External Headlines: búsqueda por fuente
+    CREATE INDEX IF NOT EXISTS idx_external_source
+      ON external_headlines (source);
+    -- Daily Briefings: búsqueda por fecha
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_briefing_date
+      ON daily_briefings (briefing_date);
+    -- Article Summaries: búsqueda por artículo
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_summary_article
+      ON article_summaries (article_id);
   `);
   logger.info("Database indexes ready.");
 
