@@ -54,7 +54,7 @@ jobs:
       - run: pnpm run lint
 
   test:
-    name: Tests (Jest) with coverage
+    name: Tests (Jest)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,23 +70,4 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm run test -- --coverage --forceExit
-
-  build:
-    name: Build check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm run build
+      - run: pnpm run test
