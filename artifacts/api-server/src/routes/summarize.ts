@@ -5,11 +5,12 @@ import { Router, type Request, type Response } from "express";
 import { db, articlesTable, articleSummariesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { extractiveSummary } from "@workspace/external-news";
+import { requireAuth } from "../middlewares/requireAuth";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
-router.post("/summarize/article/:id", async (req: Request, res: Response) => {
+router.post("/summarize/article/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const articleId = parseInt(req.params["id"]);
     if (Number.isNaN(articleId) || articleId < 1) {
