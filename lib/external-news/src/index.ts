@@ -10,6 +10,7 @@ export type { RssSource, ExternalHeadline, DailyBriefing, ArticleSummary, TrendW
 
 const NL = String.fromCharCode(10);
 const DNL = NL + NL;
+const SENTENCE_RE = new RegExp("[^.!?" + NL + "]+[.!?]+(\s|$)", "g");
 
 /**
  * Genera un resumen extractivo: toma las primeras N oraciones de un texto.
@@ -18,12 +19,9 @@ const DNL = NL + NL;
 export function extractiveSummary(text: string, sentenceCount = 3): string {
   if (!text) return "";
 
-  // Split by sentence boundaries (., !, ?) followed by space or end
-  const sentences = text.match(/[^.!?
-]+[.!?]+(\s|$)/g) ?? [];
+  const sentences = text.match(SENTENCE_RE) ?? [];
 
   if (sentences.length === 0) {
-    // Fallback: take first N words if no clear sentences
     const words = text.replace(/\s+/g, " ").trim().split(" ");
     return words.slice(0, 30).join(" ") + (words.length > 30 ? "..." : "");
   }

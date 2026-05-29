@@ -5,13 +5,13 @@ import { describe, it, expect } from "@jest/globals";
 
 const NL = String.fromCharCode(10);
 const DNL = NL + NL;
+const SENTENCE_RE = new RegExp("[^.!?" + NL + "]+[.!?]+(\s|$)", "g");
 
 // Copia de las funciones desde @workspace/external-news para testing
 function extractiveSummary(text: string, sentenceCount = 3): string {
   if (!text) return "";
 
-  const sentences = text.match(/[^.!?
-]+[.!?]+(\s|$)/g) ?? [];
+  const sentences = text.match(SENTENCE_RE) ?? [];
 
   if (sentences.length === 0) {
     const words = text.replace(/\s+/g, " ").trim().split(" ");
@@ -65,8 +65,7 @@ describe("extractiveSummary", () => {
   it("no excede el numero de oraciones solicitadas", () => {
     const text = "A. B. C. D. E. F.";
     const result = extractiveSummary(text, 3);
-    const sents = result.match(/[^.!?
-]+[.!?]+/g);
+    const sents = result.match(SENTENCE_RE);
     expect(sents).toHaveLength(3);
   });
 });
