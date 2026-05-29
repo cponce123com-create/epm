@@ -174,8 +174,17 @@ router.get("/settings/public", async (_req, res): Promise<void> => {
 });
 
 // ── GET admin ─────────────────────────────────────────────────────────────
-router.get("/admin/settings", requireAuth, async (_req, res): Promise<void> => {
+router.get("/admin/settings", requireAuth, async (req, res): Promise<void> => {
   const settings = await getAllSettings();
+  const user = (req as any).user;
+
+  // Solo superadmin puede ver credenciales SMTP
+  if (user?.role !== "superadmin") {
+    const { smtpHost, smtpPort, smtpUser, smtpPass, ...filtered } = settings;
+    res.json(filtered);
+    return;
+  }
+
   res.json(settings);
 });
 
