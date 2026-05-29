@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, articlesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
@@ -201,6 +201,12 @@ router.delete(
       res.status(404).json({ error: "Usuario no encontrado" });
       return;
     }
+
+    // Reasignar artículos del usuario eliminado al admin que ejecuta la acción
+    await db
+      .update(articlesTable)
+      .set({ authorId: user.userId })
+      .where(eq(articlesTable.authorId, id));
 
     await db.delete(usersTable).where(eq(usersTable.id, id));
 
