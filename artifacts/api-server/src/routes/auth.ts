@@ -160,12 +160,19 @@ router.post("/auth/refresh", async (req, res): Promise<void> => {
       avatarUrl: usersTable.avatarUrl,
       role: usersTable.role,
       tokenVersion: usersTable.tokenVersion,
+      isActive: usersTable.isActive,
     })
     .from(usersTable)
     .where(eq(usersTable.id, payload.sub));
 
   if (!user) {
     res.status(401).json({ error: "Usuario no encontrado" });
+    return;
+  }
+
+  // Verificar que la cuenta esté activa
+  if (user.isActive === false) {
+    res.status(403).json({ error: "Tu cuenta ha sido desactivada." });
     return;
   }
 

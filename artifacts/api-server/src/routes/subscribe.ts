@@ -62,11 +62,18 @@ router.post("/subscribe/google", async (req, res): Promise<void> => {
       email?: string;
       name?: string;
       email_verified?: string;
+      aud?: string;
     };
 
     if (!payload.email || !payload.sub || payload.email_verified !== "true") {
       res.status(401).json({ error: "Email de Google no verificado." });
       return;
+    }
+
+    // Validar que el token fue emitido para esta aplicación
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (googleClientId && payload.aud !== googleClientId) {
+      return res.status(401).json({ error: "Token de Google no válido para esta aplicación." });
     }
 
     // Verificar si ya existe

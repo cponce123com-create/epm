@@ -31,6 +31,7 @@ const OPTIONAL_VARS = [
   "CORS_ORIGINS",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
+  "GOOGLE_CLIENT_ID",
 ] as const;
 
 const missing: string[] = [];
