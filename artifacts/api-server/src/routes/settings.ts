@@ -160,9 +160,16 @@ async function getAllSettings() {
   };
 }
 
+/** Versión pública de settings: excluye campos sensibles (SMTP) */
+async function getPublicSettings() {
+  const all = await getAllSettings();
+  const { smtpHost, smtpPort, smtpUser, smtpPass, ...publicSettings } = all;
+  return publicSettings;
+}
+
 // ── GET público (para el frontend) ────────────────────────────────────────
 router.get("/settings/public", async (_req, res): Promise<void> => {
-  const settings = await getAllSettings();
+  const settings = await getPublicSettings();
   res.json(settings);
 });
 
