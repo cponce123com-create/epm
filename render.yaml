@@ -62,4 +62,4 @@ services:
       #   value: ""
       # Límite de memoria para evitar OOM kills en plan free (512MB)
       - key: NODE_OPTIONS
-        value: "--max-old-space-size=384"
+        value: "--max-old-space-size=256"
