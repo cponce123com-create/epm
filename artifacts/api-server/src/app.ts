@@ -206,8 +206,10 @@ app.use(
         upgradeInsecureRequests: [],
       },
     },
-    crossOriginOpenerPolicy: { policy: "same-origin" },
-    crossOriginEmbedderPolicy: { policy: "require-corp" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    // COEP require-corp rompe Cloudinary, YouTube, Google Ads, etc.
+    // Se mantiene deshabilitado para un sitio de noticias con recursos third-party.
+    // crossOriginEmbedderPolicy: { policy: "require-corp" },
     permissionsPolicy: {
       directives: {
         geolocation: [],
