@@ -189,6 +189,12 @@ router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): 
 
   const { key, value } = parsed.data;
 
+  // Validar que la clave esté en la whitelist de configuración permitida
+  if (!(SETTING_KEYS as readonly string[]).includes(key)) {
+    res.status(400).json({ error: `Clave de configuración no permitida: ${key}` });
+    return;
+  }
+
   await db
     .insert(siteSettingsTable)
     .values({ key, value })
