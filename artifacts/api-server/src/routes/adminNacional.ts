@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, articlesTable, categoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import { sanitizeHtml } from "../lib/sanitize";
 import { safeError } from "../lib/safeError";
@@ -370,7 +371,7 @@ async function fetchRss(channelUsername: string): Promise<RssItem[]> {
 // ═══════════════════════════════════════════════════════════════════════════
 router.post(
   "/admin/nacional/scrape",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   async (req, res): Promise<void> => {
     const { channelUsername } = req.body as { channelUsername?: string };
 
@@ -492,7 +493,7 @@ router.post(
 // ═══════════════════════════════════════════════════════════════════════════
 router.post(
   "/admin/nacional/import",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   async (req, res): Promise<void> => {
     const { item, channelUsername } = req.body as {
       item?: ScrapedItem;

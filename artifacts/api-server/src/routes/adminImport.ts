@@ -3,6 +3,7 @@ import path from "path";
 import { db, articlesTable, categoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { makeSlug, calcReadingTime } from "../lib/slugify";
 import { sanitizeHtml } from "../lib/sanitize";
 import { safeError } from "../lib/safeError";
@@ -377,7 +378,7 @@ function parseMediumHtml(html: string): ParsedPost {
 // ── POST /api/admin/import-medium/prepare ────────────────────────────────────
 router.post(
   "/admin/import-medium/prepare",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   upload.single("file"),
   async (req, res): Promise<void> => {
     if (!req.file) {
@@ -495,7 +496,7 @@ router.post(
 // ── POST /api/admin/import-medium/batch ──────────────────────────────────────
 router.post(
   "/admin/import-medium/batch",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   async (req, res): Promise<void> => {
     const user = (req as typeof req & { user: { userId: number } }).user;
     const body = req.body as {
@@ -697,7 +698,7 @@ router.post(
 // ── POST /api/admin/import-medium (ruta original — mantenida por compatibilidad)
 router.post(
   "/admin/import-medium",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   upload.single("file"),
   async (req, res): Promise<void> => {
     if (!req.file) {
@@ -850,7 +851,7 @@ router.post(
 // ── POST /api/admin/fix-article-images ───────────────────────────────────────
 router.post(
   "/admin/fix-article-images",
-  requireAuth,
+  requireAuth, requireRole("admin", "superadmin"),
   async (
     req: import("express").Request,
     res: import("express").Response,
