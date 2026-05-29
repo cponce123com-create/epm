@@ -12,15 +12,16 @@ export function sanitizeHtml(dirty: string): string {
       "sup","sub",
     ],
     allowedAttributes: {
-      "*": ["class", "style", "id"],
+      "*": ["class", "id"],
       "a": ["href", "target", "rel"],
-      "img": ["src", "alt", "width", "height", "loading"],
+      "img": ["src", "alt", "width", "height", "loading", "style"],
       "iframe": ["src", "width", "height", "frameborder", "allowfullscreen", "allow"],
       "video": ["src", "controls", "width", "height", "autoplay", "loop", "muted"],
       "source": ["src", "type"],
       "td": ["colspan", "rowspan"],
       "th": ["colspan", "rowspan"],
     },
-    allowedSchemes: ["http", "https", "mailto", "data"],
+    allowedSchemes: ["http", "https", "mailto"],
+    allowedIframeHostnames: ["www.youtube.com", "player.vimeo.com"],
   });
 }
