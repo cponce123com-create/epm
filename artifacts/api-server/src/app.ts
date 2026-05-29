@@ -144,6 +144,14 @@ app.use("/api/v1/auth/login", loginLimiter);
 app.use("/api", apiLimiter);
 app.use("/api/v1", apiLimiter);
 
+// ── Middleware de nonce CSP (debe ir ANTES de Helmet) ─────────────────────
+// Genera un nonce por request para scripts inline seguros.
+app.use((req: Request, res: Response, next: NextFunction): void => {
+  const crypto = require("crypto");
+  (res as any).locals.cspNonce = crypto.randomBytes(16).toString("hex");
+  next();
+});
+
 // ── Cabeceras de seguridad (Helmet) ──────────────────────────────────────────
 // CSP con nonces para scripts inline (SSR). Sin 'unsafe-inline'.
 // En desarrollo se permite 'unsafe-inline' para React HMR.
@@ -157,11 +165,13 @@ app.use(
         scriptSrc: isProduction
           ? [
               "'self'",
+              "https://pagead2.googlesyndication.com",
               (_req: Request, res: Response) =>
                 `'nonce-${(res as any).locals.cspNonce}'`,
             ]
           : ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: [
           "'self'",
           "data:",
@@ -184,13 +194,15 @@ app.use(
           "https://www.googleapis.com",
           "https://*.cloudinary.com",
           "https://res.cloudinary.com",
+          "https://o4511469778960384.ingest.us.sentry.io",
         ],
-        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com", "data:"],
         frameSrc: ["'self'", "https://www.youtube.com", "https://player.vimeo.com"],
         frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
         formAction: ["'self'"],
+        workerSrc: ["'self'", "blob:"],
         upgradeInsecureRequests: [],
       },
     },
