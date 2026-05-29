@@ -20,12 +20,14 @@ import { Helmet } from "react-helmet-async";
 
 // ── Hook para metatags Open Graph ──────────────────────────────────────────
 function ArticleMetaTags({ article, siteSettings, authorName, publishedAt, updatedAt }: {
-  article: { title: string; summary?: string | null; coverImageUrl?: string | null; slug: string; id: number };
+  article: { title: string; summary?: string | null; coverImageUrl?: string | null; slug: string; id: number } | null | undefined;
   siteSettings: any;
   authorName?: string;
   publishedAt?: string | null;
   updatedAt?: string | null;
 }) {
+  if (!article) return null;
+
   const siteName = siteSettings?.siteName ?? "El Príncipe Mestizo";
   const siteUrlRaw = siteSettings?.siteUrl ?? window.location.origin;
   const siteUrl = siteUrlRaw.replace(/\/+$/, "");
