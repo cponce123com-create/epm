@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Manual RSS Scraper — Script para pruebas locales.
  * Uso: pnpm --filter @workspace/api-server run scraper:run

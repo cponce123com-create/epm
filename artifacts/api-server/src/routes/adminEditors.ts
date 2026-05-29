@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
 import { db, usersTable, userPermissionsTable, articlesTable } from "@workspace/db";
-import { eq, and, sql, count, ne } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
 import { logger } from "../lib/logger";
@@ -93,6 +93,7 @@ router.post(
       const targetRole = role ?? "author";
 
       // Solo superadmin puede crear admins o superadmins
+       
       const currentUser = (req as any).user;
       if (
         (targetRole === "admin" || targetRole === "superadmin") &&
@@ -122,6 +123,7 @@ router.post(
           email,
           passwordHash,
           displayName,
+           
           role: targetRole as any,
         })
         .returning(editorSelect);
@@ -169,9 +171,11 @@ router.put(
         return;
       }
 
+       
       const currentUser = (req as any).user;
       const body = parsed.data;
 
+       
       const updates: Record<string, any> = {};
 
       if (body.displayName !== undefined) updates.displayName = body.displayName;
@@ -240,6 +244,7 @@ router.delete(
         return;
       }
 
+       
       const currentUser = (req as any).user;
       // No permitir borrar otros admins (solo superadmin)
       if (target.role === "admin" && currentUser.role !== "superadmin") {
@@ -330,6 +335,7 @@ router.post(
 
       const { permission } = parsed.data;
 
+       
       const currentUser = (req as any).user;
       const [perm] = await db
         .insert(userPermissionsTable)

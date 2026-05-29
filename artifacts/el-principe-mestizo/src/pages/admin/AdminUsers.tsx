@@ -78,7 +78,7 @@ export default function AdminUsers() {
       });
       if (!res.ok) throw new Error((await res.json()).error);
       setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
-      toast({ description: `Rol actualizado a ${ROLE_LABELS[newRole] ?? newRole}.` });
+      toast({ description: `Rol actualizado a ${ROLE_LABELS[newRole as UserRole] ?? newRole}.` });
     } catch (err: any) {
       toast({ description: err?.message ?? "Error al cambiar rol", variant: "destructive" });
     }

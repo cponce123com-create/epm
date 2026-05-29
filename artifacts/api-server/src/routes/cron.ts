@@ -6,6 +6,7 @@ import { Router, type Request, type Response } from "express";
 import { db, externalHeadlinesTable, dailyBriefingsTable } from "@workspace/db";
 import { sql, eq, and, inArray } from "drizzle-orm";
 import { parseAllSources, generateBriefingText } from "@workspace/external-news";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -161,9 +162,10 @@ router.post("/cron/generate-briefing", requireCronSecret, async (_req: Request, 
       headlineCount: latestHeadlines.length,
     });
   } catch (err) {
-    console.error("[CRON] Error generating briefing:", (err as Error).message);
+    logger.error("[CRON] Error generating briefing:", (err as Error).message);
     res.status(500).json({ error: "Error al generar briefing" });
   }
 });
 
 export default router;
+

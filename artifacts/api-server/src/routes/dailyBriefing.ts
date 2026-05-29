@@ -4,6 +4,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, dailyBriefingsTable } from "@workspace/db";
 import { desc } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get("/daily-briefing/latest", async (_req: Request, res: Response) => {
 
     res.json(latest);
   } catch (err) {
-    console.error("[Daily Briefing] Error:", (err as Error).message);
+    logger.error("[Daily Briefing] Error:", (err as Error).message);
     res.status(500).json({ error: "Error al obtener briefing" });
   }
 });

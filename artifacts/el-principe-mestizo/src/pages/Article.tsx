@@ -542,10 +542,7 @@ export default function Article() {
     enabled: !!slug,
     // @ts-ignore
   });
-  // @ts-ignore
-  const { data: related } = useGetRelatedArticles(slug!, {
-    enabled: !!slug,
-  });
+  const { data: related } = useGetRelatedArticles(slug!);
   const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);

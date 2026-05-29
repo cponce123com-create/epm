@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 
 export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+   
   const user = (req as any).user;
   
   if (!user) {

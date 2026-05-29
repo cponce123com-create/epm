@@ -164,7 +164,7 @@ function restoreOrphanedZipImages(content: string): string {
 /** Sube un Buffer de imagen a Cloudinary usando upload_stream */
 async function uploadImageBufferToCloudinary(
   buffer: Buffer,
-  fileName: string,
+  _fileName: string,
 ): Promise<string | null> {
   if (!ensureCloudinaryConfigured()) return null;
   try {
@@ -787,7 +787,6 @@ router.post(
         content = restoreOrphanedZipImages(content);
         if (migrateImages)
           content = await migrateMediumImagesToCloudinary(content);
-        const readingTime = calcReadingTime(content);
         const finalStatus = forceStatus ?? parsed.status;
         const publishedAt =
           finalStatus === "published"

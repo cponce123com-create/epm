@@ -847,7 +847,8 @@ export default function RichEditor({ value, onChange }: Props) {
                 editor
                   ?.chain()
                   .focus()
-                  .setImage({ src: dataUrl, alt: "Pegando…", "data-placeholder-id": placeholderId })
+                  .setImage({ src: dataUrl, alt: "Pegando…" })
+                  .updateAttributes("image", { "data-placeholder-id": placeholderId })
                   .run();
               };
               reader.onerror = () => {
@@ -872,6 +873,7 @@ export default function RichEditor({ value, onChange }: Props) {
                     targetPos = pos;
                     return false; // stop searching
                   }
+                  return undefined;
                 });
 
                 if (targetPos === null) return; // no matching placeholder

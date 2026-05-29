@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 const SENTRY_DSN = process.env.SENTRY_DSN || "https://7ab4646ead14853e82bcb877570a21ca@o4511469778960384.ingest.us.sentry.io/4511469787217920";
 
 let initialized = false;
@@ -7,7 +9,7 @@ export function initSentryBackend() {
   initialized = true;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Sentry = require("@sentry/node");
     Sentry.init({
       dsn: SENTRY_DSN,
@@ -15,8 +17,8 @@ export function initSentryBackend() {
       sendDefaultPii: true,
       tracesSampleRate: 0.1,
     });
-    console.log("[Sentry] Backend initialized");
+    logger.info("[Sentry] Backend initialized");
   } catch {
-    console.warn("[Sentry] @sentry/node not installed. Skipping.");
+    logger.warn("[Sentry] @sentry/node not installed. Skipping.");
   }
 }

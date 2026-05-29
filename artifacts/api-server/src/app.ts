@@ -16,6 +16,7 @@ import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
 import { logger } from "./lib/logger";
 import { ogMiddleware } from "./lib/ogMiddleware";
+import crypto from "node:crypto";
 import cookieParser from "cookie-parser";
 
 const app: Express = express();
@@ -147,7 +148,7 @@ app.use("/api/v1", apiLimiter);
 // ── Middleware de nonce CSP (debe ir ANTES de Helmet) ─────────────────────
 // Genera un nonce por request para scripts inline seguros.
 app.use((req: Request, res: Response, next: NextFunction): void => {
-  const crypto = require("crypto");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (res as any).locals.cspNonce = crypto.randomBytes(16).toString("hex");
   next();
 });
@@ -167,6 +168,7 @@ app.use(
               "'self'",
               "https://pagead2.googlesyndication.com",
               (_req: Request, res: Response) =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 `'nonce-${(res as any).locals.cspNonce}'`,
             ]
           : ["'self'", "'unsafe-inline'"],

@@ -5,6 +5,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, externalHeadlinesTable } from "@workspace/db";
 import { sql, gte } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -81,7 +82,7 @@ router.get("/trends/sources", async (_req: Request, res: Response) => {
 
     res.json({ sources });
   } catch (err) {
-    console.error("[Trends Sources] Error:", (err as Error).message);
+    logger.error("[Trends Sources] Error:", (err as Error).message);
     res.status(500).json({ error: "Error al obtener fuentes" });
   }
 });

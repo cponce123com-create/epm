@@ -4,11 +4,10 @@ import {
   articlesTable,
   categoriesTable,
   usersTable,
-  commentsTable,
   articleRevisionsTable,
   articleViewsTable,
 } from "@workspace/db";
-import { eq, desc, ilike, and, or, ne, count, sql, inArray, gte, gt } from "drizzle-orm";
+import { eq, desc, ilike, and, or, ne, count, sql, inArray, gte } from "drizzle-orm";
 import crypto from "crypto";
 import { alias } from "drizzle-orm/pg-core";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -54,7 +53,16 @@ type ArticleRow = {
   authorName: string | null;
 };
 
+/** Formatea un artículo con todos los campos (incluye content) */
 function formatArticle(a: ArticleRow) {
+  return {
+    ...formatArticleListItem(a),
+    content: a.content,
+  };
+}
+
+/** Formatea un artículo para listas (sin content) */
+function formatArticleListItem(a: ArticleRow) {
   return {
     id: a.id,
     title: a.title,
@@ -62,7 +70,6 @@ function formatArticle(a: ArticleRow) {
     summary: a.summary,
     coverImageUrl: a.coverImageUrl ?? null,
     coverImageAlt: a.coverImageAlt ?? null,
-    content: a.content,
     categoryId: a.categoryId,
     secondaryCategoryId: a.secondaryCategoryId ?? null,
     authorId: a.authorId,
@@ -101,6 +108,34 @@ const articleSelect = {
   coverImageUrl: articlesTable.coverImageUrl,
   coverImageAlt: articlesTable.coverImageAlt,
   content: articlesTable.content,
+  categoryId: articlesTable.categoryId,
+  secondaryCategoryId: articlesTable.secondaryCategoryId,
+  authorId: articlesTable.authorId,
+  status: articlesTable.status,
+  featured: articlesTable.featured,
+  views: articlesTable.views,
+  readingTime: articlesTable.readingTime,
+  publishedAt: articlesTable.publishedAt,
+  createdAt: articlesTable.createdAt,
+  updatedAt: articlesTable.updatedAt,
+  categoryName: categoriesTable.name,
+  categorySlug: categoriesTable.slug,
+  categoryColor: categoriesTable.color,
+  categoryDescription: categoriesTable.description,
+  secondaryCategoryName: secondaryCategoriesTable.name,
+  secondaryCategorySlug: secondaryCategoriesTable.slug,
+  secondaryCategoryColor: secondaryCategoriesTable.color,
+  authorName: usersTable.displayName,
+} as const;
+
+/** Select para listas (sin content, que es el campo más pesado) */
+const articleListSelect = {
+  id: articlesTable.id,
+  title: articlesTable.title,
+  slug: articlesTable.slug,
+  summary: articlesTable.summary,
+  coverImageUrl: articlesTable.coverImageUrl,
+  coverImageAlt: articlesTable.coverImageAlt,
   categoryId: articlesTable.categoryId,
   secondaryCategoryId: articlesTable.secondaryCategoryId,
   authorId: articlesTable.authorId,
@@ -165,7 +200,7 @@ router.get("/articles", async (req, res): Promise<void> => {
   const total = Number(totalResult[0]?.count ?? 0);
 
   const articles = await db
-    .select(articleSelect)
+    .select(articleListSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
     .leftJoin(
@@ -178,8 +213,10 @@ router.get("/articles", async (req, res): Promise<void> => {
     .limit(limit)
     .offset(offset);
 
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+  res.setHeader("Vary", "Accept-Encoding");
   res.json({
-    articles: articles.map((a) => formatArticle(a as ArticleRow)),
+    articles: articles.map((a) => formatArticleListItem(a as ArticleRow)),
     total,
     page,
     limit,
@@ -187,10 +224,182 @@ router.get("/articles", async (req, res): Promise<void> => {
   });
 });
 
+// ── Page home: consolidated endpoint ─────────────────────────────────────────
+router.get("/page/home", async (_req: Request, res: Response): Promise<void> => {
+  const limit = 12;
+  const offset = 0;
+
+  const [
+    featuredArticles,
+    latestArticles,
+    totalResult,
+    mostRead,
+    categories,
+  ] = await Promise.all([
+    // Featured (limit 10 for hero + panel + sub-featured + tertiary)
+    db
+      .select(articleListSelect)
+      .from(articlesTable)
+      .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+      .leftJoin(
+        secondaryCategoriesTable,
+        eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id),
+      )
+      .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+      .where(
+        and(
+          eq(articlesTable.featured, true),
+          eq(articlesTable.status, "published"),
+        ),
+      )
+      .orderBy(desc(articlesTable.publishedAt))
+      .limit(10),
+
+    // Latest published articles
+    db
+      .select(articleListSelect)
+      .from(articlesTable)
+      .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+      .leftJoin(
+        secondaryCategoriesTable,
+        eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id),
+      )
+      .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+      .where(eq(articlesTable.status, "published"))
+      .orderBy(desc(articlesTable.publishedAt))
+      .limit(limit)
+      .offset(offset),
+
+    // Total count for pagination
+    db
+      .select({ count: count() })
+      .from(articlesTable)
+      .where(eq(articlesTable.status, "published")),
+
+    // Most read
+    db
+      .select(articleListSelect)
+      .from(articlesTable)
+      .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
+      .leftJoin(
+        secondaryCategoriesTable,
+        eq(articlesTable.secondaryCategoryId, secondaryCategoriesTable.id),
+      )
+      .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+      .where(eq(articlesTable.status, "published"))
+      .orderBy(desc(articlesTable.views))
+      .limit(6),
+
+    // Categories with article count
+    db
+      .select({
+        id: categoriesTable.id,
+        name: categoriesTable.name,
+        slug: categoriesTable.slug,
+        color: categoriesTable.color,
+        description: categoriesTable.description,
+        parentId: categoriesTable.parentId,
+        order: categoriesTable.order,
+        articleCount:
+          sql<number>`cast(count(${articlesTable.id}) as int)`,
+      })
+      .from(categoriesTable)
+      .leftJoin(
+        articlesTable,
+        sql`(${categoriesTable.id} = ${articlesTable.categoryId} OR ${categoriesTable.id} = ${articlesTable.secondaryCategoryId}) AND ${articlesTable.status} = 'published'`,
+      )
+      .groupBy(categoriesTable.id)
+      .orderBy(categoriesTable.order, categoriesTable.name),
+  ]);
+
+  const total = Number(totalResult[0]?.count ?? 0);
+
+  // Fetch articles for top categories (those with articles)
+  const topCategories = categories
+    .filter((c) => Number(c.articleCount) > 0)
+    .slice(0, 6);
+
+  const categoryArticlesResults = await Promise.all(
+    topCategories.map((cat) =>
+      db
+        .select(articleListSelect)
+        .from(articlesTable)
+        .leftJoin(
+          categoriesTable,
+          eq(articlesTable.categoryId, categoriesTable.id),
+        )
+        .leftJoin(
+          secondaryCategoriesTable,
+          eq(
+            articlesTable.secondaryCategoryId,
+            secondaryCategoriesTable.id,
+          ),
+        )
+        .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
+        .where(
+          and(
+            eq(articlesTable.status, "published"),
+            or(
+              eq(articlesTable.categoryId, cat.id),
+              eq(articlesTable.secondaryCategoryId, cat.id),
+            ),
+          ),
+        )
+        .orderBy(desc(articlesTable.publishedAt))
+        .limit(4),
+    ),
+  );
+
+  const categorySections = topCategories.map((cat, i) => ({
+    category: {
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      color: cat.color,
+      description: cat.description ?? null,
+      parentId: cat.parentId ?? null,
+      order: cat.order,
+      articleCount: Number(cat.articleCount),
+    },
+    articles: categoryArticlesResults[i].map((a) =>
+      formatArticleListItem(a as ArticleRow),
+    ),
+  }));
+
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+  res.setHeader("Vary", "Accept-Encoding");
+  res.json({
+    featured: featuredArticles.map((a) =>
+      formatArticleListItem(a as ArticleRow),
+    ),
+    latestArticles: {
+      articles: latestArticles.map((a) =>
+        formatArticleListItem(a as ArticleRow),
+      ),
+      total,
+      page: 1,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+    mostRead: mostRead.map((a) => formatArticleListItem(a as ArticleRow)),
+    categories: categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      color: c.color,
+      description: c.description ?? null,
+      parentId: c.parentId ?? null,
+      order: c.order,
+      articleCount: Number(c.articleCount),
+    })),
+    categorySections,
+  });
+});
+
 // Public: featured articles
 router.get("/articles/featured", async (_req, res): Promise<void> => {
   const articles = await db
-    .select(articleSelect)
+    .select(articleListSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
     .leftJoin(
@@ -207,13 +416,15 @@ router.get("/articles/featured", async (_req, res): Promise<void> => {
     .orderBy(desc(articlesTable.publishedAt))
     .limit(3);
 
-  res.json(articles.map((a) => formatArticle(a as ArticleRow)));
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+  res.setHeader("Vary", "Accept-Encoding");
+  res.json(articles.map((a) => formatArticleListItem(a as ArticleRow)));
 });
 
 // Public: most read (no auth needed — also public endpoint)
 router.get("/admin/most-read", async (_req, res): Promise<void> => {
   const articles = await db
-    .select(articleSelect)
+    .select(articleListSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
     .leftJoin(
@@ -225,7 +436,9 @@ router.get("/admin/most-read", async (_req, res): Promise<void> => {
     .orderBy(desc(articlesTable.views))
     .limit(5);
 
-  res.json(articles.map((a) => formatArticle(a as ArticleRow)));
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+  res.setHeader("Vary", "Accept-Encoding");
+  res.json(articles.map((a) => formatArticleListItem(a as ArticleRow)));
 });
 
 // Public: article by slug (increment views)
@@ -258,6 +471,8 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
     .set({ views: (article.views ?? 0) + 1 })
     .where(eq(articlesTable.id, article.id));
 
+  res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60");
+  res.setHeader("Vary", "Accept-Encoding");
   res.json(
     formatArticle({
       ...(article as ArticleRow),
@@ -283,7 +498,7 @@ router.get("/articles/:slug/related", async (req, res): Promise<void> => {
   }
 
   const related = await db
-    .select(articleSelect)
+    .select(articleListSelect)
     .from(articlesTable)
     .leftJoin(categoriesTable, eq(articlesTable.categoryId, categoriesTable.id))
     .leftJoin(
@@ -301,7 +516,9 @@ router.get("/articles/:slug/related", async (req, res): Promise<void> => {
     .orderBy(desc(articlesTable.publishedAt))
     .limit(3);
 
-  res.json(related.map((a) => formatArticle(a as ArticleRow)));
+  res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120");
+  res.setHeader("Vary", "Accept-Encoding");
+  res.json(related.map((a) => formatArticleListItem(a as ArticleRow)));
 });
 
 // Admin: list all articles
@@ -309,6 +526,7 @@ router.get("/admin/articles", requireAuth, async (req, res): Promise<void> => {
   const status = req.query.status as string | undefined;
   const search = req.query.search as string | undefined;
 
+ 
   const user = (req as any).user;
   const conditions = [];
 
@@ -419,7 +637,8 @@ router.put(
 
       const d = parsed.data;
 
-      const user = (req as any).user;
+     
+  const user = (req as any).user;
       const [existing] = await db
         .select({
           id: articlesTable.id,
@@ -584,6 +803,7 @@ router.delete(
       .select({ count: count() })
       .from(articlesTable);
 
+     
     const byUser = (req as any).user;
     logger.warn(
       {
@@ -631,6 +851,7 @@ router.delete(
 
     await db.delete(articlesTable).where(eq(articlesTable.id, id));
 
+     
     const byUser = (req as any).user;
     logger.info(
       {
@@ -667,7 +888,8 @@ router.patch(
       const maxBatch = 100;
       const batchIds = ids.slice(0, maxBatch);
 
-      const user = (req as any).user;
+     
+  const user = (req as any).user;
       const now = new Date();
 
       const publishedAt =
@@ -710,7 +932,8 @@ router.patch(
       : req.params.id;
     const id = parseInt(rawId, 10);
 
-    const user = (req as any).user;
+   
+  const user = (req as any).user;
     const [existing] = await db
       .select({
         id: articlesTable.id,
@@ -780,7 +1003,8 @@ router.patch(
       : req.params.id;
     const id = parseInt(rawId, 10);
 
-    const user = (req as any).user;
+   
+  const user = (req as any).user;
     const [existing] = await db
       .select({
         id: articlesTable.id,
@@ -859,6 +1083,8 @@ router.get("/articles/popular", async (_req: Request, res: Response): Promise<vo
     .orderBy(desc(sql`count(${articleViewsTable.id})`))
     .limit(5);
 
+  res.setHeader("Cache-Control", "public, max-age=120, s-maxage=300");
+  res.setHeader("Vary", "Accept-Encoding");
   res.json(popular.map((a) => ({
     id: a.id,
     title: a.title,
@@ -905,6 +1131,7 @@ router.post("/articles/:slug/view", async (req: Request, res: Response): Promise
 // ── Preview article (requires auth, shows any status) ────────────────────────
 router.get("/articles/preview/:slug", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+ 
   const user = (req as any).user;
 
   const [article] = await db
@@ -938,6 +1165,7 @@ router.get("/articles/preview/:slug", requireAuth, async (req: Request, res: Res
 router.post("/admin/articles/:id/duplicate", requireAuth, async (req, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(rawId, 10);
+ 
   const user = (req as any).user;
 
   const [original] = await db

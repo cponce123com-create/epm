@@ -5,6 +5,7 @@ import { Router, type Request, type Response } from "express";
 import { db, articlesTable, articleSummariesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { extractiveSummary } from "@workspace/external-news";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -83,7 +84,7 @@ router.post("/summarize/article/:id", async (req: Request, res: Response) => {
       createdAt: saved.createdAt,
     });
   } catch (err) {
-    console.error("[Summarize] Error:", (err as Error).message);
+    logger.error("[Summarize] Error:", (err as Error).message);
     res.status(500).json({ error: "Error al generar resumen" });
   }
 });

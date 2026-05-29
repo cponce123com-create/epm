@@ -10,7 +10,8 @@ import Sidebar from "@/components/Sidebar";
 import OptimizedImage from "@/components/OptimizedImage";
 import AdSlot from "@/components/AdSlot";
 import BackToTop from "@/components/BackToTop";
-import { useGetFeaturedArticles, useGetArticles, useGetCategories } from "@workspace/api-client-react";
+import { useGetPageHome, useGetArticles } from "@workspace/api-client-react";
+import type { Article, ArticleListItem, Category } from "@workspace/api-client-react";
 import { Helmet } from "react-helmet-async";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -78,16 +79,30 @@ function SkeletonCard() {
   );
 }
 
+/** Helper: pasa un ArticleListItem a ArticleCard que espera Article */
+function toArticle(a: ArticleListItem): Article {
+  return a as unknown as Article;
+}
+
 export default function Home() {
   const [page, setPage] = useState(1);
-  const { data: featured,     isLoading: loadingFeatured } = useGetFeaturedArticles();
-  const { data: articlesPage, isLoading: loadingArticles } = useGetArticles({ page, limit: 12 });
-  const { data: categories }                               = useGetCategories();
+  const { data: pageData, isLoading } = useGetPageHome();
+  // Always call hook (React rules), but only use result for page > 1
+  const { data: paginated, isLoading: loadingPaginated } = useGetArticles(
+    { page, limit: 12 },
+  );
 
-  const hero        = featured?.[0];
-  const panelArts   = featured?.slice(1, 4);   // 3 en el panel oscuro
-  const subFeatured = featured?.slice(4, 6);    // 2 artículos texto-only
-  const tertiary    = featured?.slice(6, 10);   // hasta 4 terciarios
+  const featured         = pageData?.featured ?? [];
+  const latestArticles   = page > 1 ? paginated : pageData?.latestArticles;
+  const categorySections = pageData?.categorySections ?? [];
+
+  const hero        = featured[0];
+  const panelArts   = featured.slice(1, 4);
+  const subFeatured = featured.slice(4, 6);
+  const tertiary    = featured.slice(6, 10);
+
+  const loadingFeatured  = isLoading;
+  const loadingArticles  = isLoading || (page > 1 && loadingPaginated);
 
   return (
     <div className="min-h-screen" style={{ background: "var(--epm-paper)" }}>
@@ -114,7 +129,7 @@ export default function Home() {
 
             {/* ── Foto hero ── */}
             <div style={{ minHeight: 340, position: "relative" }} className="lg:min-h-0">
-              <ArticleCardFeatured article={hero} large />
+              <ArticleCardFeatured article={toArticle(hero)} large />
             </div>
 
             {/* ── Panel oscuro de recomendados ── */}
@@ -284,16 +299,37 @@ export default function Home() {
                 <SectionHeading title="Destacados" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-6">
                   {tertiary.map((art, i) => (
-                    <ArticleCard key={art.id} article={art} size="sm" index={i} />
+                    <ArticleCard key={art.id} article={toArticle(art)} size="sm" index={i} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Secciones por categoría */}
-            {categories?.filter(c => c.articleCount > 0).map(cat => (
-              <CategorySection key={cat.id} catSlug={cat.slug} catName={cat.name} catColor={cat.color} />
-            ))}
+            {/* Secciones por categoría (desde el endpoint consolidado) */}
+            {categorySections.map((sec) => {
+              const cat = sec.category as Category;
+              if (sec.articles.length === 0) return null;
+              const [main, ...rest] = sec.articles;
+              return (
+                <div key={cat.id} className="mb-10">
+                  <SectionHeadingColored
+                    title={cat.name}
+                    color={cat.color}
+                    href={`/categoria/${cat.slug}`}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-5">
+                    <div className="md:pr-5 md:border-r" style={{ borderColor: "#D6CFBF" }}>
+                      <ArticleCard article={toArticle(main)} size="lg" showSummary />
+                    </div>
+                    <div>
+                      {rest.map((art, i) => (
+                        <ArticleCard key={art.id} article={toArticle(art)} size="sm" horizontal index={i} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
 
             {/* ── Últimas entregas paginadas ── */}
             <div className="mt-10">
@@ -303,7 +339,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-5">
                   {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
-              ) : articlesPage?.articles.length === 0 ? (
+              ) : latestArticles?.articles.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="font-display text-lg text-stone-500 mb-2">No hay artículos publicados aún</p>
                   <p className="text-sm font-sans-ui text-stone-400">
@@ -314,13 +350,13 @@ export default function Home() {
               ) : (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6">
-                    {articlesPage?.articles.map((article, i) => (
-                      <ArticleCard key={article.id} article={article} index={i} />
+                    {latestArticles?.articles.map((article, i) => (
+                      <ArticleCard key={article.id} article={toArticle(article)} index={i} />
                     ))}
                   </div>
 
                   {/* Paginación */}
-                  {articlesPage && articlesPage.totalPages > 1 && (
+                  {latestArticles && latestArticles.totalPages > 1 && (
                     <div className="flex items-center justify-center gap-2 mt-8 pt-6"
                       style={{ borderTop: "1px solid #D6CFBF" }}>
                       <button
@@ -331,11 +367,11 @@ export default function Home() {
                         <ChevronLeft size={14} /> Anterior
                       </button>
                       <span className="epm-mono px-3" style={{ fontSize: 11, color: "#8A857C" }}>
-                        {page} / {articlesPage.totalPages}
+                        {page} / {latestArticles.totalPages}
                       </span>
                       <button
-                        onClick={() => { setPage(p => Math.min(articlesPage.totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                        disabled={page >= articlesPage.totalPages}
+                        onClick={() => { setPage(p => Math.min(latestArticles.totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        disabled={page >= latestArticles.totalPages}
                         className="flex items-center gap-1.5 px-4 py-2 text-sm font-sans-ui disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ border: "1px solid #D6CFBF", background: "transparent", color: "#15140F", cursor: "pointer" }}>
                         Siguiente <ChevronRight size={14} />
@@ -354,32 +390,6 @@ export default function Home() {
 
       <BackToTop />
       <Footer />
-    </div>
-  );
-}
-
-/* ── Sección por categoría ── */
-function CategorySection({ catSlug, catName, catColor }: { catSlug: string; catName: string; catColor: string }) {
-  const { data } = useGetArticles({ page: 1, limit: 4, category: catSlug });
-  const articles = data?.articles ?? [];
-  if (articles.length === 0) return null;
-
-  const [main, ...rest] = articles;
-
-  return (
-    <div className="mb-10">
-      <SectionHeadingColored title={catName} color={catColor} href={`/categoria/${catSlug}`} />
-
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-5">
-        <div className="md:pr-5 md:border-r" style={{ borderColor: "#D6CFBF" }}>
-          <ArticleCard article={main} size="lg" showSummary />
-        </div>
-        <div>
-          {rest.map((art, i) => (
-            <ArticleCard key={art.id} article={art} size="sm" horizontal index={i} />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

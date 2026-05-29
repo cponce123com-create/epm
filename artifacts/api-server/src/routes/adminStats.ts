@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, commentsTable } from "@workspace/db";
-import { eq, sql, count, sum } from "drizzle-orm";
+import { eq, sql, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
 router.get("/admin/stats", requireAuth, async (req, res): Promise<void> => {
+   
   const user = (req as any).user;
   const whereClause = user.role === "superadmin" ? undefined : eq(articlesTable.authorId, user.userId);
 

@@ -155,7 +155,7 @@ router.post(
               const newUrl = await uploadUrlToCloudinary(originalUrl);
               urlCache.set(originalUrl, newUrl);
               logger.info({ originalUrl, newUrl }, "Image migrated to Cloudinary");
-            } catch (err) {
+            } catch {
               // Cloudinary failed — fall back to proxy URL
               const proxyUrl = toProxyUrl(originalUrl);
               urlCache.set(originalUrl, proxyUrl);

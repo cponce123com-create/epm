@@ -183,6 +183,48 @@ export type GetArticlesParams = {
   search?: string;
 };
 
+/** Artículo sin content (para listas) */
+export interface ArticleListItem {
+  id: number;
+  title: string;
+  slug: string;
+  summary: string;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  /** @nullable */
+  coverImageAlt?: string | null;
+  categoryId: number;
+  authorId: number;
+  status: ArticleStatus;
+  featured: boolean;
+  views: number;
+  readingTime: number;
+  /** @nullable */
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  category: Category;
+  authorName: string;
+}
+
+/** Respuesta del endpoint consolidado /page/home */
+export interface PageHomeResponse {
+  featured: ArticleListItem[];
+  latestArticles: {
+    articles: ArticleListItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  mostRead: ArticleListItem[];
+  categories: Category[];
+  categorySections: {
+    category: Category;
+    articles: ArticleListItem[];
+  }[];
+}
+
 export type AdminGetArticlesParams = {
   status?: AdminGetArticlesStatus;
   search?: string;

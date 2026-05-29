@@ -35,6 +35,7 @@ interface FormState {
   aboutText: string;
   aboutPhotoUrl: string;
   aboutRole: string;
+  aboutLandscapeUrl: string;
   // Publicidad manual
   adBanner1Url: string;
   adBanner1Link: string;

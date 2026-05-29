@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, commentsTable, articlesTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { logger } from "../lib/logger";
 import { logAudit, auditCtx } from "../lib/audit";
@@ -104,6 +104,7 @@ router.delete(
     await db.delete(commentsTable).where(eq(commentsTable.id, id));
 
     if (existing) {
+       
       const byUser = (req as any).user;
       logger.info(
         {
@@ -159,6 +160,7 @@ router.post(
       await db.delete(commentsTable).where(inArray(commentsTable.id, batchIds));
     }
 
+ 
     const byUser = (req as any).user;
     logger.info(
       { count: batchIds.length, action, byUserId: byUser?.userId },

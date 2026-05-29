@@ -1,4 +1,4 @@
-import { db, auditLogsTable, type AuditLog } from "@workspace/db";
+import { db, auditLogsTable } from "@workspace/db";
 import type { Request } from "express";
 
 export type AuditAction =
@@ -44,12 +44,13 @@ export async function logAudit(params: {
     });
   } catch (err) {
     // Non-blocking: audit nunca debe romper la operación principal
-    console.error("[AUDIT] Failed to write log:", err);
+    logger.error({ err }, "[AUDIT] Failed to write log:");
   }
 }
 
 /** Helper: extrae IP y userId de un Request de Express */
 export function auditCtx(req: Request): { userId: number | null; ipAddress: string } {
+   
   const user = (req as any).user;
   return {
     userId: user?.userId ?? null,

@@ -79,6 +79,7 @@ router.post(
         return;
       }
 
+       
       const user = (req as any).user;
       const [article] = await db
         .select()
@@ -155,6 +156,7 @@ router.post(
         return;
       }
 
+       
       const user = (req as any).user;
       const [article] = await db
         .select()
@@ -217,6 +219,7 @@ router.post(
         return;
       }
 
+       
       const user = (req as any).user;
       const { editorialNote } = req.body as { editorialNote?: string };
 
@@ -287,6 +290,7 @@ router.post(
         return;
       }
 
+       
       const user = (req as any).user;
       const [article] = await db
         .select()
@@ -358,6 +362,7 @@ router.post(
         return;
       }
 
+       
       const user = (req as any).user;
       const [article] = await db
         .select()

@@ -425,7 +425,9 @@ router.post(
         }
 
         // Atom link enclosure: <link rel="enclosure" type="image/..." href="...">
+         
         if (!coverImageUrl && Array.isArray((item as any).link)) {
+           
           for (const link of (item as any).link) {
             if (
               link?.["@_rel"] === "enclosure" &&
@@ -450,7 +452,9 @@ router.post(
         }
 
         // Atom link enclosure: <link rel="enclosure" type="video/..." href="...">
+         
         if (!coverVideoUrl && Array.isArray((item as any).link)) {
+           
           for (const link of (item as any).link) {
             if (
               link?.["@_rel"] === "enclosure" &&
@@ -507,6 +511,7 @@ router.post(
       return;
     }
 
+     
     const user = (req as any).user;
     const slug = makeSlug(item.title);
 

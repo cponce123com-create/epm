@@ -22,6 +22,7 @@ import type {
   AdminStats,
   AllSettings,
   Article,
+  ArticleListItem,
   ArticlesPage,
   Category,
   Comment,
@@ -32,6 +33,7 @@ import type {
   HealthStatus,
   LoginBody,
   LoginResponse,
+  PageHomeResponse,
   PublicSettings,
   UpdateArticleBody,
   UpdateSettingBody,
@@ -534,6 +536,81 @@ export function useGetCategories<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetCategoriesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Consolidated home page data (featured, latest, most read, categories, category sections)
+ */
+export const getGetPageHomeUrl = () => {
+  return `/api/page/home`;
+};
+
+export const getPageHome = async (
+  options?: RequestInit,
+): Promise<PageHomeResponse> => {
+  return customFetch<PageHomeResponse>(getGetPageHomeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPageHomeQueryKey = () => {
+  return [`/api/page/home`] as const;
+};
+
+export const getGetPageHomeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPageHome>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPageHome>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPageHomeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPageHome>>> = ({
+    signal,
+  }) => getPageHome({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPageHome>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPageHomeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPageHome>>
+>;
+export type GetPageHomeQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Consolidated home page data (featured, latest, most read, categories, category sections)
+ */
+
+export function useGetPageHome<
+  TData = Awaited<ReturnType<typeof getPageHome>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPageHome>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPageHomeQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

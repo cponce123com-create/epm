@@ -55,15 +55,14 @@ export default function ArticleEditor() {
   // For editing: try hook first, fallback to direct fetch
   const { data: adminArticles } = useAdminGetArticles(
     {},
-    { query: { enabled: isEdit } },
+    { query: { enabled: isEdit, queryKey: ["/api/admin/articles"] as const } },
   );
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
   // Direct fetch fallback (for when the hook doesn't return the article)
   const { data: articleBySlug } = useGetArticleBySlug(
-    // @ts-expect-error
-    id,
-    { query: { enabled: false } }, // we use direct fetch as fallback
+    id!,
+    { query: { enabled: false, queryKey: [`/api/articles/${id}`] as const } }, // we use direct fetch as fallback
   );
 
   const { data: categories } = useGetCategories();

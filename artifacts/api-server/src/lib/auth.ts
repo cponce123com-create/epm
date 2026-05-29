@@ -8,7 +8,6 @@ const JWT_SECRET: string = process.env.JWT_SECRET!;
 const JWT_ISSUER = process.env["FRONTEND_URL"] ?? "epm-api";
 const JWT_AUDIENCE = "epm-api";
 const JWT_EXPIRES_IN = "2h";
-const REFRESH_GRACE_MS = 24 * 60 * 60 * 1000; // 24h para refrescar
 const CLOCK_TOLERANCE_SEC = 60; // tolerancia de reloj
 
 export interface JwtPayload {

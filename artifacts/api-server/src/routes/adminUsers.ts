@@ -62,6 +62,7 @@ router.post(
         role: usersTable.role,
       });
 
+     
     const byUser = (req as any).user;
     logger.info(
       {
@@ -150,6 +151,7 @@ router.patch(
       })
       .where(eq(usersTable.id, id));
 
+     
     const byUser = (req as any).user;
     logger.info(
       {
@@ -182,6 +184,7 @@ router.delete(
   requireSuperAdmin,
   async (req, res): Promise<void> => {
     const id = parseInt(String(req.params.id), 10);
+     
     const user = (req as any).user;
 
     if (id === user.userId) {

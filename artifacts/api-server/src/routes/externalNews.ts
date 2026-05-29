@@ -4,6 +4,7 @@
 import { Router, type Request, type Response } from "express";
 import { db, externalHeadlinesTable } from "@workspace/db";
 import { desc, eq, and, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.get("/external-news", async (req: Request, res: Response) => {
       totalPages,
     });
   } catch (err) {
-    console.error("[External News] Error fetching headlines:", (err as Error).message);
+    logger.error("[External News] Error fetching headlines:", (err as Error).message);
     res.status(500).json({ error: "Error al obtener noticias externas" });
   }
 });
