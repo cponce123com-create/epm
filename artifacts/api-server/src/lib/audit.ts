@@ -1,5 +1,6 @@
 import { db, auditLogsTable } from "@workspace/db";
 import type { Request } from "express";
+import { logger } from "./logger";
 
 export type AuditAction =
   | "CREATE"
