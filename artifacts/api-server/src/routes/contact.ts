@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod/v4";
 import { db, contactsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { contactLimiter } from "../middlewares/rateLimit";
 
 const router: IRouter = Router();
 
@@ -11,7 +12,7 @@ const ContactBody = z.object({
   message: z.string().min(10, "El mensaje debe tener al menos 10 caracteres").max(5000),
 });
 
-router.post("/contact", async (req: Request, res: Response): Promise<void> => {
+router.post("/contact", contactLimiter, async (req: Request, res: Response): Promise<void> => {
   const parsed = ContactBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Datos inválidos: " + parsed.error.message });

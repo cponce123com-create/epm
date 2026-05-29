@@ -45,3 +45,12 @@ export const inviteLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Has alcanzado el límite de invitaciones. Espera 1 hora." },
 });
+
+// ── Contacto: 5 mensajes por hora ──────────────────────────────────────────
+export const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados mensajes enviados. Espera 1 hora." },
+});

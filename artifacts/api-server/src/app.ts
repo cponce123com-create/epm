@@ -42,31 +42,14 @@ app.get("/robots.txt", (_req: Request, res: Response): void => {
   res.send(ROBOTS_CONTENT);
 });
 
-// ── Bypass CORS for crawlers ────────────────────────────────────────────────
-// Facebookexternalhit no envía Origin header normalmente, pero si lo hace
-// y no está en CORS_ORIGINS, CORS respondería 403. Este middleware remueve
-// el Origin de requests de crawlers antes de que CORS los evalúe.
-const CRAWLER_UAS = [
-  "facebookexternalhit",
-  "twitterbot",
-  "whatsapp",
-  "linkedinbot",
-  "telegrambot",
-  "slackbot",
-  "discordbot",
-  "googlebot",
-  "bingbot",
-];
-
-app.use((req: Request, _res: Response, next: NextFunction): void => {
-  const ua = (req.headers["user-agent"] ?? "").toLowerCase();
-  const isCrawler = CRAWLER_UAS.some((c) => ua.indexOf(c.toLowerCase()) !== -1);
-  if (isCrawler) {
-    // Eliminar Origin para que CORS no lo bloquee
-    delete req.headers["origin"];
-  }
-  next();
-});
+// ── NOTA sobre CORS y crawlers ──────────────────────────────────────────────
+// Anteriormente existía un bloque que eliminaba req.headers["origin"] para
+// crawlers (facebookexternalhit, twitterbot, etc.) permitiendo que cualquier
+// cliente falsificara su User-Agent para saltarse CORS.
+//
+// La solución correcta es listar los orígenes necesarios en CORS_ORIGINS.
+// Para crawlers que no envían Origin, la función callback de CORS ya permite
+// el acceso (origin == null → callback(null, true)).
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 app.use(
@@ -123,6 +106,9 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// ── Cookie parser ───────────────────────────────────────────────────────────
+app.use(cookieParser());
 
 // ── Rate limiting ────────────────────────────────────────────────────────────
 // En producción, Render usa un proxy → confiar en X-Forwarded-For

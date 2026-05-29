@@ -3,6 +3,7 @@ import { db, commentsTable, articlesTable, reportedCommentsTable } from "@worksp
 import { eq, and } from "drizzle-orm";
 import { CreateCommentBody } from "@workspace/api-zod";
 import { z } from "zod/v4";
+import { commentLimiter } from "../middlewares/rateLimit";
 
 const router: IRouter = Router();
 
@@ -38,7 +39,7 @@ router.get("/comments/:articleId", async (req, res): Promise<void> => {
   })));
 });
 
-router.post("/comments", async (req, res): Promise<void> => {
+router.post("/comments", commentLimiter, async (req, res): Promise<void> => {
   const parsed = CreateCommentBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -69,7 +70,7 @@ router.post("/comments", async (req, res): Promise<void> => {
 });
 
 // ── Report a comment ──────────────────────────────────────────────────────────
-router.post("/comments/report", async (req, res): Promise<void> => {
+router.post("/comments/report", commentLimiter, async (req, res): Promise<void> => {
   const parsed = createReportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Datos inválidos: " + parsed.error.message });
