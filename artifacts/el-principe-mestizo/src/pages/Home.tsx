@@ -117,6 +117,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 pb-12">
 
         {/* ══ HERO SPLIT ══════════════════════════════════════════ */}
+        <div style={{ minHeight: 340 }} className="lg:min-h-[680px]">
         {!loadingFeatured && hero && (
           <div style={{
             display: "grid",
@@ -124,6 +125,7 @@ export default function Home() {
             height: "auto",
             borderBottom: "1px solid #D6CFBF",
             marginBottom: 0,
+            animation: "fadeIn 0.3s ease",
           }}
             className="lg:grid-cols-[1fr_360px] lg:h-[680px]">
 
@@ -224,9 +226,9 @@ export default function Home() {
         {loadingFeatured && (
           <div className="grid lg:grid-cols-[1fr_360px]" style={{ borderBottom: "1px solid #D6CFBF" }}>
             <div className="skeleton-shimmer" style={{ height: 340 }} />
-            <div className="hidden lg:block" style={{ background: "#3D1010", height: 680 }} />
           </div>
         )}
+        </div>
 
         {/* ══ SUB-FEATURED: 2 artículos solo texto ════════════════ */}
         {subFeatured && subFeatured.length > 0 && (
