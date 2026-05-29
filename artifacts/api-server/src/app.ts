@@ -152,8 +152,9 @@ app.use((req: Request, res: Response, next: NextFunction): void => {
 });
 
 // ── Cabeceras de seguridad (Helmet) ──────────────────────────────────────────
-// CSP con nonces para scripts inline (SSR). Sin 'unsafe-inline'.
-// En desarrollo se permite 'unsafe-inline' para React HMR.
+// CSP con nonces para scripts inline (SSR). En producción se permite
+// 'unsafe-inline' para Sentry (error tracking/replay) que inyecta scripts
+// inline dinámicamente sin nonce. Sin 'unsafe-inline' Sentry no funciona.
 const isProduction = process.env["NODE_ENV"] === "production";
 
 app.use(
@@ -164,6 +165,7 @@ app.use(
         scriptSrc: isProduction
           ? [
               "'self'",
+              "'unsafe-inline'",
               "https://pagead2.googlesyndication.com",
               (_req: Request, res: Response) =>
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any

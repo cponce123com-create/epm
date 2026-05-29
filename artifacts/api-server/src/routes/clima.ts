@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { safeError } from "../lib/safeError";
 
 const router = Router();
 
@@ -12,7 +11,7 @@ const router = Router();
 router.get("/clima", async (_req, res): Promise<void> => {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
       "https://api.open-meteo.com/v1/forecast?latitude=-11.12&longitude=-75.34&current=temperature_2m,weathercode&timezone=America%2FLima",
@@ -38,9 +37,8 @@ router.get("/clima", async (_req, res): Promise<void> => {
     res.set("Cache-Control", "public, max-age=1800");
     res.json({ temp: String(temp), emoji, fuente: "open-meteo" });
   } catch (err: unknown) {
-    res.status(502).json({
-      error: safeError(err),
-    });
+    // Fallback silencioso: no romper la UI del frontend si Open-Meteo no responde
+    res.json({ temp: "--", emoji: "🌤️", fuente: "fallback" });
   }
 });
 
