@@ -190,6 +190,12 @@ router.post("/auth/refresh", async (req, res): Promise<void> => {
     return;
   }
 
+  // Verificar tokenVersion (invalidar sesiones al cambiar rol)
+  if (payload.tokenVersion !== (user.tokenVersion ?? 0)) {
+    res.status(401).json({ error: "Sesión inválida. Inicia sesión nuevamente." });
+    return;
+  }
+
   const newToken = signToken({
     userId: user.id,
     email: user.email,
