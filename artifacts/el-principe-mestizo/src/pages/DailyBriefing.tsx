@@ -46,7 +46,7 @@ export default function DailyBriefing() {
     fetchBriefing();
   }, []);
 
-  // Parse briefing content into lines for rendering
+  // Parse briefing content: split by double newline
   const renderContent = (content: string) => {
     const lines = content.split("
 
