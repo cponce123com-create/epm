@@ -1,12 +1,15 @@
 /**
  * External News Module — Entry Point
  *
- * Agregador ético de titulares vía RSS.
- * Nunca almacena cuerpos completos de artículos.
+ * Agregador etico de titulares via RSS.
+ * Nunca almacena cuerpos completos de articulos.
  * Implementa resumen extractivo (sin IA de pago).
  */
 export { parseAllSources, parseSource, loadSources } from "./parser.js";
 export type { RssSource, ExternalHeadline, DailyBriefing, ArticleSummary, TrendWord } from "./types.js";
+
+const NL = String.fromCharCode(10);
+const DNL = NL + NL;
 
 /**
  * Genera un resumen extractivo: toma las primeras N oraciones de un texto.
@@ -34,12 +37,7 @@ export function extractiveSummary(text: string, sentenceCount = 3): string {
  */
 export function generateBriefingText(headlines: Array<{ title: string; link: string; source: string }>): string {
   const lines = headlines.map(
-    (h, i) => `${i + 1}. ${h.title} — ${h.source}
-   ${h.link}`,
+    (h, i) => String(i + 1) + ". " + h.title + " \u2014 " + h.source + NL + "   " + h.link,
   );
-  return `📰 Resumen de Noticias
-
-${lines.join("
-
-")}`;
+  return "📰 Resumen de Noticias" + DNL + lines.join(DNL);
 }

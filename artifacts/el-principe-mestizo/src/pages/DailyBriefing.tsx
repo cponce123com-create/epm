@@ -1,11 +1,13 @@
 /**
- * DailyBriefing — Página que muestra el resumen diario de noticias externas.
+ * DailyBriefing — Pagina que muestra el resumen diario de noticias externas.
  */
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { FileText, Loader2, AlertCircle, Calendar, ExternalLink, RefreshCw } from "lucide-react";
 
+const NL = String.fromCharCode(10);
+const DNL = NL + NL;
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 interface Briefing {
@@ -24,14 +26,14 @@ export default function DailyBriefing() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/daily-briefing/latest`);
+      const res = await fetch(API_BASE + "/api/daily-briefing/latest");
       if (!res.ok) {
         if (res.status === 404) {
           setBriefing(null);
           setLoading(false);
           return;
         }
-        throw new Error(`Error ${res.status}`);
+        throw new Error("Error " + res.status);
       }
       const data = await res.json();
       setBriefing(data);
@@ -46,12 +48,9 @@ export default function DailyBriefing() {
     fetchBriefing();
   }, []);
 
-  // Parse briefing content: split by double newline
   const renderContent = (content: string) => {
-    const lines = content.split("
-
-");
-    return lines.map((block, i) => {
+    const blocks = content.split(DNL);
+    return blocks.map((block, i) => {
       if (block.startsWith("📰 Resumen de Noticias")) {
         return (
           <h1
@@ -63,13 +62,11 @@ export default function DailyBriefing() {
         );
       }
 
-      // Check if it's a numbered headline (e.g., "1. Title — Source")
       const headlineMatch = block.match(/^(\d+)\.\s(.+?)\s[—–-]\s(.+)$/m);
       if (headlineMatch) {
-        const linesSplit = block.split("
-");
-        const titlePart = linesSplit[0];
-        const linkPart = linesSplit[1]?.trim();
+        const lines = block.split(NL);
+        const titlePart = lines[0];
+        const linkPart = lines[1]?.trim();
         return (
           <div key={i} className="mb-4 p-4 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors">
             <p className="text-sm font-medium text-foreground/90">{titlePart}</p>
@@ -81,7 +78,7 @@ export default function DailyBriefing() {
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1"
               >
                 <ExternalLink size={10} />
-                Leer artículo
+                Leer articulo
               </a>
             )}
           </div>
@@ -150,10 +147,10 @@ export default function DailyBriefing() {
           <div className="text-center py-20">
             <FileText size={48} className="mx-auto text-muted-foreground/40 mb-4" />
             <p className="text-muted-foreground font-sans-ui">
-              No hay briefings disponibles aún.
+              No hay briefings disponibles aun.
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              El resumen diario se genera automáticamente cada 6 horas.
+              El resumen diario se genera automaticamente cada 6 horas.
             </p>
           </div>
         )}
