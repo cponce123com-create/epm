@@ -85,11 +85,31 @@ El módulo `@workspace/external-news` parsea fuentes RSS de periódicos peruanos
 
 - Cabeceras HTTP de seguridad vía helmet:
   - `Cross-Origin-Opener-Policy: same-origin`
-  - `Cross-Origin-Embedder-Policy: require-corp`
   - `Permissions-Policy` restrictiva (geolocation, camera, mic deshabilitados)
-- CSP estricta con nonces para scripts inline
-- Endpoints cron protegidos con CRON_SECRET
+- CSP estricta con nonces para scripts inline (sin `unsafe-inline` en producción)
+- Autenticación JWT con `tokenVersion` en DB para invalidar sesiones al cambiar rol
+- Cookies `httpOnly` + `secure` + `sameSite: strict` para prevenir XSS
+- Endpoints cron protegidos con `CRON_SECRET` vía header `x-cron-secret`
+- Rate limiting granular: login (5 intentos/15min), API general (100 req/15min)
+- Sanitización HTML con `sanitize-html` y lista explícita de tags permitidos
+- Validación de tipo MIME real en uploads (magic bytes, no solo extensión)
+- Proxy de imágenes con allowlist de dominios (previene SSRF)
 - Dependabot activo para actualizaciones semanales
+
+### CORS
+
+El servidor unificado (frontend + backend) opera bajo same-origin, por lo que CORS
+no es necesario para el funcionamiento normal. La variable `CORS_ORIGINS` permite
+configurar orígenes adicionales separados por coma (ej: para bots OG o futuras apps).
+
+**Comportamiento:**
+- Si `CORS_ORIGINS` está vacío → `origin: false`: se bloquean todas las requests
+  con cabecera `Origin` (recomendado para producción con servidor unificado).
+- Si `CORS_ORIGINS` tiene valores → se permite acceso solo a esos orígenes explícitos.
+- Las requests sin cabecera `Origin` (ej: desde Postman) se permiten siempre.
+
+Para probar la API desde Postman u otros clientes, configura `CORS_ORIGINS=*`
+en desarrollo (no recomendado en producción).
 
 ## 🚀 Despliegue en Render
 
