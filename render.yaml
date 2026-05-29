@@ -60,3 +60,6 @@ services:
       # GROQ_API_KEY (opcional, para briefing con IA)
       # - key: GROQ_API_KEY
       #   value: ""
+      # Límite de memoria para evitar OOM kills en plan free (512MB)
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=384"
