@@ -53,3 +53,10 @@ services:
         value: ""
       - key: CLOUDINARY_API_SECRET
         value: ""
+      # ── RSS Aggregator ──────────────────────────────────────────────────────
+      # Secreto para proteger endpoints de cron. Usa el mismo valor en cron-job.org.
+      - key: CRON_SECRET
+        generateValue: true
+      # GROQ_API_KEY (opcional, para briefing con IA)
+      # - key: GROQ_API_KEY
+      #   value: ""

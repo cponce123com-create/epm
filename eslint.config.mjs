@@ -38,13 +38,13 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Desactivar reglas demasiado estrictas para un proyecto migrando
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Reglas estrictas (nivel error)
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" },
+        "error",
+        { argsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
-      "no-console": "warn",
+      "no-console": "error",
       // Reglas de seguridad adicionales
       "no-eval": "error",
       "no-implied-eval": "error",
@@ -78,6 +78,28 @@ export default tseslint.config(
     files: ["scripts/**/*.ts"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+      "no-console": "off",
+    },
+  },
+  {
+    // External News (RSS aggregator standalone): permitir console para logging
+    files: ["lib/external-news/**/*.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
+    // Cron routes: permitir console para logging de operaciones
+    files: [
+      "artifacts/api-server/src/routes/cron.ts",
+      "artifacts/api-server/src/routes/externalNews.ts",
+      "artifacts/api-server/src/routes/trends.ts",
+      "artifacts/api-server/src/routes/summarize.ts",
+      "artifacts/api-server/src/routes/dailyBriefing.ts",
+      "artifacts/api-server/src/scripts/**/*.ts",
+      "test/**/*.ts",
+    ],
+    rules: {
       "no-console": "off",
     },
   },

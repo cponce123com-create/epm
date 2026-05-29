@@ -1,0 +1,82 @@
+[
+  {
+    "name": "El Comercio",
+    "url": "https://rss.elcomercio.pe/feed",
+    "siteUrl": "https://elcomercio.pe",
+    "language": "es",
+    "bias": "center-right",
+    "category": "general"
+  },
+  {
+    "name": "RPP Noticias",
+    "url": "https://rpp.pe/rss",
+    "siteUrl": "https://rpp.pe",
+    "language": "es",
+    "bias": "center",
+    "category": "general"
+  },
+  {
+    "name": "La República",
+    "url": "https://larepublica.pe/rss/feed",
+    "siteUrl": "https://larepublica.pe",
+    "language": "es",
+    "bias": "center-left",
+    "category": "general"
+  },
+  {
+    "name": "Gestión",
+    "url": "https://gestion.pe/rss/feed",
+    "siteUrl": "https://gestion.pe",
+    "language": "es",
+    "bias": "center-right",
+    "category": "economia"
+  },
+  {
+    "name": "BBC Mundo",
+    "url": "https://feeds.bbci.co.uk/mundo/rss.xml",
+    "siteUrl": "https://www.bbc.com/mundo",
+    "language": "es",
+    "bias": "center",
+    "category": "internacional"
+  },
+  {
+    "name": "El País",
+    "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+    "siteUrl": "https://elpais.com",
+    "language": "es",
+    "bias": "center-left",
+    "category": "general"
+  },
+  {
+    "name": "France 24 Español",
+    "url": "https://www.france24.com/es/rss",
+    "siteUrl": "https://www.france24.com/es",
+    "language": "es",
+    "bias": "center",
+    "category": "internacional"
+  },
+  {
+    "name": "DW Español",
+    "url": "https://rss.dw.com/rdf/dw-world-spanish",
+    "siteUrl": "https://www.dw.com/es",
+    "language": "es",
+    "bias": "center",
+    "category": "internacional"
+  },
+  {
+    "name": "Associated Press (ES)",
+    "url": "https://apnews.com/rss/world",
+    "siteUrl": "https://apnews.com",
+    "language": "en",
+    "bias": "center",
+    "category": "internacional"
+  },
+  {
+    "name": "Reuters (EN)",
+    "url": "https://www.reutersagency.com/feed",
+    "siteUrl": "https://www.reuters.com",
+    "language": "en",
+    "bias": "center",
+    "category": "internacional"
+  }
+]

@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 import Sidebar from "@/components/Sidebar";
 import ReadingProgress from "@/components/ReadingProgress";
 import ShareButtons from "@/components/ShareButtons";
+import SummarizeButton from "@/components/SummarizeButton";
 import CommentSection from "@/components/CommentSection";
 import ArticleCard from "@/components/ArticleCard";
 import BackToTop from "@/components/BackToTop";
@@ -793,9 +794,10 @@ export default function Article() {
           <AdSlot format="leaderboard" />
         </div>
 
-        {/* Share */}
-        <div className="pt-6 border-t border-border">
+        {/* Share & Summarize */}
+        <div className="pt-6 border-t border-border flex flex-wrap items-center justify-between gap-3">
           <ShareButtons title={article.title} />
+          <SummarizeButton articleId={article.id} />
         </div>
 
         {/* Related articles */}

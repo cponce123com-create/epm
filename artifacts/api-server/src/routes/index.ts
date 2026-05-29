@@ -24,6 +24,11 @@ import sitemapRouter from "./sitemap";
 import auditRouter from "./audit";
 import adminViewsChartRouter from "./adminViewsChart";
 import contactRouter from "./contact";
+import dailyBriefingRouter from "./dailyBriefing";
+import externalNewsRouter from "./externalNews";
+import cronRouter from "./cron";
+import summarizeRouter from "./summarize";
+import trendsRouter from "./trends";
 
 const router: IRouter = Router();
 
@@ -52,5 +57,10 @@ router.use(sitemapRouter);
 router.use(auditRouter);
 router.use(adminViewsChartRouter);
 router.use(contactRouter);
+router.use(dailyBriefingRouter);
+router.use(externalNewsRouter);
+router.use(cronRouter);
+router.use(summarizeRouter);
+router.use(trendsRouter);
 
 export default router;

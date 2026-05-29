@@ -206,7 +206,24 @@ app.use(
         upgradeInsecureRequests: [],
       },
     },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    crossOriginEmbedderPolicy: { policy: "require-corp" },
+    permissionsPolicy: {
+      directives: {
+        geolocation: [],
+        microphone: [],
+        camera: [],
+        usb: [],
+        magnetometer: [],
+        accelerometer: [],
+        vr: [],
+        speaker: [],
+        documentDomain: [],
+        fullscreen: ["'self'"],
+        payment: [],
+        syncXhr: [],
+      },
+    },
   }),
 );
 

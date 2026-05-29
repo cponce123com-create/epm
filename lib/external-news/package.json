@@ -1,0 +1,20 @@
+{
+  "name": "@workspace/external-news",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0",
+    "node-cron": "^3.0.3",
+    "compromise": "^14.14.4"
+  },
+  "devDependencies": {
+    "@types/rss-parser": "^3.7.5",
+    "@types/node-cron": "^3.0.11",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

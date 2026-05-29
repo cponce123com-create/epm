@@ -7,8 +7,9 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "lint": "eslint .",
-    "test": "jest",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "test": "jest --forceExit",
     "prepare": "husky"
   },
   "private": true,
@@ -18,7 +19,7 @@
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
       "prettier --write",
-      "eslint --fix --max-warnings 50"
+      "eslint --fix --max-warnings 0"
     ],
     "*.{json,yaml,md}": [
       "prettier --write"
