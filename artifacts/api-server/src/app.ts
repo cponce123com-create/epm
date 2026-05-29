@@ -139,11 +139,9 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true, // solo cuenta los fallos
 });
 
-// Aplicar limiters a ambas versiones de la API
+// Aplicar limiters — solo /api (cubre /api/* y /api/v1/* por ser subpath)
 app.use("/api/auth/login", loginLimiter);
-app.use("/api/v1/auth/login", loginLimiter);
 app.use("/api", apiLimiter);
-app.use("/api/v1", apiLimiter);
 
 // ── Middleware de nonce CSP (debe ir ANTES de Helmet) ─────────────────────
 // Genera un nonce por request para scripts inline seguros.
