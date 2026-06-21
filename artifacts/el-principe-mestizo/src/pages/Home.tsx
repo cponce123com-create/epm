@@ -115,6 +115,29 @@ export default function Home() {
   const loadingFeatured  = isLoading;
   const loadingArticles  = isLoading || (page > 1 && loadingPaginated);
 
+  // ── Noticias externas (botnoticias) ──
+  const [externalHeadlines, setExternalHeadlines] = useState<ExternalHeadline[]>([]);
+  const [loadingExternal, setLoadingExternal] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_BASE}/api/external-news?limit=8`, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        setExternalHeadlines(data.headlines ?? []);
+        setLoadingExternal(false);
+      })
+      .catch(err => {
+        if (err.name !== "AbortError") {
+          setLoadingExternal(false);
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
   return (
     <div className="min-h-screen" style={{ background: "var(--epm-paper)" }}>
       <Helmet>
