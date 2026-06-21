@@ -185,6 +185,7 @@ app.use(
           "https://*.cloudinary.com",
           "https://res.cloudinary.com",
           "https://fonts.googleapis.com",
+          "https://fonts.gstatic.com",
           "https://pagead2.googlesyndication.com",
           "https://o4511469778960384.ingest.us.sentry.io",
         ],
