@@ -92,6 +92,9 @@ interface ExternalHeadline {
   link: string;
   source: string;
   summary: string | null;
+  content: string | null;
+  image_url: string | null;
+  slug: string | null;
   pub_date: string;
 }
 
@@ -375,9 +378,9 @@ export default function Home() {
                   {externalHeadlines.map((hl) => (
                     <a
                       key={hl.id}
-                      href={hl.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={hl.slug ? `/noticia/${hl.slug}` : hl.link}
+                      target={hl.slug ? "_self" : "_blank"}
+                      rel={hl.slug ? undefined : "noopener noreferrer"}
                       className="group block"
                       style={{ textDecoration: "none" }}>
                       <article className="h-full" style={{

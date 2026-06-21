@@ -9,6 +9,9 @@ export const externalHeadlinesTable = pgTable(
     source: varchar("source", { length: 255 }).notNull(),
     sourceBias: varchar("source_bias", { length: 50 }),
     summary: text("summary"),
+    content: text("content"),
+    imageUrl: varchar("image_url", { length: 1024 }),
+    slug: varchar("slug", { length: 200 }),
     pubDate: timestamp("pub_date", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -19,6 +22,8 @@ export const externalHeadlinesTable = pgTable(
     pubDateIdx: index("idx_external_pubdate_desc").on(table.pubDate.desc()),
     // Index for source queries
     sourceIdx: index("idx_external_source").on(table.source),
+    // Index for slug lookups
+    slugIdx: index("idx_external_slug").on(table.slug),
   }),
 );
 

@@ -56,6 +56,9 @@ router.post("/external-headlines/import", async (req: Request, res: Response) =>
           link: hl.link,
           source: hl.source.slice(0, 255),
           summary: hl.summary?.slice(0, 2000) ?? null,
+          content: hl.content?.slice(0, 50000) ?? null,
+          imageUrl: hl.image_url?.slice(0, 1024) ?? null,
+          slug: hl.slug?.slice(0, 200) ?? null,
           pubDate: new Date(hl.pub_date),
         });
         sent++;
@@ -70,6 +73,25 @@ router.post("/external-headlines/import", async (req: Request, res: Response) =>
   } catch (err) {
     logger.error("EPM import batch error: %s", (err as Error).message);
     res.status(500).json({ error: "Error interno al importar" });
+  }
+});
+
+router.get("/external-headlines/:slug", async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const [headline] = await db
+      .select()
+      .from(externalHeadlinesTable)
+      .where(eq(externalHeadlinesTable.slug, slug))
+      .limit(1);
+
+    if (!headline) {
+      return res.status(404).json({ error: "Noticia no encontrada" });
+    }
+    res.json(headline);
+  } catch (err) {
+    logger.error("Error fetching external headline: %s", (err as Error).message);
+    res.status(500).json({ error: "Error interno al obtener noticia" });
   }
 });
 

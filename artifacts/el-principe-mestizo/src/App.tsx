@@ -18,6 +18,7 @@ const Privacy = lazy(() => import("@/pages/Privacy"));
 const ContactPage = lazy(() => import("@/pages/ContactPage"));
 const DailyBriefing = lazy(() => import("@/pages/DailyBriefing"));
 const Trends = lazy(() => import("@/pages/Trends"));
+const NoticiaExterna = lazy(() => import("@/pages/NoticiaExterna"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 // Lazy-loaded admin pages (code splitting)
@@ -100,6 +101,7 @@ function Router() {
       <Route path="/contacto" component={ContactPage} />
       <Route path="/resumen-diario" component={DailyBriefing} />
       <Route path="/tendencias" component={Trends} />
+      <Route path="/noticia/:slug" component={NoticiaExterna} />
       <Route path="/admin/login">
         {() => <AdminFallback component={Login} />}
       </Route>
@@ -177,3 +179,4 @@ function App() {
 }
 
 export default App;
+pp;
