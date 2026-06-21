@@ -184,6 +184,8 @@ app.use(
           "https://www.googleapis.com",
           "https://*.cloudinary.com",
           "https://res.cloudinary.com",
+          "https://fonts.googleapis.com",
+          "https://pagead2.googlesyndication.com",
           "https://o4511469778960384.ingest.us.sentry.io",
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com", "data:"],

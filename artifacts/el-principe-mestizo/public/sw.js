@@ -61,8 +61,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first para API de artículos
-  if (url.pathname.startsWith("/api/")) {
+  // Network-first para API de artículos (solo GET)
+  if (url.pathname.startsWith("/api/") && event.request.method === "GET") {
     event.respondWith(networkFirst(event.request, CACHE_API));
     return;
   }
