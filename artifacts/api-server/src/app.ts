@@ -14,6 +14,7 @@ import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
+import externalHeadlinesImport from "./routes/externalHeadlinesImport";
 import { logger } from "./lib/logger";
 import { ogMiddleware } from "./lib/ogMiddleware";
 import cookieParser from "cookie-parser";
@@ -231,6 +232,7 @@ app.use("/sitemap.xml", sitemapRouter);
 
 app.use("/api/v1", router);
 app.use("/api", router);
+app.use("/api", externalHeadlinesImport);
 
 // ── SSR Open Graph (solo crawlers) ──────────────────────────────────────────
 // ogMiddleware intercepta /articulo/:slug cuando el User-Agent coincide con
