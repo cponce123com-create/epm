@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -82,6 +82,17 @@ function SkeletonCard() {
 /** Helper: pasa un ArticleListItem a ArticleCard que espera Article */
 function toArticle(a: ArticleListItem): Article {
   return a as unknown as Article;
+}
+
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
+interface ExternalHeadline {
+  id: number;
+  title: string;
+  link: string;
+  source: string;
+  summary: string | null;
+  pub_date: string;
 }
 
 export default function Home() {
@@ -332,6 +343,91 @@ export default function Home() {
                 </div>
               );
             })}
+
+            {/* ── Noticias de última hora (externas) ── */}
+            {externalHeadlines.length > 0 && (
+              <div className="mb-10">
+                <SectionHeading title="Noticias de última hora" link="/noticias" linkLabel="Ver más →" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-6">
+                  {externalHeadlines.map((hl) => (
+                    <a
+                      key={hl.id}
+                      href={hl.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block"
+                      style={{ textDecoration: "none" }}>
+                      <article className="h-full" style={{
+                        border: "1px solid #E8E3D7",
+                        borderRadius: 0,
+                        background: "#FCFAF5",
+                        transition: "border-color 0.2s, box-shadow 0.2s",
+                      }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = "#7A1F1F";
+                          e.currentTarget.style.boxShadow = "0 2px 8px rgba(122,31,31,0.08)";
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = "#E8E3D7";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}>
+                        <div style={{ padding: 20 }}>
+                          {/* Fuente + fecha */}
+                          <div className="epm-mono" style={{
+                            fontSize: 10,
+                            letterSpacing: "0.12em",
+                            textTransform: "uppercase",
+                            color: "#7A1F1F",
+                            fontWeight: 600,
+                            marginBottom: 10,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}>
+                            <span>▌ {hl.source}</span>
+                            <span style={{ color: "#8A857C", fontWeight: 400 }}>
+                              {format(new Date(hl.pub_date), "d MMM", { locale: es })}
+                            </span>
+                          </div>
+                          {/* Título */}
+                          <h3 style={{
+                            fontFamily: "'DM Serif Display', 'Playfair Display', Georgia, serif",
+                            fontWeight: 400,
+                            fontSize: 16,
+                            lineHeight: 1.3,
+                            margin: "0 0 8px",
+                            color: "#15140F",
+                            transition: "color 0.2s",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                            className="group-hover-child">
+                            {hl.title}
+                          </h3>
+                          {/* Resumen opcional */}
+                          {hl.summary && (
+                            <p style={{
+                              fontSize: 12.5,
+                              lineHeight: 1.5,
+                              color: "#5A564E",
+                              margin: 0,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}>
+                              {hl.summary}
+                            </p>
+                          )}
+                        </div>
+                      </article>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ── Últimas entregas paginadas ── */}
             <div className="mt-10">
