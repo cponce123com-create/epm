@@ -254,8 +254,19 @@ async function initDb() {
     -- Article Summaries: búsqueda por artículo
     CREATE UNIQUE INDEX IF NOT EXISTS idx_summary_article
       ON article_summaries (article_id);
+    -- External Headlines: slug lookup
+    CREATE INDEX IF NOT EXISTS idx_external_slug
+      ON external_headlines (slug);
   `);
   logger.info("Database indexes ready.");
+
+  // ── Migraciones progresivas de external_headlines ──────────────────────
+  logger.info("Running external headlines table migrations...");
+  await db.execute(sql`
+    ALTER TABLE external_headlines ADD COLUMN IF NOT EXISTS content TEXT;
+    ALTER TABLE external_headlines ADD COLUMN IF NOT EXISTS image_url VARCHAR(1024);
+    ALTER TABLE external_headlines ADD COLUMN IF NOT EXISTS slug VARCHAR(200);
+  `);
 
   logger.info("Database schema ready.");
 }
