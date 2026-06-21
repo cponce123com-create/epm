@@ -409,7 +409,15 @@ export default function Home() {
                           }}>
                             <span>▌ {hl.source}</span>
                             <span style={{ color: "#8A857C", fontWeight: 400 }}>
-                              {format(new Date(hl.pub_date), "d MMM", { locale: es })}
+                              {(() => {
+                                try {
+                                  const d = new Date(hl.pub_date);
+                                  if (isNaN(d.getTime())) return "";
+                                  return format(d, "d MMM", { locale: es });
+                                } catch {
+                                  return "";
+                                }
+                              })()}
                             </span>
                           </div>
                           {/* Título */}
