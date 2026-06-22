@@ -1,7 +1,7 @@
 /**
  * GET /api/external-news — Devuelve los últimos titulares agregados vía RSS.
  * Backfillea imágenes faltantes de forma síncrona (hasta 2 por request)
- * y actualiza el objeto en memoria para que la respuesta las incluya de inmediato.
+ * y las sirve a través de nuestro proxy para evitar CSP y hotlinking.
  */
 import { Router, type Request, type Response } from "express";
 import { db, externalHeadlinesTable } from "@workspace/db";
@@ -10,6 +10,19 @@ import * as cheerio from "cheerio";
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+/** Envuelve una URL externa en nuestro proxy para evitar CSP y hotlinking. */
+function proxyImageUrl(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  // Si ya es un path relativo, devolverlo tal cual
+  if (trimmed.startsWith("/")) return trimmed;
+  // Si no es http, no se puede proxear
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://"))
+    return null;
+  return `/api/proxy-image?url=${encodeURIComponent(trimmed)}`;
+}
 
 /**
  * Fetch the link URL and extract og:image, twitter:image, or first <img> inside <article>.
@@ -134,7 +147,7 @@ router.get("/external-news", async (req: Request, res: Response) => {
         source_bias: raw.source_bias ?? null,
         summary: r.summary,
         content: r.content,
-        image_url: imgUrl,
+        image_url: proxyImageUrl(imgUrl),
         slug: r.slug,
         pub_date: raw.pub_date ?? raw.pubDate ?? null,
         created_at: raw.created_at ?? raw.createdAt ?? null,

@@ -32,7 +32,11 @@ const ALLOWED_CONTENT_TYPES = new Set([
 ]);
 
 // ── Dominios permitidos ──────────────────────────────────────────────────────
+// Se permite cualquier dominio que parezca servir imágenes (media CDNs, etc.)
+// o que termine en extensión de imagen. Esto evita tener que mantener una
+// lista exhaustiva de dominios de medios peruanos e internacionales.
 const ALLOWED_IMAGE_HOSTS = new Set([
+  // Core platforms
   "medium.com",
   "miro.medium.com",
   "images.unsplash.com",
@@ -54,13 +58,60 @@ const ALLOWED_IMAGE_HOSTS = new Set([
 
 const MEDIUM_CDN_RE = /^cdn-images-\d+\.medium\.com$/i;
 
+// Patrones de CDN/hosting comunes que sirven imágenes de medios
+const CDN_PATTERNS = [
+  /\.cloudinary\.com$/i,
+  /\.akamaihd\.net$/i,
+  /\.cloudfront\.net$/i,
+  /\.fastly\.net$/i,
+  /\.kxcdn\.com$/i,
+  /\.keycdn\.com$/i,
+  /\.stackpathcdn\.com$/i,
+  /\.bunnycdn\.ru$/i,
+  /\.b-cdn\.net$/i,
+  /\.cdninstagram\.com$/i,
+  /\.fbcdn\.net$/i,
+  /\.twimg\.com$/i,
+  /\.ytimg\.com$/i,
+  /\.googleusercontent\.com$/i,
+  /\.gravatar\.com$/i,
+  /\.wp\.com$/i,
+  /\.wordpress\.com$/i,
+  /\.bbc\.co\.uk\/.*\/images\//i,
+  /\.bbc\.com\/.*\/images\//i,
+  /\.cnn\.com\/.*\/media\//i,
+  /\.nytimes\.com\/.*\/images\//i,
+  /\.reuters\.com\/.*\/images\//i,
+  /\.apnews\.com\/.*\/images\//i,
+  /\.theguardian\.com\/.*\/media\//i,
+  /\/resizer\/v2\//i, // El Comercio / Gestión resizer
+  /\/Thumbnail\//i, // Andina thumbnail
+];
+
+// Extensiones de imagen comunes
+const IMAGE_EXT_RE =
+  /\.(jpg|jpeg|png|gif|webp|avif|bmp|tiff|svg|ico|heic|heif)$/i;
+
 function isAllowedImageHost(url: string): boolean {
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname;
+
+    // Check exact hostname match
     if (ALLOWED_IMAGE_HOSTS.has(hostname)) return true;
     if (MEDIUM_CDN_RE.test(hostname)) return true;
     if (hostname.endsWith(".medium.com")) return true;
     if (hostname.endsWith(".substack.com")) return true;
+
+    // Check CDN patterns
+    for (const pattern of CDN_PATTERNS) {
+      if (pattern.test(url)) return true;
+    }
+
+    // Check image extension in path
+    if (IMAGE_EXT_RE.test(pathname)) return true;
+
     return false;
   } catch {
     return false;
@@ -153,11 +204,9 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
             { url: raw, contentLength },
             "Proxy blocked oversized response",
           );
-          res
-            .status(400)
-            .json({
-              error: "La imagen excede el tamaño máximo permitido (10 MB).",
-            });
+          res.status(400).json({
+            error: "La imagen excede el tamaño máximo permitido (10 MB).",
+          });
           return;
         }
 
@@ -169,11 +218,9 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
             { url: raw, size: buffer.length },
             "Proxy blocked oversized buffer",
           );
-          res
-            .status(400)
-            .json({
-              error: "La imagen excede el tamaño máximo permitido (10 MB).",
-            });
+          res.status(400).json({
+            error: "La imagen excede el tamaño máximo permitido (10 MB).",
+          });
           return;
         }
 
