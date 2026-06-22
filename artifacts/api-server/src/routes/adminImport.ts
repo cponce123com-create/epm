@@ -378,7 +378,8 @@ function parseMediumHtml(html: string): ParsedPost {
 // ── POST /api/admin/import-medium/prepare ────────────────────────────────────
 router.post(
   "/admin/import-medium/prepare",
-  requireAuth, requireRole("admin", "superadmin"),
+  requireAuth,
+  requireRole("admin", "superadmin"),
   upload.single("file"),
   async (req, res): Promise<void> => {
     if (!req.file) {
@@ -391,11 +392,9 @@ router.post(
     if (!autoCategorize) {
       const categoryId = parseInt((req.body.categoryId as string) ?? "0", 10);
       if (!categoryId) {
-        res
-          .status(400)
-          .json({
-            error: "Debes indicar una categoría o activar auto-categorización.",
-          });
+        res.status(400).json({
+          error: "Debes indicar una categoría o activar auto-categorización.",
+        });
         return;
       }
       const [cat] = await db
@@ -447,11 +446,9 @@ router.post(
     });
 
     if (entries.length === 0) {
-      res
-        .status(400)
-        .json({
-          error: "No se encontraron posts en la carpeta 'posts/' del ZIP.",
-        });
+      res.status(400).json({
+        error: "No se encontraron posts en la carpeta 'posts/' del ZIP.",
+      });
       return;
     }
 
@@ -496,7 +493,8 @@ router.post(
 // ── POST /api/admin/import-medium/batch ──────────────────────────────────────
 router.post(
   "/admin/import-medium/batch",
-  requireAuth, requireRole("admin", "superadmin"),
+  requireAuth,
+  requireRole("admin", "superadmin"),
   async (req, res): Promise<void> => {
     const user = (req as typeof req & { user: { userId: number } }).user;
     const body = req.body as {
@@ -531,12 +529,9 @@ router.post(
       return;
     }
     if (!autoCategorize && !categoryId) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Debes indicar una categoría cuando no hay auto-categorización.",
-        });
+      res.status(400).json({
+        error: "Debes indicar una categoría cuando no hay auto-categorización.",
+      });
       return;
     }
 
@@ -561,11 +556,9 @@ router.post(
       })
       .from(categoriesTable)) as CategoryLite[];
     if (autoCategorize && categories.length === 0) {
-      res
-        .status(400)
-        .json({
-          error: "No hay categorías configuradas para auto-clasificar.",
-        });
+      res.status(400).json({
+        error: "No hay categorías configuradas para auto-clasificar.",
+      });
       return;
     }
 
@@ -698,7 +691,8 @@ router.post(
 // ── POST /api/admin/import-medium (ruta original — mantenida por compatibilidad)
 router.post(
   "/admin/import-medium",
-  requireAuth, requireRole("admin", "superadmin"),
+  requireAuth,
+  requireRole("admin", "superadmin"),
   upload.single("file"),
   async (req, res): Promise<void> => {
     if (!req.file) {
@@ -718,11 +712,9 @@ router.post(
 
     if (!autoCategorize) {
       if (!categoryId) {
-        res
-          .status(400)
-          .json({
-            error: "Debes indicar una categoría o activar auto-categorización.",
-          });
+        res.status(400).json({
+          error: "Debes indicar una categoría o activar auto-categorización.",
+        });
         return;
       }
       const [cat] = await db
@@ -762,12 +754,10 @@ router.post(
     });
 
     if (entries.length === 0) {
-      res
-        .status(400)
-        .json({
-          error:
-            "No se encontraron entradas HTML en la carpeta 'posts/' del ZIP.",
-        });
+      res.status(400).json({
+        error:
+          "No se encontraron entradas HTML en la carpeta 'posts/' del ZIP.",
+      });
       return;
     }
 
@@ -850,7 +840,8 @@ router.post(
 // ── POST /api/admin/fix-article-images ───────────────────────────────────────
 router.post(
   "/admin/fix-article-images",
-  requireAuth, requireRole("admin", "superadmin"),
+  requireAuth,
+  requireRole("admin", "superadmin"),
   async (
     req: import("express").Request,
     res: import("express").Response,
@@ -945,6 +936,175 @@ router.post(
         .filter((d) => d.changed)
         .map((d) => ({ id: d.id, title: d.title })),
     });
+  },
+);
+
+// ── Helpers for headlines import ─────────────────────────────────────────────
+
+interface HeadlineInput {
+  title: string;
+  link?: string;
+  image_url?: string;
+  summary: string;
+  content: string;
+}
+
+/** Fetch the link URL and try to extract an og:image, twitter:image, or first <img> inside <article>. */
+async function fetchImageFromLink(link: string): Promise<string | null> {
+  try {
+    const resp = await fetch(link, {
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; EPM-Bot/1.0; +https://elprincipemestizo.eu.cc)",
+        Accept: "text/html",
+      },
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    const $ = cheerio.load(html);
+
+    // 1. <meta property="og:image" content="...">
+    const ogImg = $('meta[property="og:image"]').attr("content");
+    if (ogImg) return ogImg;
+
+    // 2. <meta name="twitter:image" content="...">
+    const twImg = $('meta[name="twitter:image"]').attr("content");
+    if (twImg) return twImg;
+
+    // 3. First <img> inside <article>
+    const articleImg = $("article img").first().attr("src");
+    if (articleImg) {
+      // resolve relative URLs
+      try {
+        return new URL(articleImg, link).href;
+      } catch {
+        return articleImg;
+      }
+    }
+
+    return null;
+  } catch (err) {
+    logger.warn({ err, link }, "[EPM Import] Failed to fetch image from link");
+    return null;
+  }
+}
+
+// ── POST /api/admin/headlines ─────────────────────────────────────────────────
+// Recibe un array de headlines (desde RSS/curador externo) y los importa.
+// Aplica fallbacks de imagen (og:image desde link) y contenido (summary si es corto).
+router.post(
+  "/admin/headlines",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const user = (req as typeof req & { user: { userId: number } }).user;
+    const { headlines, categoryId, defaultStatus } = req.body as {
+      headlines: HeadlineInput[];
+      categoryId: number;
+      defaultStatus?: "published" | "draft";
+    };
+
+    if (!headlines || !Array.isArray(headlines) || headlines.length === 0) {
+      res.status(400).json({ error: "No se recibieron headlines." });
+      return;
+    }
+
+    if (!categoryId) {
+      res.status(400).json({ error: "Debes indicar un categoryId válido." });
+      return;
+    }
+
+    const [cat] = await db
+      .select({ id: categoriesTable.id })
+      .from(categoriesTable)
+      .where(eq(categoriesTable.id, categoryId));
+    if (!cat) {
+      res
+        .status(400)
+        .json({ error: `No existe la categoría con id ${categoryId}.` });
+      return;
+    }
+
+    const results: {
+      title: string;
+      status: "imported" | "skipped";
+      reason?: string;
+    }[] = [];
+
+    for (const h of headlines) {
+      try {
+        // ── Debug log ─────────────────────────────────────────────────
+        logger.info(
+          {
+            title: h.title,
+            image_url: h.image_url ?? "",
+            content_len: (h.content ?? "").length,
+          },
+          `[EPM Import] title=${h.title} image_url=${h.image_url ?? ""} content_len=${(h.content ?? "").length}`,
+        );
+
+        // ── Req 1: image fallback ──────────────────────────────────────
+        let resolvedImageUrl = h.image_url?.trim() ?? "";
+        if (!resolvedImageUrl && h.link) {
+          const fetched = await fetchImageFromLink(h.link);
+          if (fetched) resolvedImageUrl = fetched;
+        }
+
+        // ── Req 2: content fallback ────────────────────────────────────
+        let resolvedContent = (h.content ?? "").trim();
+        if (resolvedContent.length < 100) {
+          resolvedContent = (h.summary ?? "").trim() || resolvedContent;
+        }
+
+        const slug = makeSlug(h.title);
+        const readingTime = calcReadingTime(resolvedContent);
+
+        const finalStatus = defaultStatus ?? "published";
+        const publishedAt =
+          finalStatus === "published" ? new Date() : undefined;
+
+        const [existing] = await db
+          .select({ id: articlesTable.id })
+          .from(articlesTable)
+          .where(eq(articlesTable.slug, slug));
+
+        if (existing) {
+          results.push({
+            title: h.title,
+            status: "skipped",
+            reason: "Ya existe un artículo con ese slug.",
+          });
+          continue;
+        }
+
+        await db.insert(articlesTable).values({
+          title: h.title,
+          slug,
+          summary: h.summary || h.title,
+          content: resolvedContent,
+          coverImageUrl: resolvedImageUrl || undefined,
+          categoryId,
+          authorId: user.userId,
+          featured: false,
+          status: finalStatus,
+          readingTime,
+          publishedAt,
+        });
+
+        results.push({ title: h.title, status: "imported" });
+      } catch (err) {
+        results.push({
+          title: h.title,
+          status: "skipped",
+          reason: `Error: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    }
+
+    const imported = results.filter((r) => r.status === "imported").length;
+    const skipped = results.filter((r) => r.status === "skipped").length;
+
+    res.json({ ok: true, imported, skipped, results });
   },
 );
 
