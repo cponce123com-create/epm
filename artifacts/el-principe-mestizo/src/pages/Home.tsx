@@ -191,7 +191,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${API_BASE}/api/external-news?limit=8`, {
+    fetch(`${API_BASE}/api/external-news?limit=40`, {
       signal: controller.signal,
     })
       .then((res) => {

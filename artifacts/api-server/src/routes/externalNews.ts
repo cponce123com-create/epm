@@ -8,21 +8,9 @@ import { db, externalHeadlinesTable } from "@workspace/db";
 import { desc, eq, and, sql } from "drizzle-orm";
 import * as cheerio from "cheerio";
 import { logger } from "../lib/logger";
+import { proxyImageUrl } from "../lib/imageProxy";
 
 const router = Router();
-
-/** Envuelve una URL externa en nuestro proxy para evitar CSP y hotlinking. */
-function proxyImageUrl(rawUrl: string | null | undefined): string | null {
-  if (!rawUrl) return null;
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return null;
-  // Si ya es un path relativo, devolverlo tal cual
-  if (trimmed.startsWith("/")) return trimmed;
-  // Si no es http, no se puede proxear
-  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://"))
-    return null;
-  return `/api/proxy-image?url=${encodeURIComponent(trimmed)}`;
-}
 
 /**
  * Fetch the link URL and extract og:image, twitter:image, or first <img> inside <article>.

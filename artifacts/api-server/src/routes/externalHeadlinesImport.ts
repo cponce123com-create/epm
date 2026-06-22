@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import crypto from "crypto";
 import * as cheerio from "cheerio";
 import { logger } from "../lib/logger";
+import { proxyImageUrl } from "../lib/imageProxy";
 
 const router = Router();
 
@@ -156,15 +157,31 @@ router.post(
 router.get("/external-headlines/:slug", async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const [headline] = await db
+    const [row] = await db
       .select()
       .from(externalHeadlinesTable)
       .where(eq(externalHeadlinesTable.slug, slug))
       .limit(1);
 
-    if (!headline) {
+    if (!row) {
       return res.status(404).json({ error: "Noticia no encontrada" });
     }
+
+    const raw = row as Record<string, any>;
+    const headline = {
+      id: row.id,
+      title: row.title,
+      link: row.link,
+      source: row.source,
+      source_bias: raw.source_bias ?? null,
+      summary: row.summary,
+      content: row.content,
+      image_url: proxyImageUrl(raw.image_url ?? raw.imageUrl ?? null),
+      slug: row.slug,
+      pub_date: raw.pub_date ?? raw.pubDate ?? null,
+      created_at: raw.created_at ?? raw.createdAt ?? null,
+    };
+
     res.json(headline);
   } catch (err) {
     logger.error(
