@@ -610,7 +610,7 @@ export default function Home() {
                   link="/noticias"
                   linkLabel="Ver más →"
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-6">
                   {externalHeadlines.map((hl) => (
                     <a
                       key={hl.id}
