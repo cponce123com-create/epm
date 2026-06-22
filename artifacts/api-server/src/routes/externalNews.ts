@@ -1,6 +1,7 @@
 /**
  * GET /api/external-news — Devuelve los últimos titulares agregados vía RSS.
- * Backfillea imágenes faltantes de forma lazy (máx 3 por request) y las guarda en DB.
+ * Backfillea imágenes faltantes de forma síncrona (hasta 2 por request)
+ * y actualiza el objeto en memoria para que la respuesta las incluya de inmediato.
  */
 import { Router, type Request, type Response } from "express";
 import { db, externalHeadlinesTable } from "@workspace/db";
@@ -12,11 +13,12 @@ const router = Router();
 
 /**
  * Fetch the link URL and extract og:image, twitter:image, or first <img> inside <article>.
+ * Retorna null si no encuentra o falla.
  */
 async function fetchImageFromLink(link: string): Promise<string | null> {
   try {
     const resp = await fetch(link, {
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(10_000),
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; EPM-Bot/1.0; +https://elprincipemestizo.eu.cc)",
@@ -27,12 +29,15 @@ async function fetchImageFromLink(link: string): Promise<string | null> {
     const html = await resp.text();
     const $ = cheerio.load(html);
 
+    // 1. Open Graph
     const ogImg = $('meta[property="og:image"]').attr("content");
-    if (ogImg) return ogImg;
+    if (ogImg?.startsWith("http")) return ogImg;
 
+    // 2. Twitter
     const twImg = $('meta[name="twitter:image"]').attr("content");
-    if (twImg) return twImg;
+    if (twImg?.startsWith("http")) return twImg;
 
+    // 3. Primer <img> dentro de <article>
     const articleImg = $("article img").first().attr("src");
     if (articleImg) {
       try {
@@ -42,8 +47,19 @@ async function fetchImageFromLink(link: string): Promise<string | null> {
       }
     }
 
+    // 4. Primer <img> en toda la página (último recurso)
+    const anyImg = $("img").first().attr("src");
+    if (anyImg) {
+      try {
+        return new URL(anyImg, link).href;
+      } catch {
+        return anyImg;
+      }
+    }
+
     return null;
-  } catch {
+  } catch (err) {
+    logger.warn({ err, link }, "[EPM] fetchImageFromLink failed");
     return null;
   }
 }
@@ -57,24 +73,21 @@ router.get("/external-news", async (req: Request, res: Response) => {
     );
     const source = req.query["source"] as string | undefined;
 
-    // Build filters
     const filters: ReturnType<typeof eq>[] = [];
     if (source) {
       filters.push(eq(externalHeadlinesTable.source, source));
     }
-
     const where = filters.length > 0 ? and(...filters) : undefined;
 
-    // Get total count
+    // ── Total count ─────────────────────────────────────────────────
     const [{ count }] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(externalHeadlinesTable)
       .where(where);
-
     const total = Number(count);
     const totalPages = Math.ceil(total / limit);
 
-    // Get headlines
+    // ── Fetch rows ──────────────────────────────────────────────────
     const rows = await db
       .select()
       .from(externalHeadlinesTable)
@@ -83,52 +96,52 @@ router.get("/external-news", async (req: Request, res: Response) => {
       .limit(limit)
       .offset((page - 1) * limit);
 
-    // Normalizar a snake_case para el frontend
-    const headlines = rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      link: r.link,
-      source: r.source,
-      source_bias: (r as any).source_bias ?? null,
-      summary: r.summary,
-      content: r.content,
-      image_url: (r as any).image_url ?? r.imageUrl ?? null,
-      slug: r.slug,
-      pub_date: (r as any).pub_date ?? r.pubDate ?? null,
-      created_at: (r as any).created_at ?? r.createdAt ?? null,
-    }));
+    // ── Mapear a snake_case + backfill síncrono ─────────────────────
+    const headlines: Record<string, any>[] = [];
+    let backfilled = 0;
 
-    // ── Lazy image backfill: headlines sin imagen ──────────────────────
-    // Solo en página 1 y máx 3 headlines por request para no bloquear
-    const backfillCandidates =
-      page === 1
-        ? headlines.filter((h: any) => !h.image_url && h.link).slice(0, 3)
-        : [];
+    for (const r of rows) {
+      const raw: Record<string, any> = r as any;
 
-    if (backfillCandidates.length > 0) {
-      // Disparar en background (no await) — no bloqueamos la respuesta
-      Promise.all(
-        backfillCandidates.map(async (hl: any) => {
-          try {
-            const img = await fetchImageFromLink(hl.link);
-            if (img) {
-              await db
-                .update(externalHeadlinesTable)
-                .set({ imageUrl: img.slice(0, 1024) })
-                .where(eq(externalHeadlinesTable.id, hl.id));
-              logger.info(
-                { id: hl.id, title: hl.title },
-                "[EPM] Backfilled image",
-              );
-            }
-          } catch {
-            // silencio
-          }
-        }),
-      ).catch(() => {});
+      // Intentar leer el image_url desde camelCase (Drizzle) o snake_case (raw DB)
+      let imgUrl = raw.image_url ?? raw.imageUrl ?? null;
+
+      // Si no tiene imagen y estamos en página 1 (máx 2 backfills por request)
+      if (!imgUrl && r.link && page === 1 && backfilled < 2) {
+        const fetched = await fetchImageFromLink(r.link);
+        if (fetched) {
+          imgUrl = fetched.slice(0, 1024);
+
+          // Guardar en DB en background (no bloqueamos)
+          db.update(externalHeadlinesTable)
+            .set({ imageUrl: imgUrl })
+            .where(eq(externalHeadlinesTable.id, r.id))
+            .catch(() => {});
+
+          backfilled++;
+          logger.info(
+            { id: r.id, title: r.title },
+            "[EPM] Backfilled image sync",
+          );
+        }
+      }
+
+      headlines.push({
+        id: r.id,
+        title: r.title,
+        link: r.link,
+        source: r.source,
+        source_bias: raw.source_bias ?? null,
+        summary: r.summary,
+        content: r.content,
+        image_url: imgUrl,
+        slug: r.slug,
+        pub_date: raw.pub_date ?? raw.pubDate ?? null,
+        created_at: raw.created_at ?? raw.createdAt ?? null,
+      });
     }
 
-    // Get distinct sources for filter dropdown
+    // ── Sources ─────────────────────────────────────────────────────
     const sources = await db
       .select({ name: externalHeadlinesTable.source })
       .from(externalHeadlinesTable)
