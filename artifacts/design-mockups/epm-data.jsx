@@ -71,34 +71,11 @@ const SUB_FEATURED = ARTICLES.filter(a => !a.featured).slice(0, 2);
 const LATEST = ARTICLES.slice(1);
 
 const CATEGORIES = [
-  { name: 'Denuncia', color: '#B22222', count: 23 },
-  { name: 'Investigación', color: '#1E8449', count: 14 },
-  { name: 'Opinión', color: '#2471A3', count: 31 },
-  { name: 'Ciudad', color: '#7D3C98', count: 18 },
-  { name: 'Política', color: '#CA6F1E', count: 12 },
+  { name: 'Denuncia', color: '#B22222', count: 3 },
+  { name: 'Investigación', color: '#1E8449', count: 2 },
+  { name: 'Ciudad', color: '#7D3C98', count: 2 },
+  { name: 'Opinión', color: '#2471A3', count: 2 },
+  { name: 'Política', color: '#CA6F1E', count: 1 },
 ];
 
-const MOST_READ = [...ARTICLES].sort((a,b)=>b.views-a.views).slice(0,5);
-
-const BREAKING = [
-  'ÚLTIMA HORA · Concejo municipal aplaza por tercera vez la sesión sobre el malecón',
-  'EXCLUSIVO · La Contraloría confirma observaciones por S/ 1.2 M en obras de saneamiento',
-  'EN VIVO · Productores de café marchan hacia la Plaza Principal de San Ramón',
-  'INVESTIGACIÓN · Tres consultores externos cobraron sin entregar productos',
-];
-
-const COLUMNS = [
-  { author:'El Príncipe Mestizo', role:'Editor', title:'Cuando el silencio municipal se vuelve política pública', date:'28 abr' },
-  { author:'El Príncipe Mestizo', role:'Editor', title:'La selva central no es un decorado electoral', date:'25 abr' },
-  { author:'El Príncipe Mestizo', role:'Editor', title:'Lo que aprendí de Chanchamayo en cinco años de columnas', date:'21 abr' },
-];
-
-const PODCAST = {
-  ep: 'EP. 12',
-  title: '¿Quién paga las consultorías fantasma del municipio?',
-  duration: '38 min',
-  date: '27 abr 2026',
-  desc: 'Conversamos con un ex funcionario que prefiere mantener el anonimato sobre la trama de pagos por productos que nunca se entregaron.',
-};
-
-Object.assign(window, { ARTICLES, FEATURED, SUB_FEATURED, LATEST, CATEGORIES, MOST_READ, BREAKING, COLUMNS, PODCAST });
+export { ARTICLES, FEATURED, SUB_FEATURED, LATEST, CATEGORIES };
