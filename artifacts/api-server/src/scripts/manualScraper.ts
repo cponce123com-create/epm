@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 /**
  * Manual RSS Scraper — Script para pruebas locales.
  * Uso: pnpm --filter @workspace/api-server run scraper:run
@@ -55,7 +55,10 @@ Found ${headlines.length} headlines total`);
               pubDate: h.pubDate,
             })
             .onConflictDoNothing({
-              target: [externalHeadlinesTable.source, externalHeadlinesTable.link],
+              target: [
+                externalHeadlinesTable.source,
+                externalHeadlinesTable.link,
+              ],
             });
           saved++;
         } catch {
@@ -70,8 +73,7 @@ Found ${headlines.length} headlines total`);
     console.log("Set DATABASE_URL in .env to persist headlines");
   }
 
-  console.log("
-Done.");
+  console.log("Done.");
 }
 
 main().catch((err) => {
