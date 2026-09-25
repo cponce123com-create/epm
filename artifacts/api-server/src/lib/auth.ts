@@ -12,7 +12,7 @@ const CLOCK_TOLERANCE_SEC = 60; // tolerancia de reloj
 
 export interface JwtPayload {
   userId: number; // id de usuario (claim personalizado, legible desde el frontend)
-  sub?: string | number; // claim estándar RFC 7519 (mantiene valor por compatibilidad)
+  sub: number; // claim estándar RFC 7519 (mismo valor que userId)
   email: string;
   role: string;
   tokenVersion: number;
