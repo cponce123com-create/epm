@@ -537,12 +537,12 @@ function AuthorAvatar({
 
 export default function Article() {
   const { slug } = useParams<{ slug: string }>();
-  // @ts-ignore
   const { data: article, isLoading, isError } = useGetArticleBySlug(slug!, {
-    enabled: !!slug,
-    // @ts-ignore
+    query: { queryKey: ["/api/articles/slug", slug], enabled: !!slug },
   });
-  const { data: related } = useGetRelatedArticles(slug!);
+  const { data: related } = useGetRelatedArticles(slug!, {
+    query: { queryKey: ["/api/articles", slug, "related"], enabled: !!slug },
+  });
   const { data: siteSettings } = useGetPublicSettings();
 
   const contentRef = useRef<HTMLDivElement>(null);

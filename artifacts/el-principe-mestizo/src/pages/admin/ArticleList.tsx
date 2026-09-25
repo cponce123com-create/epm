@@ -42,7 +42,11 @@ export default function ArticleList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+    // Also refresh public listings (Home, Category, Search) after publish/delete changes
+    queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+  };
 
   const handleDelete = async (id: number, title: string) => {
     if (!confirm(`¿Eliminar "${title}"? Esta acción no se puede deshacer.`)) return;
