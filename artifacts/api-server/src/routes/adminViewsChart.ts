@@ -1,11 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, articleViewsTable } from "@workspace/db";
 import { sql, gte, count } from "drizzle-orm";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
 router.get(
   "/admin/views-chart",
+  requireAuth,
   async (_req: Request, res: Response): Promise<void> => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
