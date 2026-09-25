@@ -14,8 +14,7 @@ export default function Category() {
   const { data: categories } = useGetCategories();
   const { data: articlesPage, isLoading } = useGetArticles(
     { page, limit: 12, category: slug },
-  // @ts-ignore
-    { enabled: !!slug }
+    { query: { queryKey: ["/api/articles", { page, limit: 12, category: slug }], enabled: !!slug } }
   );
 
   const category = categories?.find(c => c.slug === slug);

@@ -23,8 +23,7 @@ export default function Search() {
 
   const { data: results, isLoading } = useGetArticles(
     { search: debouncedQuery, limit: 20 },
-  // @ts-ignore
-    { enabled: debouncedQuery.length > 1 }
+    { query: { queryKey: ["/api/articles", { search: debouncedQuery, limit: 20 }], enabled: debouncedQuery.length > 1 } }
   );
 
   return (
