@@ -1,7 +1,23 @@
 import { useState, useEffect, useRef } from "react";
-import { Save, Upload, Globe, Palette, FileText, Share2, Mail, Shield, User, Megaphone, ChevronRight, Eye } from "lucide-react";
+import {
+  Save,
+  Upload,
+  Globe,
+  Palette,
+  FileText,
+  Share2,
+  Mail,
+  Shield,
+  User,
+  Megaphone,
+  ChevronRight,
+  Eye,
+} from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAdminGetSettings, useAdminUpdateSettings } from "@workspace/api-client-react";
+import {
+  useAdminGetSettings,
+  useAdminUpdateSettings,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,6 +52,11 @@ interface FormState {
   aboutPhotoUrl: string;
   aboutRole: string;
   aboutLandscapeUrl: string;
+  // IDs de slots AdSense
+  adSlot1Id: string;
+  adSlot2Id: string;
+  adSlot3Id: string;
+  adSlot4Id: string;
   // Publicidad manual
   adBanner1Url: string;
   adBanner1Link: string;
@@ -86,6 +107,11 @@ const KEY_MAP: Record<keyof FormState, string> = {
   aboutText: "about_text",
   aboutPhotoUrl: "about_photo_url",
   aboutRole: "about_role",
+  aboutLandscapeUrl: "about_landscape_url",
+  adSlot1Id: "ad_slot_1_id",
+  adSlot2Id: "ad_slot_2_id",
+  adSlot3Id: "ad_slot_3_id",
+  adSlot4Id: "ad_slot_4_id",
   adBanner1Url: "ad_banner_1_url",
   adBanner1Link: "ad_banner_1_link",
   adBanner1Alt: "ad_banner_1_alt",
@@ -109,8 +135,16 @@ const KEY_MAP: Record<keyof FormState, string> = {
 };
 
 // ── ImageUpload ────────────────────────────────────────────────────────────
-function ImageUpload({ label, value, hint, onChange }: {
-  label: string; value: string; hint?: string; onChange: (url: string) => void;
+function ImageUpload({
+  label,
+  value,
+  hint,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  onChange: (url: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -130,12 +164,16 @@ function ImageUpload({ label, value, hint, onChange }: {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Error al subir");
+      if (!res.ok)
+        throw new Error((await res.json()).error || "Error al subir");
       const data = await res.json();
       onChange(data.url);
       toast({ description: "Imagen subida correctamente." });
     } catch (err: any) {
-      toast({ description: err?.message ?? "Error al subir", variant: "destructive" });
+      toast({
+        description: err?.message ?? "Error al subir",
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -151,7 +189,7 @@ function ImageUpload({ label, value, hint, onChange }: {
         <input
           type="url"
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           placeholder="https://... o sube una imagen →"
           className="flex-1 px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         />
@@ -164,21 +202,43 @@ function ImageUpload({ label, value, hint, onChange }: {
           <Upload size={13} />
           {uploading ? "Subiendo…" : "Subir"}
         </button>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFile}
+        />
       </div>
       {value && (
         <div className="flex items-center gap-3 p-2 bg-muted/40 rounded-md border border-border">
-          <img src={value} alt={label} className="h-12 w-auto rounded object-contain bg-white" onError={e => (e.currentTarget.style.display = "none")} />
-          <span className="text-xs text-muted-foreground font-sans-ui truncate">{value}</span>
+          <img
+            src={value}
+            alt={label}
+            className="h-12 w-auto rounded object-contain bg-white"
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          />
+          <span className="text-xs text-muted-foreground font-sans-ui truncate">
+            {value}
+          </span>
         </div>
       )}
-      {hint && <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>
+      )}
     </div>
   );
 }
 
 // ── AdBannerCard ─────────────────────────────────────────────────────────
-function AdBannerCard({ num, urlKey, linkKey, altKey, form, set }: {
+function AdBannerCard({
+  num,
+  urlKey,
+  linkKey,
+  altKey,
+  form,
+  set,
+}: {
   num: number;
   urlKey: keyof FormState;
   linkKey: keyof FormState;
@@ -191,7 +251,12 @@ function AdBannerCard({ num, urlKey, linkKey, altKey, form, set }: {
       <div className="flex items-center justify-between">
         <span className="text-sm font-sans-ui font-semibold">Banner {num}</span>
         {form[urlKey] && (
-          <a href={form[urlKey]} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+          <a
+            href={form[urlKey]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+          >
             <Eye size={12} /> Vista previa
           </a>
         )}
@@ -209,7 +274,7 @@ function AdBannerCard({ num, urlKey, linkKey, altKey, form, set }: {
         <input
           type="url"
           value={form[linkKey]}
-          onChange={e => set(linkKey)(e.target.value)}
+          onChange={(e) => set(linkKey)(e.target.value)}
           placeholder="https://..."
           className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         />
@@ -221,7 +286,7 @@ function AdBannerCard({ num, urlKey, linkKey, altKey, form, set }: {
         <input
           type="text"
           value={form[altKey]}
-          onChange={e => set(altKey)(e.target.value)}
+          onChange={(e) => set(altKey)(e.target.value)}
           placeholder="Descripción breve del anuncio"
           className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
         />
@@ -237,23 +302,68 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  type TabId = "general" | "header" | "visual" | "about" | "ads" | "social" | "footer" | "seo" | "smtp";
+  type TabId =
+    | "general"
+    | "header"
+    | "visual"
+    | "about"
+    | "ads"
+    | "social"
+    | "footer"
+    | "seo"
+    | "smtp";
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [saving, setSaving] = useState(false);
 
   const INITIAL: FormState = {
-    siteName: "", siteTagline: "", siteDescription: "", siteUrl: "", contactEmail: "",
-    logoUrl: "", faviconUrl: "", ogImage: "", headerTopText: "",
-    twitterUrl: "", facebookUrl: "", youtubeUrl: "", instagramUrl: "", tiktokUrl: "",
-    footerText: "", footerCopyright: "", footerLocation: "", footerContactEmail: "", footerShowSections: "true",
-    aboutTitle: "", aboutText: "", aboutPhotoUrl: "", aboutRole: "",
-    adBanner1Url: "", adBanner1Link: "", adBanner1Alt: "",
-    adBanner2Url: "", adBanner2Link: "", adBanner2Alt: "",
-    adBanner3Url: "", adBanner3Link: "", adBanner3Alt: "",
-    adsMode: "disabled", adSlot1Image: "", adSlot1Link: "", adSlot1Alt: "",
-    adSlot2Image: "", adSlot2Link: "", adSlot2Alt: "",
-    adCode1: "", adCode2: "",
-    metaKeywords: "", adsenseClient: "",
+    siteName: "",
+    siteTagline: "",
+    siteDescription: "",
+    siteUrl: "",
+    contactEmail: "",
+    logoUrl: "",
+    faviconUrl: "",
+    ogImage: "",
+    headerTopText: "",
+    twitterUrl: "",
+    facebookUrl: "",
+    youtubeUrl: "",
+    instagramUrl: "",
+    tiktokUrl: "",
+    footerText: "",
+    footerCopyright: "",
+    footerLocation: "",
+    footerContactEmail: "",
+    footerShowSections: "true",
+    aboutTitle: "",
+    aboutText: "",
+    aboutPhotoUrl: "",
+    aboutRole: "",
+    aboutLandscapeUrl: "",
+    adSlot1Id: "",
+    adSlot2Id: "",
+    adSlot3Id: "",
+    adSlot4Id: "",
+    adBanner1Url: "",
+    adBanner1Link: "",
+    adBanner1Alt: "",
+    adBanner2Url: "",
+    adBanner2Link: "",
+    adBanner2Alt: "",
+    adBanner3Url: "",
+    adBanner3Link: "",
+    adBanner3Alt: "",
+    adsMode: "disabled",
+    adSlot1Image: "",
+    adSlot1Link: "",
+    adSlot1Alt: "",
+    adSlot2Image: "",
+    adSlot2Link: "",
+    adSlot2Alt: "",
+    adCode1: "",
+    adCode2: "",
+    metaKeywords: "",
+    adsenseClient: "",
   };
 
   const [form, setForm] = useState<FormState>(INITIAL);
@@ -261,7 +371,7 @@ export default function Settings() {
   useEffect(() => {
     if (settings) {
       const s = settings as any;
-      setForm(f => ({
+      setForm((f) => ({
         ...f,
         siteName: s.siteName ?? "",
         siteTagline: s.siteTagline ?? "",
@@ -316,7 +426,7 @@ export default function Settings() {
   }, [settings]);
 
   const set = (key: keyof FormState) => (val: string) =>
-    setForm(f => ({ ...f, [key]: val }));
+    setForm((f) => ({ ...f, [key]: val }));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,7 +441,11 @@ export default function Settings() {
         errors++;
         // Si es error 403, es problema de permisos (requiere superadmin)
         if (err?.status === 403 || err?.message?.includes("403")) {
-          toast({ description: "⚠️ No tienes permisos de superadmin. Solo el superadmin puede cambiar la configuración.", variant: "destructive" });
+          toast({
+            description:
+              "⚠️ No tienes permisos de superadmin. Solo el superadmin puede cambiar la configuración.",
+            variant: "destructive",
+          });
           setSaving(false);
           return;
         }
@@ -342,54 +456,78 @@ export default function Settings() {
     if (errors === 0) {
       toast({ description: "✅ Configuración guardada correctamente." });
     } else {
-      toast({ description: `⚠️ Guardado parcial — ${errors} campo(s) no se pudieron guardar.`, variant: "destructive" });
+      toast({
+        description: `⚠️ Guardado parcial — ${errors} campo(s) no se pudieron guardar.`,
+        variant: "destructive",
+      });
     }
     setSaving(false);
   };
 
-  const field = (key: keyof FormState, label: string, opts?: { placeholder?: string; hint?: string; type?: string }) => (
+  const field = (
+    key: keyof FormState,
+    label: string,
+    opts?: { placeholder?: string; hint?: string; type?: string },
+  ) => (
     <div className="space-y-1.5">
-      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </label>
       <input
         type={opts?.type ?? "text"}
         value={form[key]}
-        onChange={e => set(key)(e.target.value)}
+        onChange={(e) => set(key)(e.target.value)}
         placeholder={opts?.placeholder}
         className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
       />
-      {opts?.hint && <p className="text-xs font-sans-ui text-muted-foreground">{opts.hint}</p>}
+      {opts?.hint && (
+        <p className="text-xs font-sans-ui text-muted-foreground">
+          {opts.hint}
+        </p>
+      )}
     </div>
   );
 
-  const textarea = (key: keyof FormState, label: string, rows = 4, hint?: string) => (
+  const textarea = (
+    key: keyof FormState,
+    label: string,
+    rows = 4,
+    hint?: string,
+  ) => (
     <div className="space-y-1.5">
-      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+      <label className="block text-xs font-sans-ui font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </label>
       <textarea
         value={form[key]}
-        onChange={e => set(key)(e.target.value)}
+        onChange={(e) => set(key)(e.target.value)}
         rows={rows}
         className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
       />
-      {hint && <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p className="text-xs font-sans-ui text-muted-foreground">{hint}</p>
+      )}
     </div>
   );
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: "general",  label: "General",      icon: <Globe size={14} /> },
-    { id: "header",   label: "Cabecera",     icon: <ChevronRight size={14} /> },
-    { id: "visual",   label: "Identidad",    icon: <Palette size={14} /> },
-    { id: "about",    label: "Acerca de",    icon: <User size={14} /> },
-    { id: "ads",      label: "Publicidad",   icon: <Megaphone size={14} /> },
-    { id: "social",   label: "Redes",        icon: <Share2 size={14} /> },
-    { id: "footer",   label: "Footer",       icon: <FileText size={14} /> },
-    { id: "seo",      label: "SEO",          icon: <Shield size={14} /> },
+    { id: "general", label: "General", icon: <Globe size={14} /> },
+    { id: "header", label: "Cabecera", icon: <ChevronRight size={14} /> },
+    { id: "visual", label: "Identidad", icon: <Palette size={14} /> },
+    { id: "about", label: "Acerca de", icon: <User size={14} /> },
+    { id: "ads", label: "Publicidad", icon: <Megaphone size={14} /> },
+    { id: "social", label: "Redes", icon: <Share2 size={14} /> },
+    { id: "footer", label: "Footer", icon: <FileText size={14} /> },
+    { id: "seo", label: "SEO", icon: <Shield size={14} /> },
   ];
 
   return (
     <AdminLayout>
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
-          <h1 className="font-display text-2xl font-bold">Superadministración</h1>
+          <h1 className="font-display text-2xl font-bold">
+            Superadministración
+          </h1>
           <p className="text-sm font-sans-ui text-muted-foreground mt-0.5">
             Controla todos los aspectos de tu portal
           </p>
@@ -397,13 +535,15 @@ export default function Settings() {
 
         {isLoading ? (
           <div className="space-y-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
+            ))}
           </div>
         ) : (
           <form onSubmit={handleSave}>
             {/* Tabs */}
             <div className="flex flex-wrap gap-1 mb-6 border-b border-border pb-3">
-              {TABS.map(tab => (
+              {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -426,16 +566,28 @@ export default function Settings() {
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Información general
                 </h2>
-                {field("siteName", "Nombre del sitio", { placeholder: "El Príncipe Mestizo" })}
+                {field("siteName", "Nombre del sitio", {
+                  placeholder: "El Príncipe Mestizo",
+                })}
                 {field("siteTagline", "Eslogan / tagline", {
-                  placeholder: "Comunicador ciudadano independiente desde Chanchamayo",
+                  placeholder:
+                    "Comunicador ciudadano independiente desde Chanchamayo",
                   hint: "Aparece debajo del nombre en el encabezado.",
                 })}
-                {textarea("siteDescription", "Descripción del sitio", 3,
-                  "Aparece en Google y al compartir en redes sociales."
+                {textarea(
+                  "siteDescription",
+                  "Descripción del sitio",
+                  3,
+                  "Aparece en Google y al compartir en redes sociales.",
                 )}
-                {field("siteUrl", "URL principal", { placeholder: "https://elprincipemestizo.eu.cc", type: "url" })}
-                {field("contactEmail", "Correo de contacto", { type: "email", placeholder: "correo@ejemplo.com" })}
+                {field("siteUrl", "URL principal", {
+                  placeholder: "https://elprincipemestizo.eu.cc",
+                  type: "url",
+                })}
+                {field("contactEmail", "Correo de contacto", {
+                  type: "email",
+                  placeholder: "correo@ejemplo.com",
+                })}
               </div>
             )}
 
@@ -446,16 +598,30 @@ export default function Settings() {
                   Textos de la cabecera
                 </h2>
                 {field("headerTopText", "Texto barra superior", {
-                  placeholder: "San Ramón, Chanchamayo · Comunicador ciudadano independiente",
+                  placeholder:
+                    "San Ramón, Chanchamayo · Comunicador ciudadano independiente",
                   hint: "Aparece en la franja oscura superior del encabezado. Si lo dejas vacío se usa el texto por defecto.",
                 })}
                 <div className="rounded-md bg-muted/50 border border-border p-3 text-xs font-sans-ui text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">Ejemplo actual:</p>
-                  <p className="italic">San Ramón, Chanchamayo · Comunicación ciudadana independiente</p>
-                  <p className="font-semibold text-foreground mt-2">Puedes cambiarlo a:</p>
-                  <p className="italic">San Ramón, Chanchamayo · Comunicador y columnista ciudadano</p>
-                  <p className="italic">San Ramón, Chanchamayo · Opinión y denuncia ciudadana</p>
-                  <p className="italic">San Ramón, Chanchamayo · Crítico y comunicador ciudadano</p>
+                  <p className="font-semibold text-foreground">
+                    Ejemplo actual:
+                  </p>
+                  <p className="italic">
+                    San Ramón, Chanchamayo · Comunicación ciudadana
+                    independiente
+                  </p>
+                  <p className="font-semibold text-foreground mt-2">
+                    Puedes cambiarlo a:
+                  </p>
+                  <p className="italic">
+                    San Ramón, Chanchamayo · Comunicador y columnista ciudadano
+                  </p>
+                  <p className="italic">
+                    San Ramón, Chanchamayo · Opinión y denuncia ciudadana
+                  </p>
+                  <p className="italic">
+                    San Ramón, Chanchamayo · Crítico y comunicador ciudadano
+                  </p>
                 </div>
               </div>
             )}
@@ -487,9 +653,12 @@ export default function Settings() {
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Página «Acerca de»
                 </h2>
-                {field("aboutTitle", "Tu nombre o alias", { placeholder: "Carlos Ponce" })}
+                {field("aboutTitle", "Tu nombre o alias", {
+                  placeholder: "Carlos Ponce",
+                })}
                 {field("aboutRole", "Tu rol / descripción corta", {
-                  placeholder: "Comunicador ciudadano · Columnista · Crítico social",
+                  placeholder:
+                    "Comunicador ciudadano · Columnista · Crítico social",
                   hint: "Aparece debajo de tu nombre como subtítulo.",
                 })}
                 <ImageUpload
@@ -498,17 +667,33 @@ export default function Settings() {
                   hint="Foto tuya o imagen representativa. Recomendado: cuadrada, mínimo 400×400 px."
                   onChange={set("aboutPhotoUrl")}
                 />
-                {textarea("aboutText", "Texto de presentación", 12,
-                  "Cuéntale a tus lectores quién eres, por qué escribes y qué encuentran en este espacio. Puedes usar saltos de línea."
+                {textarea(
+                  "aboutText",
+                  "Texto de presentación",
+                  12,
+                  "Cuéntale a tus lectores quién eres, por qué escribes y qué encuentran en este espacio. Puedes usar saltos de línea.",
                 )}
                 {form.aboutPhotoUrl && (
                   <div className="rounded-md bg-muted/40 border border-border p-4">
-                    <p className="text-xs font-sans-ui text-muted-foreground mb-3 font-semibold">Vista previa:</p>
+                    <p className="text-xs font-sans-ui text-muted-foreground mb-3 font-semibold">
+                      Vista previa:
+                    </p>
                     <div className="flex items-start gap-4">
-                      <img src={form.aboutPhotoUrl} alt="Foto de perfil" className="w-20 h-20 rounded-full object-cover border-2 border-border" onError={e => (e.currentTarget.style.display = "none")} />
+                      <img
+                        src={form.aboutPhotoUrl}
+                        alt="Foto de perfil"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-border"
+                        onError={(e) =>
+                          (e.currentTarget.style.display = "none")
+                        }
+                      />
                       <div>
-                        <p className="font-display font-bold text-lg">{form.aboutTitle || "Tu nombre"}</p>
-                        <p className="text-sm text-muted-foreground font-sans-ui">{form.aboutRole || "Tu rol"}</p>
+                        <p className="font-display font-bold text-lg">
+                          {form.aboutTitle || "Tu nombre"}
+                        </p>
+                        <p className="text-sm text-muted-foreground font-sans-ui">
+                          {form.aboutRole || "Tu rol"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -543,7 +728,7 @@ export default function Settings() {
                   </label>
                   <select
                     value={form.adsMode}
-                    onChange={e => set("adsMode")(e.target.value)}
+                    onChange={(e) => set("adsMode")(e.target.value)}
                     className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="disabled">Desactivada</option>
@@ -568,20 +753,30 @@ export default function Settings() {
                         IDs de slot (opcional)
                       </h4>
                       <p className="text-xs font-sans-ui text-muted-foreground">
-                        Si querés usar slots manuales en lugar de anuncios automáticos, ingresá los IDs que aparecen en tu panel de AdSense.
+                        Si querés usar slots manuales en lugar de anuncios
+                        automáticos, ingresá los IDs que aparecen en tu panel de
+                        AdSense.
                       </p>
                       {field("adSlot1Id", "Slot líder (leaderboard / 728×90)", {
                         placeholder: "ej: 1234567890",
                         hint: "Se muestra en portada y entre artículos.",
                       })}
-                      {field("adSlot2Id", "Slot horizontal (in-article / 728×90)", {
-                        placeholder: "ej: 1234567891",
-                        hint: "Se muestra dentro del artículo.",
-                      })}
-                      {field("adSlot3Id", "Slot rectángulo (sidebar / 300×250)", {
-                        placeholder: "ej: 1234567892",
-                        hint: "Se muestra en la barra lateral.",
-                      })}
+                      {field(
+                        "adSlot2Id",
+                        "Slot horizontal (in-article / 728×90)",
+                        {
+                          placeholder: "ej: 1234567891",
+                          hint: "Se muestra dentro del artículo.",
+                        },
+                      )}
+                      {field(
+                        "adSlot3Id",
+                        "Slot rectángulo (sidebar / 300×250)",
+                        {
+                          placeholder: "ej: 1234567892",
+                          hint: "Se muestra en la barra lateral.",
+                        },
+                      )}
                       {field("adSlot4Id", "Slot vertical (sidebar / 160×600)", {
                         placeholder: "ej: 1234567893",
                         hint: "Se muestra en la barra lateral (formato vertical).",
@@ -614,7 +809,7 @@ export default function Settings() {
                       <input
                         type="url"
                         value={form.adSlot1Link}
-                        onChange={e => set("adSlot1Link")(e.target.value)}
+                        onChange={(e) => set("adSlot1Link")(e.target.value)}
                         placeholder="https://..."
                         className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                       />
@@ -642,7 +837,7 @@ export default function Settings() {
                       <input
                         type="url"
                         value={form.adSlot2Link}
-                        onChange={e => set("adSlot2Link")(e.target.value)}
+                        onChange={(e) => set("adSlot2Link")(e.target.value)}
                         placeholder="https://..."
                         className="w-full px-3 py-2 text-sm font-sans-ui border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                       />
@@ -659,12 +854,13 @@ export default function Settings() {
                         Código HTML/JS — Banner horizontal / leaderboard
                       </h3>
                       <p className="text-xs font-sans-ui text-muted-foreground mt-1">
-                        Pegá el código de tu red publicitaria (ej: PropellerAds, Adsterra, etc). Se muestra en portada y artículos.
+                        Pegá el código de tu red publicitaria (ej: PropellerAds,
+                        Adsterra, etc). Se muestra en portada y artículos.
                       </p>
                     </div>
                     <textarea
                       value={form.adCode1}
-                      onChange={e => set("adCode1")(e.target.value)}
+                      onChange={(e) => set("adCode1")(e.target.value)}
                       rows={6}
                       placeholder='<script src="https://..." async></script>'
                       className="w-full px-3 py-2 text-xs font-mono border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
@@ -680,7 +876,7 @@ export default function Settings() {
                     </div>
                     <textarea
                       value={form.adCode2}
-                      onChange={e => set("adCode2")(e.target.value)}
+                      onChange={(e) => set("adCode2")(e.target.value)}
                       rows={6}
                       placeholder='<script src="https://..." async></script>'
                       className="w-full px-3 py-2 text-xs font-mono border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
@@ -694,14 +890,36 @@ export default function Settings() {
                     Banners manuales (sidebar, modo legacy)
                   </h3>
                   <p className="text-xs font-sans-ui text-muted-foreground mb-4">
-                    Estos banners siempre aparecen en la barra lateral, independientemente del modo elegido arriba.
+                    Estos banners siempre aparecen en la barra lateral,
+                    independientemente del modo elegido arriba.
                   </p>
-                  <AdBannerCard num={1} urlKey="adBanner1Url" linkKey="adBanner1Link" altKey="adBanner1Alt" form={form} set={set} />
+                  <AdBannerCard
+                    num={1}
+                    urlKey="adBanner1Url"
+                    linkKey="adBanner1Link"
+                    altKey="adBanner1Alt"
+                    form={form}
+                    set={set}
+                  />
                   <div className="mt-4">
-                    <AdBannerCard num={2} urlKey="adBanner2Url" linkKey="adBanner2Link" altKey="adBanner2Alt" form={form} set={set} />
+                    <AdBannerCard
+                      num={2}
+                      urlKey="adBanner2Url"
+                      linkKey="adBanner2Link"
+                      altKey="adBanner2Alt"
+                      form={form}
+                      set={set}
+                    />
                   </div>
                   <div className="mt-4">
-                    <AdBannerCard num={3} urlKey="adBanner3Url" linkKey="adBanner3Link" altKey="adBanner3Alt" form={form} set={set} />
+                    <AdBannerCard
+                      num={3}
+                      urlKey="adBanner3Url"
+                      linkKey="adBanner3Link"
+                      altKey="adBanner3Alt"
+                      form={form}
+                      set={set}
+                    />
                   </div>
                 </div>
               </div>
@@ -713,11 +931,26 @@ export default function Settings() {
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Redes sociales
                 </h2>
-                {field("facebookUrl", "Facebook", { type: "url", placeholder: "https://facebook.com/..." })}
-                {field("twitterUrl", "Twitter / X", { type: "url", placeholder: "https://twitter.com/..." })}
-                {field("instagramUrl", "Instagram", { type: "url", placeholder: "https://instagram.com/..." })}
-                {field("youtubeUrl", "YouTube", { type: "url", placeholder: "https://youtube.com/..." })}
-                {field("tiktokUrl", "TikTok", { type: "url", placeholder: "https://tiktok.com/@..." })}
+                {field("facebookUrl", "Facebook", {
+                  type: "url",
+                  placeholder: "https://facebook.com/...",
+                })}
+                {field("twitterUrl", "Twitter / X", {
+                  type: "url",
+                  placeholder: "https://twitter.com/...",
+                })}
+                {field("instagramUrl", "Instagram", {
+                  type: "url",
+                  placeholder: "https://instagram.com/...",
+                })}
+                {field("youtubeUrl", "YouTube", {
+                  type: "url",
+                  placeholder: "https://youtube.com/...",
+                })}
+                {field("tiktokUrl", "TikTok", {
+                  type: "url",
+                  placeholder: "https://tiktok.com/@...",
+                })}
               </div>
             )}
 
@@ -727,10 +960,23 @@ export default function Settings() {
                 <h2 className="font-display font-semibold text-sm uppercase tracking-wide text-muted-foreground border-b border-border pb-2">
                   Pie de página
                 </h2>
-                {textarea("footerText", "Descripción breve en el footer", 3, "Aparece debajo del nombre del sitio en el pie de página.")}
-                {field("footerCopyright", "Texto de derechos de autor", { placeholder: "© 2025 El Príncipe Mestizo. Todos los derechos reservados." })}
-                {field("footerLocation", "Ubicación", { placeholder: "San Ramón, Chanchamayo — Junín, Perú" })}
-                {field("footerContactEmail", "Correo en el footer", { type: "email", placeholder: "contacto@ejemplo.com" })}
+                {textarea(
+                  "footerText",
+                  "Descripción breve en el footer",
+                  3,
+                  "Aparece debajo del nombre del sitio en el pie de página.",
+                )}
+                {field("footerCopyright", "Texto de derechos de autor", {
+                  placeholder:
+                    "© 2025 El Príncipe Mestizo. Todos los derechos reservados.",
+                })}
+                {field("footerLocation", "Ubicación", {
+                  placeholder: "San Ramón, Chanchamayo — Junín, Perú",
+                })}
+                {field("footerContactEmail", "Correo en el footer", {
+                  type: "email",
+                  placeholder: "contacto@ejemplo.com",
+                })}
               </div>
             )}
 
@@ -746,13 +992,20 @@ export default function Settings() {
                   hint="Aparece cuando alguien comparte la portada del sitio en redes. Recomendado: 1200×630 px."
                   onChange={set("ogImage")}
                 />
-                {textarea("metaKeywords", "Palabras clave SEO", 2, "Separadas por comas. Ejemplo: Chanchamayo, San Ramón, denuncia, Perú, opinión")}
+                {textarea(
+                  "metaKeywords",
+                  "Palabras clave SEO",
+                  2,
+                  "Separadas por comas. Ejemplo: Chanchamayo, San Ramón, denuncia, Perú, opinión",
+                )}
               </div>
             )}
 
             {/* Guardar */}
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-              <p className="text-xs font-sans-ui text-muted-foreground">Los cambios se aplican al recargar la página del sitio.</p>
+              <p className="text-xs font-sans-ui text-muted-foreground">
+                Los cambios se aplican al recargar la página del sitio.
+              </p>
               <button
                 type="submit"
                 disabled={saving}

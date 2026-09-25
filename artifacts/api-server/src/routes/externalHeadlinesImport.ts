@@ -5,6 +5,7 @@ import crypto from "crypto";
 import * as cheerio from "cheerio";
 import { logger } from "../lib/logger";
 import { proxyImageUrl } from "../lib/imageProxy";
+import { sanitizeHtml } from "../lib/sanitize";
 
 const router = Router();
 
@@ -127,8 +128,9 @@ router.post(
             title: hl.title.slice(0, 1000),
             link: hl.link,
             source: hl.source.slice(0, 255),
-            summary: hl.summary?.slice(0, 2000) ?? null,
-            content: resolvedContent.slice(0, 50000) || null,
+            // Saneamiento XSS: contenido externo llega crudo y se renderiza con dangerouslySetInnerHTML
+            summary: sanitizeHtml(hl.summary?.slice(0, 2000) ?? "") || null,
+            content: sanitizeHtml(resolvedContent.slice(0, 50000)) || null,
             imageUrl: resolvedImageUrl.slice(0, 1024) || null,
             slug: hl.slug?.slice(0, 200) ?? null,
             pubDate: new Date(hl.pub_date),

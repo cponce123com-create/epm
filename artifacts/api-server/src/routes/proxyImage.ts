@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
+import dns from "node:dns/promises";
+import net from "node:net";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -118,6 +120,85 @@ function isAllowedImageHost(url: string): boolean {
   }
 }
 
+// ── Protección SSRF ──────────────────────────────────────────────────────────
+// Bloquea hosts privados, localhost, direcciones de metadatos de cloud
+// (169.254.169.254) e IP literales internas, incluso si la URL termina en
+// una extensión de imagen válida.
+function isPrivateIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const parts = ip.split(".").map(Number);
+    const [a, b] = parts;
+    if (a === 10) return true; // 10/8
+    if (a === 127) return true; // loopback
+    if (a === 0) return true; // this network
+    if (a === 169 && b === 254) return true; // link-local / metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
+    if (a === 192 && b === 168) return true; // 192.168/16
+    if (a === 192 && b === 0) return true; // 192.0.0/24 & 192.0.2/24
+    if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
+    if (a === 198 && b === 51) return true; // TEST-NET-2
+    if (a === 203 && b === 0 && parts[2] === 113) return true; // TEST-NET-3
+    if (a >= 224) return true; // multicast & reserved
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower === "::" || lower === "::1") return true;
+    if (
+      lower.startsWith("fe80") ||
+      lower.startsWith("fc") ||
+      lower.startsWith("fd")
+    )
+      return true;
+    // IPv4-mapped (::ffff:x.x.x.x)
+    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    // 6to4 / teredo rarez — bloquear rangos únicos locales adicionales
+    if (/^f[0-9a-f]{2}:/.test(lower)) return true;
+    return false;
+  }
+  return true; // valor no parseable → denegar por defecto
+}
+
+async function assertSafeUrl(rawUrl: string): Promise<boolean> {
+  let urlObj: URL;
+  try {
+    urlObj = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") return false;
+  const hostname = urlObj.hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1");
+
+  // IP literal: verificar directamente
+  if (net.isIP(hostname)) return !isPrivateIp(hostname);
+
+  // Denegar nombres internos típicos
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".internal") ||
+    hostname.endsWith(".local") ||
+    hostname === "metadata" ||
+    hostname === "metadata.google.internal"
+  ) {
+    return false;
+  }
+
+  // Resolver DNS y verificar que ninguna dirección apuntada sea privada
+  try {
+    const [addresses, v6] = await Promise.all([
+      dns.resolve4(hostname).catch(() => [] as string[]),
+      dns.resolve6(hostname).catch(() => [] as string[]),
+    ]);
+    const all = [...addresses, ...v6];
+    if (all.length === 0) return false; // sin resolución → denegar
+    return all.every((ip) => !isPrivateIp(ip));
+  } catch {
+    return false; // fallo de resolución → denegar por defecto
+  }
+}
+
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -146,6 +227,13 @@ router.get("/proxy-image", async (req, res): Promise<void> => {
   const raw = String(req.query["url"] ?? "");
 
   if (!raw || !isAllowedImageHost(raw)) {
+    res.status(400).json({ error: "URL de imagen no permitida." });
+    return;
+  }
+
+  // SSRF: denegar hosts privados/loopback/metadata incluso con extensión de imagen
+  if (!(await assertSafeUrl(raw))) {
+    logger.warn({ url: raw }, "Proxy blocked SSRF candidate URL");
     res.status(400).json({ error: "URL de imagen no permitida." });
     return;
   }

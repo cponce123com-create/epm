@@ -1,7 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { db, siteSettingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireSuperAdmin } from "../middlewares/requireSuperAdmin";
 
@@ -67,6 +66,10 @@ const SETTING_KEYS = [
   "ad_banner_3_alt",
   // Publicidad AdSense
   "adsense_client",
+  "ad_slot_1_id",
+  "ad_slot_2_id",
+  "ad_slot_3_id",
+  "ad_slot_4_id",
   // Publicidad directa
   "ads_mode",
   "ad_slot_1_image",
@@ -93,70 +96,75 @@ async function getAllSettings() {
   }
   return {
     // General
-    siteName:           map["site_name"]           ?? "El Príncipe Mestizo",
-    siteTagline:        map["site_tagline"]         ?? "",
-    siteDescription:    map["site_description"]    ?? "Comunicador ciudadano desde San Ramón, Chanchamayo (Perú)",
-    siteUrl:            map["site_url"]             ?? "",
-    contactEmail:       map["contact_email"]        ?? "",
+    siteName: map["site_name"] ?? "El Príncipe Mestizo",
+    siteTagline: map["site_tagline"] ?? "",
+    siteDescription:
+      map["site_description"] ??
+      "Comunicador ciudadano desde San Ramón, Chanchamayo (Perú)",
+    siteUrl: map["site_url"] ?? "",
+    contactEmail: map["contact_email"] ?? "",
     // Identidad visual
-    logoUrl:            map["logo_url"]             ?? "",
-    faviconUrl:         map["favicon_url"]          ?? "",
+    logoUrl: map["logo_url"] ?? "",
+    faviconUrl: map["favicon_url"] ?? "",
     // Header
-    headerTopText:      map["header_top_text"]      ?? "",
+    headerTopText: map["header_top_text"] ?? "",
     // SEO / Open Graph
-    ogImage:            map["og_image"]             ?? "",
-    metaKeywords:       map["meta_keywords"]        ?? "",
-    googleVerification: map["google_verification"]  ?? "",
+    ogImage: map["og_image"] ?? "",
+    metaKeywords: map["meta_keywords"] ?? "",
+    googleVerification: map["google_verification"] ?? "",
     // Redes sociales
-    twitterUrl:         map["twitter_url"]          ?? "",
-    facebookUrl:        map["facebook_url"]         ?? "",
-    youtubeUrl:         map["youtube_url"]          ?? "",
-    instagramUrl:       map["instagram_url"]        ?? "",
-    tiktokUrl:          map["tiktok_url"]           ?? "",
+    twitterUrl: map["twitter_url"] ?? "",
+    facebookUrl: map["facebook_url"] ?? "",
+    youtubeUrl: map["youtube_url"] ?? "",
+    instagramUrl: map["instagram_url"] ?? "",
+    tiktokUrl: map["tiktok_url"] ?? "",
     // Pie de página
-    footerText:         map["footer_text"]          ?? "Opinión y denuncia ciudadana desde la selva central peruana.",
-    footerCopyright:    map["footer_copyright"]     ?? "",
-    footerLocation:     map["footer_location"]      ?? "San Ramón, Chanchamayo — Junín, Perú",
+    footerText:
+      map["footer_text"] ??
+      "Opinión y denuncia ciudadana desde la selva central peruana.",
+    footerCopyright: map["footer_copyright"] ?? "",
+    footerLocation:
+      map["footer_location"] ?? "San Ramón, Chanchamayo — Junín, Perú",
     footerContactEmail: map["footer_contact_email"] ?? "",
     footerShowSections: map["footer_show_sections"] ?? "true",
     // Acerca de
-    aboutTitle:         map["about_title"]          ?? "",
-    aboutText:          map["about_text"]           ?? "",
-    aboutPhotoUrl:      map["about_photo_url"]      ?? "",
-    aboutRole:          map["about_role"]           ?? "",
-    aboutLandscapeUrl:  map["about_landscape_url"]  ?? "",
+    aboutTitle: map["about_title"] ?? "",
+    aboutText: map["about_text"] ?? "",
+    aboutPhotoUrl: map["about_photo_url"] ?? "",
+    aboutRole: map["about_role"] ?? "",
+    aboutLandscapeUrl: map["about_landscape_url"] ?? "",
     // Publicidad banners
-    adBanner1Url:       map["ad_banner_1_url"]      ?? "",
-    adBanner1Link:      map["ad_banner_1_link"]     ?? "",
-    adBanner1Alt:       map["ad_banner_1_alt"]      ?? "",
-    adBanner2Url:       map["ad_banner_2_url"]      ?? "",
-    adBanner2Link:      map["ad_banner_2_link"]     ?? "",
-    adBanner2Alt:       map["ad_banner_2_alt"]      ?? "",
-    adBanner3Url:       map["ad_banner_3_url"]      ?? "",
-    adBanner3Link:      map["ad_banner_3_link"]     ?? "",
-    adBanner3Alt:       map["ad_banner_3_alt"]      ?? "",
+    adBanner1Url: map["ad_banner_1_url"] ?? "",
+    adBanner1Link: map["ad_banner_1_link"] ?? "",
+    adBanner1Alt: map["ad_banner_1_alt"] ?? "",
+    adBanner2Url: map["ad_banner_2_url"] ?? "",
+    adBanner2Link: map["ad_banner_2_link"] ?? "",
+    adBanner2Alt: map["ad_banner_2_alt"] ?? "",
+    adBanner3Url: map["ad_banner_3_url"] ?? "",
+    adBanner3Link: map["ad_banner_3_link"] ?? "",
+    adBanner3Alt: map["ad_banner_3_alt"] ?? "",
     // AdSense
-    adsenseClient:      map["adsense_client"]       ?? "",
-    adSlot1Id:          map["ad_slot_1_id"]          ?? "",
-    adSlot2Id:          map["ad_slot_2_id"]          ?? "",
-    adSlot3Id:          map["ad_slot_3_id"]          ?? "",
-    adSlot4Id:          map["ad_slot_4_id"]          ?? "",
+    adsenseClient: map["adsense_client"] ?? "",
+    adSlot1Id: map["ad_slot_1_id"] ?? "",
+    adSlot2Id: map["ad_slot_2_id"] ?? "",
+    adSlot3Id: map["ad_slot_3_id"] ?? "",
+    adSlot4Id: map["ad_slot_4_id"] ?? "",
     // Publicidad directa
-    adsMode:            map["ads_mode"]             ?? "disabled",
-    adSlot1Image:       map["ad_slot_1_image"]      ?? "",
-    adSlot1Link:        map["ad_slot_1_link"]       ?? "",
-    adSlot1Alt:         map["ad_slot_1_alt"]        ?? "",
-    adSlot2Image:       map["ad_slot_2_image"]      ?? "",
-    adSlot2Link:        map["ad_slot_2_link"]       ?? "",
-    adSlot2Alt:         map["ad_slot_2_alt"]        ?? "",
+    adsMode: map["ads_mode"] ?? "disabled",
+    adSlot1Image: map["ad_slot_1_image"] ?? "",
+    adSlot1Link: map["ad_slot_1_link"] ?? "",
+    adSlot1Alt: map["ad_slot_1_alt"] ?? "",
+    adSlot2Image: map["ad_slot_2_image"] ?? "",
+    adSlot2Link: map["ad_slot_2_link"] ?? "",
+    adSlot2Alt: map["ad_slot_2_alt"] ?? "",
     // Código HTML/JS
-    adCode1:            map["ad_code_1"]            ?? "",
-    adCode2:            map["ad_code_2"]            ?? "",
+    adCode1: map["ad_code_1"] ?? "",
+    adCode2: map["ad_code_2"] ?? "",
     // SMTP
-    smtpHost:           map["smtp_host"]            ?? "",
-    smtpPort:           map["smtp_port"]            ?? "587",
-    smtpUser:           map["smtp_user"]            ?? "",
-    smtpPass:           map["smtp_pass"]            ?? "",
+    smtpHost: map["smtp_host"] ?? "",
+    smtpPort: map["smtp_port"] ?? "587",
+    smtpUser: map["smtp_user"] ?? "",
+    smtpPass: map["smtp_pass"] ?? "",
   };
 }
 
@@ -189,65 +197,90 @@ router.get("/admin/settings", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ── PUT admin — guarda un campo a la vez ──────────────────────────────────
-router.put("/admin/settings", requireAuth, requireSuperAdmin, async (req, res): Promise<void> => {
-  const parsed = UpdateSettingBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "key y value son requeridos" });
-    return;
-  }
-
-  const { key, value } = parsed.data;
-
-  // Validar que la clave esté en la whitelist de configuración permitida
-  if (!(SETTING_KEYS as readonly string[]).includes(key)) {
-    res.status(400).json({ error: `Clave de configuración no permitida: ${key}` });
-    return;
-  }
-
-  await db
-    .insert(siteSettingsTable)
-    .values({ key, value })
-    .onConflictDoUpdate({
-      target: siteSettingsTable.key,
-      set: { value },
-    });
-
-  res.json({ ok: true });
-});
-
-// ── POST /admin/settings/test-smtp — prueba de conexión SMTP ─────────────
-router.post("/admin/settings/test-smtp", requireAuth, requireSuperAdmin, async (req: Request, res: Response): Promise<void> => {
-  const parsed = TestSmtpBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Campos inválidos. Se requiere: host, port, user, pass, to." });
-    return;
-  }
-
-  const { host, port, user, pass, to } = parsed.data;
-
-  try {
-    // Intentar conectar usando nodemailer (si está instalado)
-    let transporter;
-    try {
-      const nodemailer = await import("nodemailer");
-      transporter = nodemailer.default.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-        tls: { rejectUnauthorized: false },
-        connectionTimeout: 5000,
-      });
-    } catch {
-      res.status(500).json({ error: "nodemailer no está instalado. Corre 'pnpm add nodemailer'." });
+router.put(
+  "/admin/settings",
+  requireAuth,
+  requireSuperAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = UpdateSettingBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "key y value son requeridos" });
       return;
     }
 
-    await transporter.verify();
-    res.json({ ok: true, message: `Conexión SMTP exitosa a ${host}:${port}.` });
-  } catch (err: any) {
-    res.status(400).json({ error: `Error SMTP: ${err?.message ?? "desconocido"}` });
-  }
-});
+    const { key, value } = parsed.data;
+
+    // Validar que la clave esté en la whitelist de configuración permitida
+    if (!(SETTING_KEYS as readonly string[]).includes(key)) {
+      res
+        .status(400)
+        .json({ error: `Clave de configuración no permitida: ${key}` });
+      return;
+    }
+
+    await db
+      .insert(siteSettingsTable)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: siteSettingsTable.key,
+        set: { value },
+      });
+
+    res.json({ ok: true });
+  },
+);
+
+// ── POST /admin/settings/test-smtp — prueba de conexión SMTP ─────────────
+router.post(
+  "/admin/settings/test-smtp",
+  requireAuth,
+  requireSuperAdmin,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = TestSmtpBody.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({
+          error: "Campos inválidos. Se requiere: host, port, user, pass, to.",
+        });
+      return;
+    }
+
+    const { host, port, user, pass } = parsed.data;
+
+    try {
+      // Intentar conectar usando nodemailer (si está instalado)
+      let transporter;
+      try {
+        const nodemailer = await import("nodemailer");
+        transporter = nodemailer.default.createTransport({
+          host,
+          port,
+          secure: port === 465,
+          auth: { user, pass },
+          tls: { rejectUnauthorized: false },
+          connectionTimeout: 5000,
+        });
+      } catch {
+        res
+          .status(500)
+          .json({
+            error: "nodemailer no está instalado. Corre 'pnpm add nodemailer'.",
+          });
+        return;
+      }
+
+      await transporter.verify();
+      res.json({
+        ok: true,
+        message: `Conexión SMTP exitosa a ${host}:${port}.`,
+      });
+    } catch (err: any) {
+      res
+        .status(400)
+        .json({ error: `Error SMTP: ${err?.message ?? "desconocido"}` });
+    }
+  },
+);
 
 export default router;

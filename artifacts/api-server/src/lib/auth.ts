@@ -11,7 +11,8 @@ const JWT_EXPIRES_IN = "2h";
 const CLOCK_TOLERANCE_SEC = 60; // tolerancia de reloj
 
 export interface JwtPayload {
-  sub: number; // userId (RFC 7519 standard claim)
+  userId: number; // id de usuario (claim personalizado, legible desde el frontend)
+  sub?: string | number; // claim estándar RFC 7519 (mantiene valor por compatibilidad)
   email: string;
   role: string;
   tokenVersion: number;
@@ -31,7 +32,8 @@ interface SignPayload {
 export function signToken(payload: SignPayload): string {
   return jwt.sign(
     {
-      sub: payload.userId,
+      userId: payload.userId, // claim legible para el decodificador del frontend
+      sub: payload.userId, // claim estándar (compatibilidad)
       email: payload.email,
       role: payload.role,
       tokenVersion: payload.tokenVersion,
