@@ -16,7 +16,11 @@ export default function ArticleList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+    // Also refresh public listings (Home, Category, Search) after publish/delete changes
+    queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+  };
 
   const handleDelete = async (id: number, title: string) => {
     if (!confirm(`¿Eliminar "${title}"? Esta acción no se puede deshacer.`)) return;
@@ -31,7 +35,7 @@ export default function ArticleList() {
 
   const handlePublishToggle = async (id: number, published: boolean) => {
     try {
-      await publishArticle.mutateAsync({ id, data: { published: !published } });
+      await publishArticle.mutateAsync({ id });
       invalidate();
       toast({ description: published ? "Artículo despublicado." : "Artículo publicado." });
     } catch {

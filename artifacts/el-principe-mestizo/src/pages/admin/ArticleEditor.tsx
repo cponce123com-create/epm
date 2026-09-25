@@ -49,8 +49,8 @@ export default function ArticleEditor() {
   });
 
   // For editing: find the article in admin list (returns Article[] not paginated)
-  const { data: adminArticles } = useAdminGetArticles({ limit: 200 }, {
-    query: { enabled: isEdit },
+  const { data: adminArticles } = useAdminGetArticles(undefined, {
+    query: { queryKey: ["/api/admin/articles"], enabled: isEdit },
   });
   const articleFromList = adminArticles?.find((a: any) => String(a.id) === id);
 
@@ -67,7 +67,7 @@ export default function ArticleEditor() {
         content: articleFromList.content,
         categoryId: articleFromList.categoryId,
         status: articleFromList.status as "draft" | "published",
-        featured: articleFromList.isFeatured,
+        featured: articleFromList.featured,
         coverImageUrl: articleFromList.coverImageUrl ?? "",
         coverImageAlt: articleFromList.coverImageAlt ?? "",
       });
@@ -131,12 +131,14 @@ export default function ArticleEditor() {
       if (isEdit && id) {
         await updateArticle.mutateAsync({ id: Number(id), data: payload });
         toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
-        queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
         setLocation("/admin/articles");
       } else {
         const created = await createArticle.mutateAsync({ data: payload });
         toast({ description: status === "published" ? "Artículo publicado." : "Borrador guardado." });
-        queryClient.invalidateQueries({ queryKey: ["admin", "articles"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/articles"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
         setLocation("/admin/articles");
       }
     } catch (err: any) {
